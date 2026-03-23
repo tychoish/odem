@@ -9,7 +9,7 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
-	"github.com/tychoish/shbot/pkg/db"
+	"github.com/tychoish/odem/pkg/db"
 	"github.com/urfave/cli/v3"
 )
 

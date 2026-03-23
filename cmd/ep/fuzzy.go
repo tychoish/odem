@@ -3,6 +3,8 @@ package ep
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/cheynewallace/tabby"
 	fzf "github.com/koki-develop/go-fzf"
@@ -12,9 +14,9 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/shbot/pkg/db"
-	"github.com/tychoish/shbot/pkg/infra"
-	"github.com/tychoish/shbot/pkg/models"
+	"github.com/tychoish/odem/pkg/db"
+	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/models"
 )
 
 func Fuzzy() *cmdr.Commander {
@@ -25,7 +27,7 @@ func Fuzzy() *cmdr.Commander {
 		With(infra.DBOperationSpec(func(ctx context.Context, conn *db.Connection, operation string) error {
 			switch operation {
 			case "leaders", "leader", "singer":
-				return leaderAction(ctx, conn, "")
+				return leaderAction(ctx, conn, nil)
 			case "songs", "song":
 				return songAction(ctx, conn, "")
 			default:
@@ -45,7 +47,7 @@ func Fuzzy() *cmdr.Commander {
 
 				switch options.Index(idx[0]) {
 				case "leaders":
-					return leaderAction(ctx, conn, "")
+					return leaderAction(ctx, conn, nil)
 				case "songs":
 					return songAction(ctx, conn, "")
 				default:
@@ -57,7 +59,7 @@ func Fuzzy() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("leaders").
 				Aliases("leader").
-				With(infra.DBOperationSpec(leaderAction).Add),
+				With(infra.MakeDBOperationSpec("name", leaderAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").
 				SetName("song").
@@ -65,7 +67,8 @@ func Fuzzy() *cmdr.Commander {
 		)
 }
 
-func leaderAction(ctx context.Context, conn *db.Connection, leader string) error {
+func leaderAction(ctx context.Context, conn *db.Connection, args []string) error {
+	leader := strings.Join(args, " ")
 	if leader == "" {
 		var err error
 		leader, err = SelectLeader(ctx, conn)
@@ -94,9 +97,13 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 	var ec erc.Collector
 
 	if song != "" {
+		// wr := send.MakeWriterSender(logger.Plain(ctx).Sender())
 		for s := range erc.HandleAll(conn.AllSongDetails(ctx), ec.Push) {
 			if song == s.PageNum {
-				grip.Infof("selection:\n%s---", infra.NewYAML(s).String())
+				ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
+				if _, err := os.Stdout.Write([]byte{'\n'}); !ec.PushOk(err) {
+					return ec.Resolve()
+				}
 				ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
 				return ec.Resolve()
 
@@ -112,7 +119,11 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 		return err
 	}
 
-	grip.Infoln("selection:\n", infra.NewYAML(s).String(), "\n---")
+	ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
+	if _, err := os.Stdout.Write([]byte{'\n'}); !ec.PushOk(err) {
+		return ec.Resolve()
+	}
+	ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
 
 	return renderTopLeaders(ctx, conn, s.PageNum)
 }

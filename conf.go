@@ -1,4 +1,4 @@
-package shbot
+package odem
 
 import "github.com/tychoish/grip/level"
 

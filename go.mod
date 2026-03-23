@@ -1,4 +1,4 @@
-module github.com/tychoish/shbot
+module github.com/tychoish/odem
 
 go 1.25.7
 

@@ -7,7 +7,7 @@ import (
 	"iter"
 
 	"github.com/tychoish/dbx"
-	"github.com/tychoish/shbot/pkg/models"
+	"github.com/tychoish/odem/pkg/models"
 
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"

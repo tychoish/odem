@@ -2,12 +2,12 @@ package main
 
 import (
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/tychoish/shbot/cmd/ep"
-	"github.com/tychoish/shbot/pkg/infra"
+	"github.com/tychoish/odem/cmd/ep"
+	"github.com/tychoish/odem/pkg/infra"
 )
 
 func main() {
-	infra.MainCLI("shbot",
+	infra.MainCLI("odem",
 		ep.Version(),
 		ep.Hacking(),
 		ep.Fuzzy(),
