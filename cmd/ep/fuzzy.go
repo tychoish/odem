@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/cheynewallace/tabby"
-	fzf "github.com/koki-develop/go-fzf"
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
@@ -31,25 +30,21 @@ func Fuzzy() *cmdr.Commander {
 			case "songs", "song":
 				return songAction(ctx, conn, "")
 			default:
-				options := stw.Slice[string]{"leaders", "songs"}
+				options := stw.Slice[string]{"leaders", "songs", "exit"}
 
-				idx, err := erc.Must(fzf.New(
-					fzf.WithPrompt("search => "),
-					fzf.WithCaseSensitive(false),
-					fzf.WithLimit(32), //
-				)).Find(options, options.Index)
+				op, err := infra.NewFuzzySearch[string](options).FindOne("search")
 				if err != nil {
 					return err
 				}
-				if len(idx) == 0 {
-					return ers.New("no selection")
-				}
 
-				switch options.Index(idx[0]) {
+				switch op {
 				case "leaders":
 					return leaderAction(ctx, conn, nil)
 				case "songs":
 					return songAction(ctx, conn, "")
+				case "exit":
+					grip.Info("goodbye!")
+					return nil
 				default:
 					return ers.New("selection not found")
 				}
@@ -59,10 +54,12 @@ func Fuzzy() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("leaders").
 				Aliases("leader").
+				SetUsage("search for a leader").
 				With(infra.MakeDBOperationSpec("name", leaderAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").
-				SetName("song").
+				Aliases("song").
+				SetUsage("find out more about a song and it's top leaders.").
 				With(infra.DBOperationSpec(songAction).Add),
 		)
 }
@@ -71,7 +68,7 @@ func leaderAction(ctx context.Context, conn *db.Connection, args []string) error
 	leader := strings.Join(args, " ")
 	if leader == "" {
 		var err error
-		leader, err = SelectLeader(ctx, conn)
+		leader, err = selectLeader(ctx, conn)
 		if err != nil {
 			return err
 		}
@@ -81,51 +78,47 @@ func leaderAction(ctx context.Context, conn *db.Connection, args []string) error
 	table := tabby.New()
 	table.AddHeader("Count", "Song", "Title", "Key")
 	var ct int
-	for song, err := range conn.MostLeadSongs(ctx, leader, 20) {
+	var ec erc.Collector
+	for song := range erc.HandleUntil(conn.MostLeadSongs(ctx, leader, 20), ec.Push) {
 		ct++
-		if err != nil {
-			return err
-		}
 		table.AddLine(song.NumLeads, song.PageNum, song.SongTitle, song.Key)
 	}
-	table.Print()
+	if ec.Ok() {
+		table.Print()
+	}
 	grip.Infof("saw %d songs", ct)
-	return nil
+	return ec.Resolve()
 }
 
 func songAction(ctx context.Context, conn *db.Connection, song string) error {
+	var s *models.SongDetail
 	var ec erc.Collector
 
 	if song != "" {
-		// wr := send.MakeWriterSender(logger.Plain(ctx).Sender())
-		for s := range erc.HandleAll(conn.AllSongDetails(ctx), ec.Push) {
-			if song == s.PageNum {
-				ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
-				if _, err := os.Stdout.Write([]byte{'\n'}); !ec.PushOk(err) {
-					return ec.Resolve()
-				}
-				ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
-				return ec.Resolve()
-
-			}
-		}
-	}
-	if !ec.Ok() {
-		return ec.Resolve()
+		sg, err := conn.GetSong(ctx, song)
+		ec.Push(err)
+		s = &sg
 	}
 
-	s, err := SelectSong(ctx, conn)
-	if err != nil {
-		return err
+	if s == nil {
+		sg, err := infra.NewFuzzySearch[models.SongDetail](
+			irt.Collect(erc.HandleAll(conn.AllSongDetails(ctx), ec.Push)),
+		).WithToString(func(in models.SongDetail) string {
+			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
+		}).FindOne("songs")
+
+		ec.Push(err)
+		s = &sg
 	}
 
-	ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
-	if _, err := os.Stdout.Write([]byte{'\n'}); !ec.PushOk(err) {
-		return ec.Resolve()
+	ec.When(s == nil, "no matching song found")
+	if ec.Ok() {
+		ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
+		ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
+		ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
 	}
-	ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
 
-	return renderTopLeaders(ctx, conn, s.PageNum)
+	return ec.Resolve()
 }
 
 func renderTopLeaders(ctx context.Context, conn *db.Connection, pageNum string) error {
@@ -141,7 +134,7 @@ func renderTopLeaders(ctx context.Context, conn *db.Connection, pageNum string) 
 	return nil
 }
 
-func SelectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
+func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 	var ec erc.Collector
 
 	names := irt.Collect(erc.HandleAll(dbconn.AllLeaderNames(ctx), ec.Push))
@@ -149,33 +142,10 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 		return "", ec.Resolve()
 	}
 
-	idx, err := erc.Must(fzf.New(
-		fzf.WithPrompt("leaders => "),
-		fzf.WithCaseSensitive(false),
-		fzf.WithLimit(32), //
-	)).Find(names, func(in int) string { return names[in] })
-	ec.Push(err)
-	if !ec.Ok() {
+	leader, err := infra.NewFuzzySearch[string](names).FindOne("leaders")
+	if !ec.PushOk(err) {
 		return "", ec.Resolve()
 	}
-	return names[idx[0]], nil
-}
 
-func SelectSong(ctx context.Context, dbconn *db.Connection) (*models.SongDetail, error) {
-	var ec erc.Collector
-
-	songs := irt.Collect(erc.HandleAll(dbconn.AllSongDetails(ctx), ec.Push))
-	if !ec.Ok() {
-		return nil, ec.Resolve()
-	}
-	idx, err := erc.Must(fzf.New(
-		fzf.WithPrompt("songs => "),
-		fzf.WithCaseSensitive(false),
-		fzf.WithLimit(32), //
-	)).Find(songs, func(in int) string { return fmt.Sprintf("pg %s -- %s", songs[in].PageNum, songs[in].SongTitle) })
-	ec.Push(err)
-	if !ec.Ok() {
-		return nil, ec.Resolve()
-	}
-	return &songs[idx[0]], nil
+	return leader, nil
 }

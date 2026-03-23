@@ -14,7 +14,10 @@ import (
 	"github.com/tychoish/fun/srv"
 )
 
-type Connection struct{ db *sql.DB }
+type Connection struct {
+	db *sql.DB
+	*models.Queries
+}
 
 func Connect(ctx context.Context) (*Connection, error) {
 	if err := Init(); err != nil {
@@ -27,7 +30,7 @@ func Connect(ctx context.Context) (*Connection, error) {
 	}
 	srv.AddCleanup(ctx, fnx.MakeWorker(db.Close))
 
-	return &Connection{db: db}, nil
+	return &Connection{db: db, Queries: models.New(db)}, nil
 }
 
 func (conn *Connection) AllSongDetails(ctx context.Context) iter.Seq2[models.SongDetail, error] {

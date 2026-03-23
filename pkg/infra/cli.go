@@ -2,13 +2,10 @@ package infra
 
 import (
 	"context"
-	"encoding/json"
 	"os/signal"
 	"syscall"
 
-	"github.com/goccy/go-yaml"
 	"github.com/tychoish/cmdr"
-	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
@@ -38,9 +35,7 @@ func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.C
 
 			return &WithInput[T]{DB: conn, Args: cmdr.GetFlagOrFirstArg[T](cc, argName)}, nil
 		},
-	).SetAction(func(ctx context.Context, in *WithInput[T]) error {
-		return action(ctx, in.DB, in.Args)
-	})
+	).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) })
 }
 
 func MainCLI(name string, cmdrs ...*cmdr.Commander) {
@@ -59,15 +54,3 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		Subcommanders(cmdrs...),
 	)
 }
-
-type JSON[T any] struct{ inner T }
-
-func NewJSON[T any](in T) JSON[T] { return JSON[T]{inner: in} }
-
-func (j JSON[T]) String() string { return string(erc.Must(json.Marshal(j.inner))) }
-
-type YAML[T any] struct{ inner T }
-
-func NewYAML[T any](in T) YAML[T] { return YAML[T]{inner: in} }
-
-func (j YAML[T]) String() string { return string(erc.Must(yaml.Marshal(j.inner))) }
