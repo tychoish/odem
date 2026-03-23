@@ -1,0 +1,3 @@
+[submodule "fasoladb"]
+	path = pkg/db/fasoladb
+	url = https://github.com/marktgodfrey/fasolaminutes_parsing/
