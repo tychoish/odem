@@ -88,20 +88,10 @@ LIMIT ?;`
 
 func (conn *Connection) TopLeadersOfSong(ctx context.Context, song string, limit int) iter.Seq2[models.LeaderOfSongInfo, error] {
 	const query = `
-SELECT
-	leaders.name,
-	lss.lesson_count AS count,
-	MAX(m.Year) - MIN(m.Year) AS num_years,
-	CASE WHEN MAX(m.Year) >= (SELECT MAX(Year) FROM minutes) - 1 THEN 1 ELSE 0 END AS led_in_last_year
-FROM leader_song_stats AS lss
-JOIN leaders ON lss.leader_id = leaders.id
-JOIN songs ON lss.song_id = songs.id
-JOIN book_song_joins AS bsj ON songs.id = bsj.song_id AND bsj.book_id = 2
-JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id = lss.song_id
-JOIN minutes AS m ON slj.minutes_id = m.id
-WHERE bsj.page_num = ?
-GROUP BY lss.leader_id
-ORDER BY lss.lesson_count DESC
+SELECT name, count, num_years, led_in_last_year
+FROM song_leader_stats
+WHERE page_num = ?
+ORDER BY count DESC
 LIMIT ?;`
 
 	cur, err := conn.db.QueryContext(ctx, query, song, cmp.Or(limit, 40))
@@ -109,4 +99,51 @@ LIMIT ?;`
 		return irt.Two(models.LeaderOfSongInfo{}, err)
 	}
 	return dbx.Cursor[models.LeaderOfSongInfo](cur)
+}
+
+func (conn *Connection) AllLessons(ctx context.Context, leader string) iter.Seq2[models.LessonInfo, error] {
+	const query = `
+SELECT
+	leader AS singer_name,
+	song_page_number,
+	song_title AS song_name,
+	song_keys AS song_key,
+	minutes_date AS singing_date,
+	minutes_name AS singing_name,
+	location_state AS singing_state
+FROM minutes_expanded
+WHERE leader = ?;`
+
+	cur, err := conn.db.QueryContext(ctx, query, leader)
+	if err != nil {
+		return irt.Two(models.LessonInfo{}, err)
+	}
+	return dbx.Cursor[models.LessonInfo](cur)
+}
+
+func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter.Seq2[models.SingingLessionInfo, error] {
+	const query = `
+SELECT sequence_number, singer_name, song_page_number, song_name, song_key
+FROM singing_lessons
+WHERE singing_name = ?;`
+
+	cur, err := conn.db.QueryContext(ctx, query, singing)
+	if err != nil {
+		return irt.Two(models.SingingLessionInfo{}, err)
+	}
+	return dbx.Cursor[models.SingingLessionInfo](cur)
+}
+
+func (conn *Connection) AllSingings(ctx context.Context, singing string) iter.Seq2[models.SingingInfo, error] {
+	const query = `
+SELECT singing_date, singing_name, singing_state, singing_location, number_of_lessons, number_of_leaders
+FROM singing_info
+WHERE (? = '' OR singing_name = ?)
+ORDER BY singing_date;`
+
+	cur, err := conn.db.QueryContext(ctx, query, singing, singing)
+	if err != nil {
+		return irt.Two(models.SingingInfo{}, err)
+	}
+	return dbx.Cursor[models.SingingInfo](cur)
 }

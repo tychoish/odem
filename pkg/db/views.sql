@@ -77,6 +77,49 @@ LEFT JOIN minutes_location_joins AS mlg ON minutes.id = mgl.minutes_id
 LEFT JOIN singings ON mlg.singing_id = singings.id
 LEFT JOIN locations ON mlg.location_id = locations.id;
 
+CREATE VIEW singing_lessons AS
+SELECT
+	ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS sequence_number,
+	COALESCE(m."Name", '') AS singing_name,
+	COALESCE(l.name, '') AS singer_name,
+	COALESCE(bsj.page_num, '') AS song_page_number,
+	COALESCE(s.title, '') AS song_name,
+	COALESCE(bsj.keys, '') AS song_key
+FROM song_leader_joins AS slj
+JOIN minutes AS m ON slj.minutes_id = m.id
+JOIN leaders AS l ON slj.leader_id = l.id
+JOIN songs AS s ON slj.song_id = s.id
+JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2;
+
+CREATE VIEW singing_info AS
+SELECT
+	COALESCE(MIN(m."Date"), '') AS singing_date,
+	COALESCE(m."Name", '') AS singing_name,
+	COALESCE(loc.state_province, '') AS singing_state,
+	COALESCE(m."Location", '') AS singing_location,
+	COUNT(slj.id) AS number_of_lessons,
+	COUNT(DISTINCT slj.leader_id) AS number_of_leaders
+FROM minutes AS m
+LEFT JOIN song_leader_joins AS slj ON m.id = slj.minutes_id
+LEFT JOIN minutes_location_joins AS mlj ON m.id = mlj.minutes_id
+LEFT JOIN locations AS loc ON mlj.location_id = loc.id
+GROUP BY m.id;
+
+CREATE VIEW song_leader_stats AS
+SELECT
+	leaders.name,
+	bsj.page_num,
+	lss.lesson_count AS count,
+	MAX(m.Year) - MIN(m.Year) AS num_years,
+	CASE WHEN MAX(m.Year) >= (SELECT MAX(Year) FROM minutes) - 1 THEN 1 ELSE 0 END AS led_in_last_year
+FROM leader_song_stats AS lss
+JOIN leaders ON lss.leader_id = leaders.id
+JOIN songs ON lss.song_id = songs.id
+JOIN book_song_joins AS bsj ON songs.id = bsj.song_id AND bsj.book_id = 2
+JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id = lss.song_id
+JOIN minutes AS m ON slj.minutes_id = m.id
+GROUP BY lss.leader_id, bsj.page_num;
+
 CREATE VIEW leader_details AS
 SELECT
 	COALESCE(leaders.name, '') AS leader_name,
