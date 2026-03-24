@@ -124,6 +124,39 @@ JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id =
 JOIN minutes AS m ON slj.minutes_id = m.id
 GROUP BY lss.leader_id, bsj.page_num;
 
+CREATE VIEW leader_minutes AS
+SELECT
+	COALESCE(l.id, 0) AS leader_id,
+	COALESCE(l.name, '') AS leader_name,
+	COALESCE(slj.minutes_id, 0) AS minutes_id
+FROM song_leader_joins AS slj
+JOIN leaders AS l ON slj.leader_id = l.id;
+
+-- Indexes for query performance (not in embedded db file)
+CREATE INDEX leaders_name ON leaders(name);
+CREATE INDEX slj_leader_minutes ON song_leader_joins(leader_id, minutes_id);
+CREATE INDEX slj_minutes_leader ON song_leader_joins(minutes_id, leader_id);
+
+-- Deduplicated (leader_id, minutes_id) pairs used for co-attendance computation.
+-- song_leader_joins has ~2 rows per (leader, singing); this table deduplicates them.
+CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
+CREATE INDEX ls_minutes_leader ON leader_singings(minutes_id, leader_id);
+CREATE INDEX ls_leader_minutes ON leader_singings(leader_id, minutes_id);
+
+-- Precomputed count of shared singings for every (leader_a, leader_b) pair.
+-- Building this takes ~7s but makes SuprisingSingingStrangers run in <1s for typical leaders.
+CREATE TABLE leader_coattendance AS
+SELECT
+	a.leader_id AS leader_a_id,
+	b.leader_id AS leader_b_id,
+	COUNT(*) AS shared_singings
+FROM leader_singings a
+JOIN leader_singings b ON a.minutes_id = b.minutes_id AND a.leader_id != b.leader_id
+GROUP BY a.leader_id, b.leader_id;
+
+CREATE INDEX lca_a ON leader_coattendance(leader_a_id, leader_b_id);
+CREATE INDEX lca_b ON leader_coattendance(leader_b_id, leader_a_id);
+
 CREATE VIEW leader_details AS
 SELECT
 	COALESCE(leaders.name, '') AS leader_name,

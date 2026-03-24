@@ -48,6 +48,8 @@ func NewFuzzySearch[
 		return &FuzzySearchItems[T]{Slice: irt.Collect(inner)}
 	case []T:
 		return &FuzzySearchItems[T]{Slice: inner}
+	case stw.Slice[T]:
+		return &FuzzySearchItems[T]{Slice: inner}
 	case func() iter.Seq[T]:
 		return &FuzzySearchItems[T]{Slice: irt.Collect(inner())}
 	case *dt.Stack[T]:
@@ -59,7 +61,7 @@ func NewFuzzySearch[
 	case dt.List[T]:
 		return &FuzzySearchItems[T]{Slice: irt.Collect(inner.IteratorFront())}
 	default:
-		erc.Invariant(ers.ErrInvalidRuntimeType, "cannot build a fuzzy search list from type")
+		erc.Invariant(ers.ErrInvalidRuntimeType, "cannot build a fuzzy search list from type", func() error { return fmt.Errorf("%T", in) })
 		return nil
 	}
 }

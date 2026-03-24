@@ -31,8 +31,12 @@ func Fuzzy() *cmdr.Commander {
 				return songAction(ctx, conn, "")
 			case "singings", "conventions", "alldays", "all-day", "singing":
 				return singingAction(ctx, conn)
+			case "neighbors", "friends", "connections", "buddies", "buddy":
+				return singingAction(ctx, conn)
+			case "strangers", "never-neighbors", "unknowns":
+				return singingAction(ctx, conn)
 			default:
-				options := stw.Slice[string]{"leaders", "singing", "songs", "exit"}
+				options := stw.Slice[string]{"leaders", "singing", "songs", "exit", "connections"}
 
 				op, err := infra.NewFuzzySearch[string](options).FindOne("search")
 				if err != nil {
@@ -46,6 +50,8 @@ func Fuzzy() *cmdr.Commander {
 					return songAction(ctx, conn, "")
 				case "singing":
 					return singingAction(ctx, conn)
+				case "connections":
+				case "stringers":
 				case "exit":
 					grip.Info("goodbye!")
 					return nil
@@ -64,6 +70,15 @@ func Fuzzy() *cmdr.Commander {
 				SetName("singing").
 				Aliases("singings", "allday").
 				SetUsage("search for a specific singing").
+				With(infra.SimpleDBOperationSpec(singingAction).Add),
+			cmdr.MakeCommander().
+				SetName("connections").
+				Aliases("neighbors", "friends", "buddy", "buddies").
+				SetUsage("find the people that you've sung with the most").
+				With(infra.SimpleDBOperationSpec(singingAction).Add),
+			cmdr.MakeCommander().
+				SetName("strangers").
+				SetUsage("find the people that you've never sung with, surprisingly").
 				With(infra.SimpleDBOperationSpec(singingAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").

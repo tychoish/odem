@@ -39,6 +39,12 @@ type LeaderDetail struct {
 	SongNumLeads        int64  `db:"song_num_leads" json:"song_num_leads"`
 }
 
+type LeaderMinute struct {
+	LeaderID   int64  `db:"leader_id" json:"leader_id"`
+	LeaderName string `db:"leader_name" json:"leader_name"`
+	MinutesID  int64  `db:"minutes_id" json:"minutes_id"`
+}
+
 type LeaderNameAlias struct {
 	ID       int64   `db:"id" json:"id"`
 	LeaderID *int64  `db:"leader_id" json:"leader_id"`
@@ -64,6 +70,7 @@ type LessonDetails struct {
 	ID                     int64  `db:"id" json:"id"`
 	Name                   string `db:"name" json:"name"`
 	LeaderLessonCount      int64  `db:"leader_lesson_count" json:"leader_lesson_count"`
+	LeaderLessonRank       int64  `db:"leader_lesson_rank" json:"leader_lesson_rank"`
 	SongPage               string `db:"song_page" json:"song_page"`
 	SongTitle              string `db:"song_title" json:"song_title"`
 	LeaderTotalLessonCount int64  `db:"leader_total_lesson_count" json:"leader_total_lesson_count"`

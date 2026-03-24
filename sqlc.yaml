@@ -14,3 +14,7 @@ sql:
         emit_all_enum_values: true
         json_tags_case_style: "snake"
         initialisms: ["id", "url"]
+        overrides:
+          - column: "singing_info.singing_date"
+            go_type:
+              type: "DateTime"
