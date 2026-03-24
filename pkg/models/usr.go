@@ -27,15 +27,21 @@ type DateTime time.Time
 func (d *DateTime) Scan(src any) error {
 	s, ok := src.(string)
 	if !ok {
-		return fmt.Errorf("LessonDate: expected string, got %T", src)
+		return fmt.Errorf("DateTime: expected string, got %T", src)
+	}
+	if normalized, ok := dateExceptions[s]; ok {
+		s = normalized
 	}
 	t, err := time.Parse("January 2, 2006", s)
 	if err != nil {
-		return err
+		return fmt.Errorf("DateTime.Scan: %w", err)
 	}
 	*d = DateTime(t)
 	return nil
 }
+
+func (d DateTime) Time() time.Time { return time.Time(d) }
+func (d DateTime) String() string  { return time.Time(d).Format(time.DateOnly) }
 
 type LessonInfo struct {
 	SingerName     string   `db:"singer_name"`
@@ -49,17 +55,18 @@ type LessonInfo struct {
 
 type SingingLessionInfo struct {
 	SequenceNumber int    `db:"sequence_number"` // nth lesson of the day
+	LessonID       int    `db:"lesson_id"`
 	SingerName     string `db:"singer_name"`
 	SongPageNumber string `db:"song_page_number"`
 	SongName       string `db:"song_name"`
 	SongKey        string `db:"song_key"`
 }
 
-type SingingInfo struct {
-	SingingDate     DateTime `db:"singing_date"`
-	SingingName     string   `db:"singing_name"`
-	SingingState    string   `db:"singing_state"`
-	SingingLocation string   `db:"singing_location"`
-	NumberOfLessons int      `db:"number_of_lessons"`
-	NumberOfLeaders int      `db:"number_of_leaders"`
-}
+// type SingingInfo struct {
+// 	SingingName     string   `db:"singing_name"`
+// 	SingingDate     DateTime `db:"singing_date"`
+// 	SingingLocation string   `db:"singing_location"`
+// 	SingingState    string   `db:"singing_state"`
+// 	NumberOfLessons int      `db:"number_of_lessons"`
+// 	NumberOfLeaders int      `db:"number_of_leaders"`
+// }

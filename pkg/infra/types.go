@@ -92,7 +92,7 @@ func (fsi *FuzzySearchItems[T]) Find(prompt string) iter.Seq2[T, error] {
 	if err != nil {
 		return irt.Two(fsi.zero(), err)
 	}
-	idxs, err := ff.Find(fsi, fsi.ItemString)
+	idxs, err := ff.Find(fsi.Slice, fsi.ItemString)
 	if err != nil {
 		return irt.Two(fsi.zero(), err)
 	}

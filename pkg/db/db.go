@@ -69,7 +69,7 @@ func (conn *Connection) MostLeadSongs(ctx context.Context, leader string, limit 
 	const query = `
 SELECT
 	name,
-	leader_lesson_count AS count,
+        leader_lesson_count AS count,
 	song_page,
 	song_title,
 	song_keys
@@ -123,7 +123,7 @@ WHERE leader = ?;`
 
 func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter.Seq2[models.SingingLessionInfo, error] {
 	const query = `
-SELECT sequence_number, singer_name, song_page_number, song_name, song_key
+SELECT lesson_id, sequence_number, singer_name, song_page_number, song_name, song_key
 FROM singing_lessons
 WHERE singing_name = ?;`
 
@@ -134,14 +134,13 @@ WHERE singing_name = ?;`
 	return dbx.Cursor[models.SingingLessionInfo](cur)
 }
 
-func (conn *Connection) AllSingings(ctx context.Context, singing string) iter.Seq2[models.SingingInfo, error] {
+func (conn *Connection) AllSingings(ctx context.Context) iter.Seq2[models.SingingInfo, error] {
 	const query = `
 SELECT singing_date, singing_name, singing_state, singing_location, number_of_lessons, number_of_leaders
 FROM singing_info
-WHERE (? = '' OR singing_name = ?)
-ORDER BY singing_date;`
+ORDER BY minutes_id DESC;`
 
-	cur, err := conn.db.QueryContext(ctx, query, singing, singing)
+	cur, err := conn.db.QueryContext(ctx, query)
 	if err != nil {
 		return irt.Two(models.SingingInfo{}, err)
 	}

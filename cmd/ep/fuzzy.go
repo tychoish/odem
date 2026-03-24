@@ -25,12 +25,14 @@ func Fuzzy() *cmdr.Commander {
 		SetUsage("fuzzy commandline search").
 		With(infra.DBOperationSpec(func(ctx context.Context, conn *db.Connection, operation string) error {
 			switch operation {
-			case "leaders", "leader", "singer":
+			case "leaders", "leader", "singer", "singers":
 				return leaderAction(ctx, conn, nil)
 			case "songs", "song":
 				return songAction(ctx, conn, "")
+			case "singings", "conventions", "alldays", "all-day", "singing":
+				return singingAction(ctx, conn)
 			default:
-				options := stw.Slice[string]{"leaders", "songs", "exit"}
+				options := stw.Slice[string]{"leaders", "singing", "songs", "exit"}
 
 				op, err := infra.NewFuzzySearch[string](options).FindOne("search")
 				if err != nil {
@@ -42,6 +44,8 @@ func Fuzzy() *cmdr.Commander {
 					return leaderAction(ctx, conn, nil)
 				case "songs":
 					return songAction(ctx, conn, "")
+				case "singing":
+					return singingAction(ctx, conn)
 				case "exit":
 					grip.Info("goodbye!")
 					return nil
@@ -53,9 +57,14 @@ func Fuzzy() *cmdr.Commander {
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("leaders").
-				Aliases("leader").
+				Aliases("leader", "singer", "singers").
 				SetUsage("search for a leader").
 				With(infra.MakeDBOperationSpec("name", leaderAction).Add),
+			cmdr.MakeCommander().
+				SetName("singing").
+				Aliases("singings", "allday").
+				SetUsage("search for a specific singing").
+				With(infra.SimpleDBOperationSpec(singingAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").
 				Aliases("song").
@@ -148,4 +157,41 @@ func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 	}
 
 	return leader, nil
+}
+
+func selectSinging(ctx context.Context, dbconn *db.Connection) (*models.SingingInfo, error) {
+	var ec erc.Collector
+
+	singings := irt.Collect(erc.HandleAll(dbconn.AllSingings(ctx), ec.Push))
+	singing, err := infra.NewFuzzySearch[models.SingingInfo](singings).
+		WithToString(func(info models.SingingInfo) string {
+			return fmt.Sprintf("%s -- %s (%s)", info.SingingDate.Time().Format("2006-01-02"), strings.Split(info.SingingName, "\\n")[0], info.SingingLocation)
+		}).
+		FindOne("leaders")
+
+	if !ec.PushOk(err) || !ec.Ok() {
+		return nil, ec.Resolve()
+	}
+
+	return &singing, nil
+}
+
+func singingAction(ctx context.Context, dbconn *db.Connection) error {
+	singing, err := selectSinging(ctx, dbconn)
+	if err != nil {
+		return err
+	}
+	grip.Info("Singing:")
+	if err := infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(singing)); err != nil {
+		return err
+	}
+	grip.Info("Lessons:")
+	var ec erc.Collector
+	table := tabby.New()
+	table.AddHeader("Lesson", "Leader", "Song", "Key", "Title")
+	for s := range erc.HandleAll(dbconn.SingingLessons(ctx, singing.SingingName), ec.Push) {
+		table.AddLine(s.LessonID, s.SingerName, s.SongPageNumber, s.SongKey, s.SongName)
+	}
+	table.Print()
+	return ec.Resolve()
 }

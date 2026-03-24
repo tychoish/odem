@@ -25,6 +25,10 @@ func DBOperationSpec(action func(context.Context, *db.Connection, string) error)
 	return MakeDBOperationSpec("name", action)
 }
 
+func SimpleDBOperationSpec(action func(context.Context, *db.Connection) error) *cmdr.OperationSpec[*WithInput[string]] {
+	return MakeDBOperationSpec("name", func(ctx context.Context, db *db.Connection, _ string) error { return action(ctx, db) })
+}
+
 func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.Context, *db.Connection, T) error) *cmdr.OperationSpec[*WithInput[T]] {
 	return cmdr.SpecBuilder(
 		func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {

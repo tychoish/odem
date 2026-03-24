@@ -44,6 +44,7 @@ SELECT
 	leaders.id,
 	COALESCE(leaders.name, '') AS name,
 	COALESCE(lss.lesson_count, 0) AS leader_lesson_count,
+	COALESCE(lss.lesson_rank, 0) AS leader_lesson_rank,
 	COALESCE(bsj.page_num, '') AS song_page,
 	COALESCE(songs.title, '') AS song_title,
 	COALESCE(leaders.lesson_count, 0) AS leader_total_lesson_count,
@@ -79,7 +80,8 @@ LEFT JOIN locations ON mlg.location_id = locations.id;
 
 CREATE VIEW singing_lessons AS
 SELECT
-	ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS sequence_number,
+	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
+	COALESCE(slj.lesson_id, 0) AS lesson_id,
 	COALESCE(m."Name", '') AS singing_name,
 	COALESCE(l.name, '') AS singer_name,
 	COALESCE(bsj.page_num, '') AS song_page_number,
@@ -93,7 +95,9 @@ JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2;
 
 CREATE VIEW singing_info AS
 SELECT
-	COALESCE(MIN(m."Date"), '') AS singing_date,
+	m.id AS minutes_id,
+	COALESCE(slj.lesson_id, 0) AS lesson_id,
+	CAST(COALESCE(MIN(m."Date"), '') AS TEXT) AS singing_date,
 	COALESCE(m."Name", '') AS singing_name,
 	COALESCE(loc.state_province, '') AS singing_state,
 	COALESCE(m."Location", '') AS singing_location,

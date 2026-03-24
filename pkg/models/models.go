@@ -23,12 +23,12 @@ type BookSongJoin struct {
 }
 
 type Leader struct {
-	ID            int64       `db:"id" json:"id"`
-	Name          *string     `db:"name" json:"name"`
-	LessonCount   *int64      `db:"lesson_count" json:"lesson_count"`
-	SongEntropy   interface{} `db:"song_entropy" json:"song_entropy"`
-	Top20Count    *int64      `db:"top20_count" json:"top20_count"`
-	LocationCount *int64      `db:"location_count" json:"location_count"`
+	ID            int64    `db:"id" json:"id"`
+	Name          *string  `db:"name" json:"name"`
+	LessonCount   *int64   `db:"lesson_count" json:"lesson_count"`
+	SongEntropy   *float64 `db:"song_entropy" json:"song_entropy"`
+	Top20Count    *int64   `db:"top20_count" json:"top20_count"`
+	LocationCount *int64   `db:"location_count" json:"location_count"`
 }
 
 type LeaderDetail struct {
@@ -64,7 +64,6 @@ type LessonDetails struct {
 	ID                     int64  `db:"id" json:"id"`
 	Name                   string `db:"name" json:"name"`
 	LeaderLessonCount      int64  `db:"leader_lesson_count" json:"leader_lesson_count"`
-	LeaderLessonRank       int64  `db:"leader_lesson_rank" json:"leader_lesson_rank"`
 	SongPage               string `db:"song_page" json:"song_page"`
 	SongTitle              string `db:"song_title" json:"song_title"`
 	LeaderTotalLessonCount int64  `db:"leader_total_lesson_count" json:"leader_total_lesson_count"`
@@ -163,6 +162,27 @@ type SingingDetails struct {
 	LocationCity          string `db:"location_city" json:"location_city"`
 }
 
+type SingingInfo struct {
+	MinutesID       int64    `db:"minutes_id" json:"minutes_id"`
+	LessonID        int64    `db:"lesson_id" json:"lesson_id"`
+	SingingDate     DateTime `db:"singing_date" json:"singing_date"`
+	SingingName     string   `db:"singing_name" json:"singing_name"`
+	SingingState    string   `db:"singing_state" json:"singing_state"`
+	SingingLocation string   `db:"singing_location" json:"singing_location"`
+	NumberOfLessons int64    `db:"number_of_lessons" json:"number_of_lessons"`
+	NumberOfLeaders int64    `db:"number_of_leaders" json:"number_of_leaders"`
+}
+
+type SingingLesson struct {
+	SequenceNumber int64  `db:"sequence_number" json:"sequence_number"`
+	LessonID       int64  `db:"lesson_id" json:"lesson_id"`
+	SingingName    string `db:"singing_name" json:"singing_name"`
+	SingerName     string `db:"singer_name" json:"singer_name"`
+	SongPageNumber string `db:"song_page_number" json:"song_page_number"`
+	SongName       string `db:"song_name" json:"song_name"`
+	SongKey        string `db:"song_key" json:"song_key"`
+}
+
 type Song struct {
 	ID               int64   `db:"id" json:"id"`
 	Title            *string `db:"title" json:"title"`
@@ -172,7 +192,7 @@ type Song struct {
 }
 
 type SongDetail struct {
-	SongID           *int64 `db:"song_id" json:"song_id" yaml:"-"`
+	SongID           int64  `db:"song_id" json:"song_id"`
 	PageNum          string `db:"page_num" json:"page_num"`
 	Keys             string `db:"keys" json:"keys"`
 	Times            string `db:"times" json:"times"`
@@ -189,6 +209,14 @@ type SongLeaderJoin struct {
 	MinutesID *int64  `db:"minutes_id" json:"minutes_id"`
 	LessonID  *int64  `db:"lesson_id" json:"lesson_id"`
 	AudioURL  *string `db:"audio_url" json:"audio_url"`
+}
+
+type SongLeaderStat struct {
+	Name          *string `db:"name" json:"name"`
+	PageNum       *string `db:"page_num" json:"page_num"`
+	Count         *int64  `db:"count" json:"count"`
+	NumYears      int64   `db:"num_years" json:"num_years"`
+	LedInLastYear int64   `db:"led_in_last_year" json:"led_in_last_year"`
 }
 
 type SongNeighbor struct {
