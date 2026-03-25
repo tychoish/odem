@@ -8,8 +8,9 @@ import (
 
 func main() {
 	infra.MainCLI("odem",
+		ep.Setup(),
+		ep.Fuzzy(),
 		ep.Version(),
 		ep.Hacking(),
-		ep.Fuzzy(),
 	)
 }

@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/tychoish/cmdr"
-	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/db"
@@ -28,20 +27,30 @@ func Version() *cmdr.Commander {
 		})
 }
 
+func Setup() *cmdr.Commander {
+	return cmdr.MakeCommander().
+		SetName("setup").
+		SetUsage("initialize the cached/local database").
+		SetAction(func(ctx context.Context, cc *cli.Command) error {
+			return db.Init()
+		}).
+		Subcommanders(
+			cmdr.MakeCommander().
+				SetName("reset").
+				SetUsage("remove the cached/local database").
+				SetAction(func(ctx context.Context, cc *cli.Command) error {
+					return db.Reset()
+				}),
+		)
+}
+
 func Hacking() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("hacking").
 		Aliases("hack").
 		SetUsage("hacking and testing").
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			conn, err := db.Connect(ctx)
-			grip.EmergencyPanic(err)
-			var ec erc.Collector
-
-			for name := range erc.HandleAll(conn.AllLeaderNames(ctx), ec.Push) {
-				grip.Info(name)
-			}
-
-			return ec.Resolve()
+			grip.Info("🤖 🎶")
+			return nil
 		})
 }

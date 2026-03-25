@@ -7,7 +7,6 @@ import (
 	"iter"
 
 	"github.com/tychoish/dbx"
-	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/models"
 
 	"github.com/tychoish/fun/fnx"
@@ -57,7 +56,11 @@ func (conn *Connection) AllSongPageNumbers(ctx context.Context) iter.Seq2[string
 }
 
 func (conn *Connection) AllLeaderNames(ctx context.Context) iter.Seq2[string, error] {
-	const query = `SELECT name FROM leaders;`
+	const query = `
+SELECT l.name
+FROM leaders AS l
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL;`
 
 	cur, err := conn.db.QueryContext(ctx, query)
 	if err != nil {
@@ -153,8 +156,10 @@ func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit i
 SELECT lm_other.leader_name AS key, COUNT(DISTINCT lm_me.minutes_id) AS value
 FROM leader_minutes AS lm_me
 JOIN leader_minutes AS lm_other ON lm_other.minutes_id = lm_me.minutes_id
+LEFT JOIN leader_name_invalid AS inv ON inv.name = lm_other.leader_name
 WHERE lm_me.leader_name = ?
 AND lm_other.leader_name != ?
+AND inv.name IS NULL
 GROUP BY lm_other.leader_id
 ORDER BY value DESC
 LIMIT ?;`
@@ -185,57 +190,68 @@ LIMIT ?;`
 	return dbx.Cursor[models.LeaderSongRank](cur)
 }
 
-func (conn *Connection) SingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[string, error] {
+func (conn *Connection) SingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
 	const query = `
-SELECT DISTINCT l.name
-FROM leaders AS l
-WHERE l.name != ?
-AND l.id NOT IN (
-	SELECT DISTINCT lm_other.leader_id
-	FROM leader_minutes AS lm_me
-	JOIN leader_minutes AS lm_other ON lm_other.minutes_id = lm_me.minutes_id
-	WHERE lm_me.leader_name = ?
-)
-ORDER BY l.name
-LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name, cmp.Or(limit, 40))
-	if err != nil {
-		return irt.Two("", err)
-	}
-	return dbx.Cursor[string](cur)
-}
-
-func (conn *Connection) SupriringsSingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
-	const query = `
-WITH target_id AS (SELECT id FROM leaders WHERE name = ?),
-co_attendees AS (
-	SELECT DISTINCT b.leader_id
-	FROM leader_singings a
-	JOIN leader_singings b ON b.minutes_id = a.minutes_id
-	WHERE a.leader_id = (SELECT id FROM target_id)
+WITH target AS (SELECT id FROM leaders WHERE name = ?),
+my_network AS (
+	SELECT leader_b_id AS peer_id
+	FROM leader_coattendance
+	WHERE leader_a_id = (SELECT id FROM target)
 ),
-strangers AS (
-	SELECT id FROM leaders
-	WHERE id NOT IN (SELECT leader_id FROM co_attendees)
-	AND id != (SELECT id FROM target_id)
+stranger_scores AS (
+	SELECT
+                lca.leader_b_id AS stranger_id,
+                COUNT(*) AS mutual
+	FROM leader_coattendance AS lca
+	WHERE lca.leader_a_id IN (SELECT peer_id FROM my_network)
+	AND lca.leader_b_id NOT IN (SELECT peer_id FROM my_network)
+	AND lca.leader_b_id != (SELECT id FROM target)
+	GROUP BY lca.leader_b_id
 )
-SELECT l.name AS key, COUNT(*) AS value
-FROM leader_coattendance lca
-JOIN leaders l ON l.id = lca.leader_a_id
-WHERE lca.leader_a_id IN (
-	SELECT leader_id FROM co_attendees
-	WHERE leader_id != (SELECT id FROM target_id)
-)
-AND lca.leader_b_id IN (SELECT id FROM strangers)
-GROUP BY lca.leader_a_id
+SELECT
+        l.name AS key,
+        mutual AS value
+FROM stranger_scores
+JOIN leaders AS l ON l.id = stranger_scores.stranger_id
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
 ORDER BY value DESC
 LIMIT ?;`
 
-	grip.Warningf("the surprising strangers query for %q may be long running.", name)
 	cur, err := conn.db.QueryContext(ctx, query, name, cmp.Or(limit, 40))
 	if err != nil {
-		return irt.Two(irt.KV[string, int]{}, err)
+		return irt.Two(irt.MakeKV("", 0), err)
 	}
 	return dbx.Cursor[irt.KV[string, int]](cur)
+}
+
+func (conn *Connection) AllLeaderConnectedness(ctx context.Context) iter.Seq2[irt.KV[string, float64], error] {
+	const query = `
+SELECT
+        l.name AS key,
+        CAST(COUNT(lca.leader_b_id) AS REAL) / (SELECT COUNT(*) FROM leaders) AS value
+FROM leaders l
+LEFT JOIN leader_coattendance lca ON lca.leader_a_id = l.id
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
+GROUP BY l.id
+ORDER BY value DESC;`
+
+	cur, err := conn.db.QueryContext(ctx, query)
+	if err != nil {
+		return irt.Two(irt.KV[string, float64]{}, err)
+	}
+	return dbx.Cursor[irt.KV[string, float64]](cur)
+}
+
+func (conn *Connection) SingersConnectedness(ctx context.Context, name string) (*float64, error) {
+	const query = `SELECT CAST(COUNT(*) AS REAL) / (SELECT COUNT(*) FROM leaders) AS connectedness
+FROM leader_coattendance
+WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)`
+
+	var v float64
+	if err := conn.db.QueryRowContext(ctx, query, name).Scan(&v); err != nil {
+		return nil, err
+	}
+	return &v, nil
 }

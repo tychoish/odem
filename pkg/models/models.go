@@ -31,6 +31,9 @@ type Leader struct {
 	LocationCount *int64   `db:"location_count" json:"location_count"`
 }
 
+type LeaderCoattendance struct {
+}
+
 type LeaderDetail struct {
 	LeaderName          string `db:"leader_name" json:"leader_name"`
 	LeaderTotalNumLeads int64  `db:"leader_total_num_leads" json:"leader_total_num_leads"`
@@ -56,6 +59,9 @@ type LeaderNameAlias struct {
 type LeaderNameInvalid struct {
 	ID   int64   `db:"id" json:"id"`
 	Name *string `db:"name" json:"name"`
+}
+
+type LeaderSinging struct {
 }
 
 type LeaderSongStat struct {

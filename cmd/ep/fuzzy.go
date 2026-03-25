@@ -32,11 +32,11 @@ func Fuzzy() *cmdr.Commander {
 			case "singings", "conventions", "alldays", "all-day", "singing":
 				return singingAction(ctx, conn)
 			case "neighbors", "friends", "connections", "buddies", "buddy":
-				return singingAction(ctx, conn)
+				return singerBuddiesAction(ctx, conn, "")
 			case "strangers", "never-neighbors", "unknowns":
-				return singingAction(ctx, conn)
+				return singerStrangersAction(ctx, conn, "")
 			default:
-				options := stw.Slice[string]{"leaders", "singing", "songs", "exit", "connections"}
+				options := stw.Slice[string]{"leaders", "singing", "songs", "exit", "connections", "strangers"}
 
 				op, err := infra.NewFuzzySearch[string](options).FindOne("search")
 				if err != nil {
@@ -51,7 +51,9 @@ func Fuzzy() *cmdr.Commander {
 				case "singing":
 					return singingAction(ctx, conn)
 				case "connections":
-				case "stringers":
+					return singerBuddiesAction(ctx, conn, "")
+				case "strangers":
+					return singerStrangersAction(ctx, conn, "")
 				case "exit":
 					grip.Info("goodbye!")
 					return nil
@@ -75,11 +77,11 @@ func Fuzzy() *cmdr.Commander {
 				SetName("connections").
 				Aliases("neighbors", "friends", "buddy", "buddies").
 				SetUsage("find the people that you've sung with the most").
-				With(infra.SimpleDBOperationSpec(singingAction).Add),
+				With(infra.MakeDBOperationSpec("name", singerBuddiesAction).Add),
 			cmdr.MakeCommander().
 				SetName("strangers").
 				SetUsage("find the people that you've never sung with, surprisingly").
-				With(infra.SimpleDBOperationSpec(singingAction).Add),
+				With(infra.MakeDBOperationSpec("name", singerStrangersAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").
 				Aliases("song").
@@ -208,5 +210,49 @@ func singingAction(ctx context.Context, dbconn *db.Connection) error {
 		table.AddLine(s.LessonID, s.SingerName, s.SongPageNumber, s.SongKey, s.SongName)
 	}
 	table.Print()
+	return ec.Resolve()
+}
+
+func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	if singer == "" {
+		var err error
+		singer, err = selectLeader(ctx, dbconn)
+		if err != nil {
+			return err
+		}
+	}
+
+	var ec erc.Collector
+	table := tabby.New()
+	grip.Infof("buddies for %q", singer)
+	table.AddHeader("Name", "Shared Singings")
+	for kv := range erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 40), ec.Push) {
+		table.AddLine(kv.Key, kv.Value)
+	}
+	if ec.Ok() {
+		table.Print()
+	}
+	return ec.Resolve()
+}
+
+func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	if singer == "" {
+		var err error
+		singer, err = selectLeader(ctx, dbconn)
+		if err != nil {
+			return err
+		}
+	}
+
+	var ec erc.Collector
+	table := tabby.New()
+	grip.Infof("strangers for %q", singer)
+	table.AddHeader("Name", "Count")
+	for name, count := range irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 40), ec.Push)) {
+		table.AddLine(name, count)
+	}
+	if ec.Ok() {
+		table.Print()
+	}
 	return ec.Resolve()
 }

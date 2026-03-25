@@ -157,6 +157,12 @@ GROUP BY a.leader_id, b.leader_id;
 CREATE INDEX lca_a ON leader_coattendance(leader_a_id, leader_b_id);
 CREATE INDEX lca_b ON leader_coattendance(leader_b_id, leader_a_id);
 
+INSERT INTO leader_name_invalid (name) VALUES
+	('A Day That Will Be'),
+	('A Founders Lesson'),
+	('A Founder’s Lesson'),
+	('A Shenandoah Harmony');
+
 CREATE VIEW leader_details AS
 SELECT
 	COALESCE(leaders.name, '') AS leader_name,

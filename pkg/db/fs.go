@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/tychoish/grip"
 )
 
 //go:embed views.sql
@@ -16,12 +18,21 @@ var packaged embed.FS
 
 func getDBpath() string { return filepath.Join(os.TempDir(), "minutes.db") }
 
+func Reset() error {
+	dbPath := getDBpath()
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return nil
+	}
+	return os.RemoveAll(dbPath)
+}
+
 func Init() error {
 	dbPath := getDBpath()
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
 		return nil
 	}
 
+	grip.Infof("setting up the local minutes database", dbPath)
 	f, err := packaged.Open("fasoladb/minutes.db")
 	if err != nil {
 		return err
@@ -46,6 +57,7 @@ func Init() error {
 	}
 	defer db.Close()
 
+	grip.Info("applying odem specific modifications")
 	setupSql, err := packaged.ReadFile("views.sql")
 	if err != nil {
 		return err
@@ -55,5 +67,6 @@ func Init() error {
 		return err
 	}
 
+	grip.Info("database initialized")
 	return nil
 }
