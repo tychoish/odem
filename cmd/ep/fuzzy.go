@@ -24,43 +24,7 @@ func Fuzzy() *cmdr.Commander {
 		Aliases("fzf").
 		SetUsage("fuzzy commandline search").
 		With(infra.DBOperationSpec(func(ctx context.Context, conn *db.Connection, operation string) error {
-			switch operation {
-			case "leaders", "leader", "singer", "singers":
-				return leaderAction(ctx, conn, nil)
-			case "songs", "song":
-				return songAction(ctx, conn, "")
-			case "singings", "conventions", "alldays", "all-day", "singing":
-				return singingAction(ctx, conn)
-			case "neighbors", "friends", "connections", "buddies", "buddy":
-				return singerBuddiesAction(ctx, conn, "")
-			case "strangers", "never-neighbors", "unknowns":
-				return singerStrangersAction(ctx, conn, "")
-			default:
-				options := stw.Slice[string]{"leaders", "singing", "songs", "exit", "connections", "strangers"}
-
-				op, err := infra.NewFuzzySearch[string](options).FindOne("search")
-				if err != nil {
-					return err
-				}
-
-				switch op {
-				case "leaders":
-					return leaderAction(ctx, conn, nil)
-				case "songs":
-					return songAction(ctx, conn, "")
-				case "singing":
-					return singingAction(ctx, conn)
-				case "connections":
-					return singerBuddiesAction(ctx, conn, "")
-				case "strangers":
-					return singerStrangersAction(ctx, conn, "")
-				case "exit":
-					grip.Info("goodbye!")
-					return nil
-				default:
-					return ers.New("selection not found")
-				}
-			}
+			return NewMinutesAppOperation("retry").Dispatch(selectMinutesAppAction).Handle(ctx, conn, "")
 		}).Add).
 		Subcommanders(
 			cmdr.MakeCommander().
@@ -88,6 +52,115 @@ func Fuzzy() *cmdr.Commander {
 				SetUsage("find out more about a song and it's top leaders.").
 				With(infra.DBOperationSpec(songAction).Add),
 		)
+}
+
+type MinutesAppOperationHandler func(context.Context, *db.Connection, ...string) error
+
+func (maoh MinutesAppOperationHandler) Handle(ctx context.Context, conn *db.Connection, args ...string) error {
+	return maoh(ctx, conn, args...)
+}
+
+type MinutesAppOperation int
+
+func (mao MinutesAppOperation) Validate() error {
+	return ers.Whenf(mao >= MinutesAppOpInvalid || mao <= MinutesAppOpUnknown, "invalid OperationID %s %d", mao, mao)
+}
+
+const (
+	MinutesAppOpUnknown MinutesAppOperation = iota
+	MinutesAppOpLeaders
+	MinutesAppOpSongs
+	MinutesAppOpSingings
+	MinutesAppOpBuddies
+	MinutesAppOpStrangers
+	MinutesAppOpRetry
+	MinutesAppOpInvalid
+	MinutesAppOpExit = 181
+)
+
+func (mao MinutesAppOperation) String() string {
+	switch mao {
+	case MinutesAppOpUnknown:
+		return "unknown"
+	case MinutesAppOpLeaders:
+		return "leaders"
+	case MinutesAppOpSongs:
+		return "songs"
+	case MinutesAppOpSingings:
+		return "singings"
+	case MinutesAppOpBuddies:
+		return "buddies"
+	case MinutesAppOpStrangers:
+		return "strangers"
+	case MinutesAppOpRetry:
+		return "retry"
+	case MinutesAppOpExit:
+		return "exit<181>"
+	case MinutesAppOpInvalid:
+		fallthrough
+	default:
+		return fmt.Sprintf("invalid<%d>", mao)
+	}
+}
+
+func NewMinutesAppOperation(arg string) MinutesAppOperation {
+	switch arg {
+	case "leaders", "leader", "singer", "person":
+		return MinutesAppOpLeaders
+	case "song", "tune", "hymn", "songs":
+		return MinutesAppOpSongs
+	case "singing", "allday", "convention":
+		return MinutesAppOpSingings
+	case "buddies", "connections", "neighbors":
+		return MinutesAppOpBuddies
+	case "strangers", "enemies", "never-neighbors":
+		return MinutesAppOpStrangers
+	case "exit", "return", "abort":
+		return MinutesAppOpExit
+	case "retry", "restart":
+		return MinutesAppOpRetry
+	default:
+		return MinutesAppOpInvalid
+	}
+}
+
+func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) MinutesAppOperationHandler {
+	return func(ctx context.Context, conn *db.Connection, args ...string) error {
+		switch mao {
+		case MinutesAppOpLeaders:
+			return leaderAction(ctx, conn, args)
+		case MinutesAppOpSongs:
+			return songAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpSingings:
+			return singingAction(ctx, conn)
+		case MinutesAppOpBuddies:
+			return singerBuddiesAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpStrangers:
+			return singerStrangersAction(ctx, conn, "")
+		case MinutesAppOpExit:
+			grip.Info("goodbye!")
+			return nil
+		case MinutesAppOpRetry:
+			return restart(ctx, conn, args...)
+		case MinutesAppOpInvalid, MinutesAppOpUnknown:
+			return ers.New("invalid/undefined operation")
+		default:
+			return fmt.Errorf("unknown operation at %d (%s)", mao, mao)
+		}
+	}
+}
+
+func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, args ...string) error {
+	grip.Debug("selecting operation to dispatch")
+	options := stw.Slice[string]{"leaders", "singing", "songs", "connections", "strangers", "retry", "exit"}
+
+	operation, err := infra.NewFuzzySearch[string](options).FindOne("search")
+	if err != nil {
+		return err
+	}
+
+	grip.Debugln("dispatching", operation)
+	return NewMinutesAppOperation(operation).Dispatch(selectMinutesAppAction).Handle(ctx, dbconn, args...)
 }
 
 func leaderAction(ctx context.Context, conn *db.Connection, args []string) error {
@@ -139,6 +212,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 
 	ec.When(s == nil, "no matching song found")
 	if ec.Ok() {
+		grip.Infoln("song info for", s.PageNum)
 		ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
 		ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
 		ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
@@ -149,6 +223,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 
 func renderTopLeaders(ctx context.Context, conn *db.Connection, pageNum string) error {
 	table := tabby.New()
+	grip.Infoln("top leader for page:", pageNum)
 	table.AddHeader("Name", "Count", "Led Last Year", "Years Active")
 	for leader, err := range conn.TopLeadersOfSong(ctx, pageNum, 20) {
 		if err != nil {
@@ -173,6 +248,7 @@ func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 		return "", ec.Resolve()
 	}
 
+	grip.Debugln("selected leader", leader)
 	return leader, nil
 }
 
@@ -189,7 +265,7 @@ func selectSinging(ctx context.Context, dbconn *db.Connection) (*models.SingingI
 	if !ec.PushOk(err) || !ec.Ok() {
 		return nil, ec.Resolve()
 	}
-
+	grip.Debugln("selected singing", singing.SingingName)
 	return &singing, nil
 }
 
