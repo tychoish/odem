@@ -3,6 +3,7 @@ package ep
 import (
 	"context"
 	"fmt"
+	"iter"
 	"os"
 	"strings"
 
@@ -51,6 +52,10 @@ func Fuzzy() *cmdr.Commander {
 				Aliases("song").
 				SetUsage("find out more about a song and it's top leaders.").
 				With(infra.DBOperationSpec(songAction).Add),
+			cmdr.MakeCommander().
+				SetName("prevalent").
+				SetUsage("find out what the top songs are at singing's you've been to.").
+				With(infra.DBOperationSpec(locallyPopularAction).Add),
 		)
 }
 
@@ -73,6 +78,7 @@ const (
 	MinutesAppOpSingings
 	MinutesAppOpBuddies
 	MinutesAppOpStrangers
+	MinutesAppOpLocallyPopular
 	MinutesAppOpRetry
 	MinutesAppOpInvalid
 	MinutesAppOpExit = 181
@@ -92,6 +98,8 @@ func (mao MinutesAppOperation) String() string {
 		return "buddies"
 	case MinutesAppOpStrangers:
 		return "strangers"
+	case MinutesAppOpLocallyPopular:
+		return "locally-popular"
 	case MinutesAppOpRetry:
 		return "retry"
 	case MinutesAppOpExit:
@@ -119,6 +127,8 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpExit
 	case "retry", "restart":
 		return MinutesAppOpRetry
+	case "prevalent", "locally-popular", "localpop", "locally":
+		return MinutesAppOpLocallyPopular
 	default:
 		return MinutesAppOpInvalid
 	}
@@ -137,6 +147,8 @@ func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) Minu
 			return singerBuddiesAction(ctx, conn, strings.Join(args, " "))
 		case MinutesAppOpStrangers:
 			return singerStrangersAction(ctx, conn, "")
+		case MinutesAppOpLocallyPopular:
+			return locallyPopularAction(ctx, conn, strings.Join(args, " "))
 		case MinutesAppOpExit:
 			grip.Info("goodbye!")
 			return nil
@@ -152,7 +164,7 @@ func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) Minu
 
 func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, args ...string) error {
 	grip.Debug("selecting operation to dispatch")
-	options := stw.Slice[string]{"leaders", "singing", "songs", "connections", "strangers", "retry", "exit"}
+	options := stw.Slice[string]{"leaders", "singing", "songs", "connections", "strangers", "retry", "prevalent", "exit"}
 
 	operation, err := infra.NewFuzzySearch[string](options).FindOne("search")
 	if err != nil {
@@ -174,19 +186,8 @@ func leaderAction(ctx context.Context, conn *db.Connection, args []string) error
 	}
 
 	grip.Infof("selection: %s", leader)
-	table := tabby.New()
-	table.AddHeader("Count", "Song", "Title", "Key")
-	var ct int
-	var ec erc.Collector
-	for song := range erc.HandleUntil(conn.MostLeadSongs(ctx, leader, 20), ec.Push) {
-		ct++
-		table.AddLine(song.NumLeads, song.PageNum, song.SongTitle, song.Key)
-	}
-	if ec.Ok() {
-		table.Print()
-	}
-	grip.Infof("saw %d songs", ct)
-	return ec.Resolve()
+
+	return renderTopLedSongs(conn.MostLeadSongs(ctx, leader, 20))
 }
 
 func songAction(ctx context.Context, conn *db.Connection, song string) error {
@@ -233,6 +234,22 @@ func renderTopLeaders(ctx context.Context, conn *db.Connection, pageNum string) 
 	}
 	table.Print()
 	return nil
+}
+
+func renderTopLedSongs(seq iter.Seq2[models.LeaderSongRank, error]) error {
+	table := tabby.New()
+	table.AddHeader("Count", "Song", "Title", "Key")
+	var ct int
+	var ec erc.Collector
+	for song := range erc.Handle(seq, ec.Push) {
+		ct++
+		table.AddLine(song.NumLeads, song.PageNum, song.SongTitle, song.Key)
+	}
+	if ec.Ok() {
+		table.Print()
+	}
+	grip.Infof("saw %d songs", ct)
+	return ec.Resolve()
 }
 
 func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
@@ -331,4 +348,16 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 		table.Print()
 	}
 	return ec.Resolve()
+}
+
+func locallyPopularAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	if singer == "" {
+		var err error
+		singer, err = selectLeader(ctx, dbconn)
+		if err != nil {
+			return err
+		}
+	}
+
+	return renderTopLedSongs(dbconn.PopularSongsInOnesExperience(ctx, singer, 25))
 }

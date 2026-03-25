@@ -172,8 +172,13 @@ LIMIT ?;`
 }
 
 func (conn *Connection) PopularSongsInOnesExperience(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	// TODO "count" in this query should refer to
 	const query = `
-SELECT COUNT(*) AS count, bsj.page_num AS song_page, s.title AS song_title, bsj.keys AS song_keys
+SELECT
+      COUNT(DISTINCT slj.lesson_id || "-" || slj.minutes_id) AS count,
+      bsj.page_num AS song_page,
+      s.title AS song_title,
+      bsj.keys AS song_keys
 FROM leader_minutes AS lm
 JOIN song_leader_joins AS slj ON slj.minutes_id = lm.minutes_id
 JOIN songs AS s ON slj.song_id = s.id
