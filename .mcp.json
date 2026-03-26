@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "gopls-remote-socket-user": {
+      "type": "stdio",
+      "command": "gopls",
+      "args": ["-remote=unix;/run/user/1000/gopls.socket", "mcp"]
+    },
+    "gopls-remote-sockett-tmp": {
+      "type": "stdio",
+      "command": "gopls",
+      "args": ["-remote=unix;/tmp/gopls.socket", "mcp"]
+    },
+    "gopls-remote-auto": {
+      "type": "stdio",
+      "command": "gopls",
+      "args": ["-remote=auto", "mcp"]
+    },
+    "gopls": {
+      "type": "stdio",
+      "command": "gopls",
+      "args": ["mcp"]
+    },
+    "godoc": {
+      "type": "stdio",
+      "command": "go",
+      "args": ["tool", "github.com/mrjoshuak/godoc-mcp"]
+    },
+    "ripgrep": {
+      "type": "stdio",
+      "command": "npx",
+      "args":["-y", "mcp-ripgrep@latest"]
+    },
+    "git": {
+      "type": "stdio",
+      "command": "uvx",
+      "args":["mcp-server-git"]
+    },
+    "gh": {
+      "type": "stdio",
+      "command": "gh",
+      "args":["mcp"]
+    }
+  }
+}
