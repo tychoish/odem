@@ -4,7 +4,10 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"fmt"
 	"iter"
+	"strings"
+	"time"
 
 	"github.com/tychoish/dbx"
 	"github.com/tychoish/odem/pkg/models"
@@ -259,4 +262,191 @@ WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)`
 		return nil, err
 	}
 	return &v, nil
+}
+
+func (conn *Connection) TheUnfamilarHits(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+    ? AS name,
+    COALESCE(lss.lesson_count, 0) AS count,
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys,
+    CASE WHEN COALESCE(global.total, 0) > 0
+         THEN CAST(COALESCE(lss.lesson_count, 0) AS REAL) / global.total
+         ELSE 0.0
+    END AS ratio
+FROM book_song_joins AS bsj
+JOIN songs AS s ON s.id = bsj.song_id
+LEFT JOIN (
+    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
+) AS global ON global.song_id = bsj.song_id
+LEFT JOIN leaders AS l ON l.name = ?
+LEFT JOIN leader_song_stats AS lss ON lss.leader_id = l.id AND lss.song_id = bsj.song_id
+WHERE bsj.book_id = 2
+ORDER BY count ASC, global.total DESC
+LIMIT ?`
+
+	cur, err := conn.db.QueryContext(ctx, query, name, name, cmp.Or(limit, 40))
+	if err != nil {
+		return irt.Two(models.LeaderSongRank{}, err)
+	}
+	return dbx.Cursor[models.LeaderSongRank](cur)
+}
+
+func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...int) iter.Seq2[models.LeaderSongRank, error] {
+	currentYear := time.Now().Year()
+
+	var includeYears, excludeYears []any
+	for _, y := range years {
+		abs := y
+		if y < 0 {
+			abs = -y
+		}
+		if abs < 1995 || abs > currentYear {
+			return irt.Two(models.LeaderSongRank{}, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear))
+		}
+		if y < 0 {
+			excludeYears = append(excludeYears, abs)
+		} else {
+			includeYears = append(includeYears, y)
+		}
+	}
+	if len(includeYears) > 0 && len(excludeYears) > 0 {
+		return irt.Two(models.LeaderSongRank{}, fmt.Errorf("cannot mix included and excluded years"))
+	}
+
+	const baseQuery = `
+SELECT
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys,
+    SUM(ss.lesson_count) AS count
+FROM song_stats AS ss
+JOIN songs AS s ON s.id = ss.song_id
+JOIN book_song_joins AS bsj ON bsj.song_id = ss.song_id AND bsj.book_id = 2
+%s
+GROUP BY ss.song_id
+ORDER BY count DESC
+LIMIT 40`
+
+	var args []any
+	var whereClause string
+	switch {
+	case len(includeYears) > 0:
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(includeYears)), ",")
+		whereClause = fmt.Sprintf("WHERE ss.year IN (%s)", placeholders)
+		args = includeYears
+	case len(excludeYears) > 0:
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(excludeYears)), ",")
+		whereClause = fmt.Sprintf("WHERE ss.year NOT IN (%s)", placeholders)
+		args = excludeYears
+	}
+
+	cur, err := conn.db.QueryContext(ctx, fmt.Sprintf(baseQuery, whereClause), args...)
+	if err != nil {
+		return irt.Two(models.LeaderSongRank{}, err)
+	}
+	return dbx.Cursor[models.LeaderSongRank](cur)
+}
+
+func (conn *Connection) LocallyPopular(ctx context.Context, limit int, states ...models.SingingLocality) iter.Seq2[models.LeaderSongRank, error] {
+	const baseQuery = `
+SELECT
+    COUNT(*) AS count,
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys
+FROM song_leader_joins AS slj
+JOIN songs AS s ON s.id = slj.song_id
+JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2
+JOIN minutes_location_joins AS mlj ON mlj.minutes_id = slj.minutes_id
+JOIN locations AS loc ON loc.id = mlj.location_id
+%s
+GROUP BY slj.song_id
+ORDER BY count DESC
+%s`
+
+	var args []any
+	var whereClause, limitClause string
+
+	if len(states) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(states)), ",")
+		whereClause = fmt.Sprintf("WHERE loc.state_province IN (%s)", placeholders)
+		for _, s := range states {
+			args = append(args, string(s))
+		}
+	}
+	if limit > 0 {
+		limitClause = "LIMIT ?"
+		args = append(args, limit)
+	}
+
+	cur, err := conn.db.QueryContext(ctx, fmt.Sprintf(baseQuery, whereClause, limitClause), args...)
+	if err != nil {
+		return irt.Two(models.LeaderSongRank{}, err)
+	}
+	return dbx.Cursor[models.LeaderSongRank](cur)
+}
+
+func (conn *Connection) NeverLed(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+    ? AS name,
+    COALESCE(global.total, 0) AS count,
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys
+FROM book_song_joins AS bsj
+JOIN songs AS s ON s.id = bsj.song_id
+LEFT JOIN (
+    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
+) AS global ON global.song_id = bsj.song_id
+WHERE bsj.book_id = 2
+AND bsj.song_id NOT IN (
+    SELECT lss.song_id
+    FROM leader_song_stats AS lss
+    JOIN leaders AS l ON l.id = lss.leader_id
+    WHERE l.name = ?
+)
+ORDER BY count DESC`
+
+	cur, err := conn.db.QueryContext(ctx, query, name, name)
+	if err != nil {
+		return irt.Two(models.LeaderSongRank{}, err)
+	}
+	return dbx.Cursor[models.LeaderSongRank](cur)
+}
+
+func (conn *Connection) NeverSung(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+    ? AS name,
+    COALESCE(global.total, 0) AS count,
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys
+FROM book_song_joins AS bsj
+JOIN songs AS s ON s.id = bsj.song_id
+LEFT JOIN (
+    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
+) AS global ON global.song_id = bsj.song_id
+WHERE bsj.book_id = 2
+AND bsj.song_id NOT IN (
+    SELECT DISTINCT slj.song_id
+    FROM song_leader_joins AS slj
+    WHERE slj.minutes_id IN (
+        SELECT DISTINCT slj2.minutes_id
+        FROM song_leader_joins AS slj2
+        JOIN leaders AS l ON l.id = slj2.leader_id
+        WHERE l.name = ?
+    )
+)
+ORDER BY count DESC`
+
+	cur, err := conn.db.QueryContext(ctx, query, name, name)
+	if err != nil {
+		return irt.Two(models.LeaderSongRank{}, err)
+	}
+	return dbx.Cursor[models.LeaderSongRank](cur)
 }

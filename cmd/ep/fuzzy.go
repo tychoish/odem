@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"iter"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cheynewallace/tabby"
 	"github.com/tychoish/cmdr"
@@ -55,7 +57,23 @@ func Fuzzy() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("prevalent").
 				SetUsage("find out what the top songs are at singing's you've been to.").
-				With(infra.DBOperationSpec(locallyPopularAction).Add),
+				With(infra.DBOperationSpec(popularInOnesExperienceAction).Add),
+			cmdr.MakeCommander().
+				SetName("never-sung").
+				SetUsage("find songs that have never been performed at a singing you attended.").
+				With(infra.DBOperationSpec(neverSungAction).Add),
+			cmdr.MakeCommander().
+				SetName("never-led").
+				SetUsage("find songs from the book you have never led.").
+				With(infra.MakeDBOperationSpec("name", neverLedAction).Add),
+			cmdr.MakeCommander().
+				SetName("locally-popular").
+				SetUsage("find out what the top songs that are popular in a specific locality.").
+				With(infra.SimpleDBOperationSpec(locallyPopularAction).Add),
+			cmdr.MakeCommander().
+				SetName("popular-for-years").
+				SetUsage("find out what the top songs that are popular at a specific year.").
+				With(infra.DBOperationSpec(popularInYearsAction).Add),
 		)
 }
 
@@ -78,8 +96,13 @@ const (
 	MinutesAppOpSingings
 	MinutesAppOpBuddies
 	MinutesAppOpStrangers
+	MinutesAppOpPopularInOnesExperience
+	MinutesAppOpPopularInYears
 	MinutesAppOpLocallyPopular
 	MinutesAppOpRetry
+	MinutesAppOpNeverSung
+	MinutesAppOpNeverLed
+	MinutesAppOpUnfamilarHits
 	MinutesAppOpInvalid
 	MinutesAppOpExit = 181
 )
@@ -98,10 +121,20 @@ func (mao MinutesAppOperation) String() string {
 		return "buddies"
 	case MinutesAppOpStrangers:
 		return "strangers"
+	case MinutesAppOpPopularInOnesExperience:
+		return "popular-in-ones-experience"
 	case MinutesAppOpLocallyPopular:
 		return "locally-popular"
+	case MinutesAppOpPopularInYears:
+		return "popular-for-years"
+	case MinutesAppOpNeverSung:
+		return "never-sung"
+	case MinutesAppOpNeverLed:
+		return "never-led"
 	case MinutesAppOpRetry:
 		return "retry"
+	case MinutesAppOpUnfamilarHits:
+		return "unfamilar-hits"
 	case MinutesAppOpExit:
 		return "exit<181>"
 	case MinutesAppOpInvalid:
@@ -127,8 +160,16 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpExit
 	case "retry", "restart":
 		return MinutesAppOpRetry
-	case "prevalent", "locally-popular", "localpop", "locally":
+	case "prevalent", "popular-in-ones-experience":
+		return MinutesAppOpPopularInOnesExperience
+	case "never-sung", "unknown":
+		return MinutesAppOpNeverSung
+	case "never-led", "neverled":
+		return MinutesAppOpNeverLed
+	case "locally-popular", "localpop", "locally":
 		return MinutesAppOpLocallyPopular
+	case "popular-for-years", "popular-in-years":
+		return MinutesAppOpPopularInYears
 	default:
 		return MinutesAppOpInvalid
 	}
@@ -147,8 +188,16 @@ func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) Minu
 			return singerBuddiesAction(ctx, conn, strings.Join(args, " "))
 		case MinutesAppOpStrangers:
 			return singerStrangersAction(ctx, conn, "")
+		case MinutesAppOpPopularInOnesExperience:
+			return popularInOnesExperienceAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpNeverSung:
+			return neverSungAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpNeverLed:
+			return neverLedAction(ctx, conn, strings.Join(args, " "))
 		case MinutesAppOpLocallyPopular:
-			return locallyPopularAction(ctx, conn, strings.Join(args, " "))
+			return locallyPopularAction(ctx, conn)
+		case MinutesAppOpPopularInYears:
+			return popularInYearsAction(ctx, conn, strings.Join(args, ","))
 		case MinutesAppOpExit:
 			grip.Info("goodbye!")
 			return nil
@@ -164,7 +213,20 @@ func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) Minu
 
 func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, args ...string) error {
 	grip.Debug("selecting operation to dispatch")
-	options := stw.Slice[string]{"leaders", "singing", "songs", "connections", "strangers", "retry", "prevalent", "exit"}
+	options := stw.Slice[string]{
+		"leaders",
+		"singing",
+		"songs",
+		"connections",
+		"strangers",
+		"retry",
+		"prevalent",
+		"locally-popular",
+		"popular-for-years",
+		"never-sung",
+		"never-led",
+		"exit",
+	}
 
 	operation, err := infra.NewFuzzySearch[string](options).FindOne("search")
 	if err != nil {
@@ -176,18 +238,14 @@ func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, args ...
 }
 
 func leaderAction(ctx context.Context, conn *db.Connection, args []string) error {
-	leader := strings.Join(args, " ")
-	if leader == "" {
-		var err error
-		leader, err = selectLeader(ctx, conn)
-		if err != nil {
-			return err
-		}
+	singer, err := interactivelyResolveSingerName(ctx, conn, strings.Join(args, " "))
+	if err != nil {
+		return err
 	}
 
-	grip.Infof("selection: %s", leader)
+	grip.Infof("songs led by: %s", singer)
 
-	return renderTopLedSongs(conn.MostLeadSongs(ctx, leader, 20))
+	return renderTopLedSongs(conn.MostLeadSongs(ctx, singer, -20))
 }
 
 func songAction(ctx context.Context, conn *db.Connection, song string) error {
@@ -216,6 +274,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 		grip.Infoln("song info for", s.PageNum)
 		ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
 		ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
+		grip.Infoln("top leaders of", s.PageNum)
 		ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
 	}
 
@@ -307,17 +366,14 @@ func singingAction(ctx context.Context, dbconn *db.Connection) error {
 }
 
 func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	if singer == "" {
-		var err error
-		singer, err = selectLeader(ctx, dbconn)
-		if err != nil {
-			return err
-		}
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
 	}
 
 	var ec erc.Collector
 	table := tabby.New()
-	grip.Infof("buddies for %q", singer)
+	grip.Infof("singing buddies for %q", singer)
 	table.AddHeader("Name", "Shared Singings")
 	for kv := range erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 40), ec.Push) {
 		table.AddLine(kv.Key, kv.Value)
@@ -329,17 +385,14 @@ func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer stri
 }
 
 func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	if singer == "" {
-		var err error
-		singer, err = selectLeader(ctx, dbconn)
-		if err != nil {
-			return err
-		}
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
 	}
 
 	var ec erc.Collector
 	table := tabby.New()
-	grip.Infof("strangers for %q", singer)
+	grip.Infof("singing strangers for %q", singer)
 	table.AddHeader("Name", "Count")
 	for name, count := range irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 40), ec.Push)) {
 		table.AddLine(name, count)
@@ -350,14 +403,88 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 	return ec.Resolve()
 }
 
-func locallyPopularAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	if singer == "" {
-		var err error
-		singer, err = selectLeader(ctx, dbconn)
-		if err != nil {
-			return err
-		}
+func popularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
 	}
 
+	grip.Infof("most common songs at singings attended by %s", singer)
 	return renderTopLedSongs(dbconn.PopularSongsInOnesExperience(ctx, singer, 25))
+}
+
+func neverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("songs never sung at singing %s was present at", singer)
+	return renderTopLedSongs(dbconn.NeverSung(ctx, singer))
+}
+
+func neverLedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("songs never led by %s", singer)
+	return renderTopLedSongs(dbconn.NeverLed(ctx, singer))
+}
+
+func locallyPopularAction(ctx context.Context, dbconn *db.Connection) error {
+	localities, err := erc.FromIteratorAll(infra.NewFuzzySearch[models.SingingLocality](models.AllLocalities()).Find("location"))
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("popular songs in a specific location %v", localities)
+	return renderTopLedSongs(dbconn.LocallyPopular(ctx, 32, localities...))
+}
+
+func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+	var years []int
+	var err error
+	if yrs != "" {
+		years, err = erc.FromIteratorAll(
+			irt.With2(
+				irt.Slice(strings.Split(yrs, ",")),
+				strconv.Atoi,
+			),
+		)
+	}
+	if len(years) == 0 {
+		currentYear := time.Now().Year()
+
+		years, err = erc.FromIteratorAll(infra.NewFuzzySearch[int](
+			irt.Chain(irt.Args(
+				irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
+				irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
+			)),
+		).Find("years"))
+	}
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("songs by popularity in year(s) %v", years)
+	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, years...))
+}
+
+func tolocality(in string) models.SingingLocality { return models.SingingLocality(in) }
+func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, singer string) (string, error) {
+	if singer != "" {
+		return singer, nil
+	}
+
+	singer, err := selectLeader(ctx, conn)
+	if err != nil {
+		return "", err
+	}
+	if singer == "" {
+		return "", ers.New("not found")
+	}
+
+	return singer, nil
 }
