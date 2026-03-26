@@ -11,7 +11,7 @@ func Fuzzy() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("fuzzy").
 		Aliases("fzf").
-		SetUsage("fuzzy commandline search").
+		SetUsage("fuzzy cli UI to minutes data").
 		With(infra.DBOperationSpec(fzfui.MinutesAppOpRetry.Dispatch().Op).Add).
 		Subcommanders(irt.Collect(fzfui.AllMinutesAppCommanders())...)
 }
