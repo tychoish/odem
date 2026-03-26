@@ -316,6 +316,7 @@ func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...in
 		return irt.Two(models.LeaderSongRank{}, fmt.Errorf("cannot mix included and excluded years"))
 	}
 
+	// TODO use dbx.Builder rather than fmt.Sprintf to build the query
 	const baseQuery = `
 SELECT
     bsj.page_num AS song_page,
@@ -351,6 +352,8 @@ LIMIT 40`
 }
 
 func (conn *Connection) LocallyPopular(ctx context.Context, limit int, states ...models.SingingLocality) iter.Seq2[models.LeaderSongRank, error] {
+	// TODO use dbx.Builder rather than fmt.Sprintf to build the query
+
 	const baseQuery = `
 SELECT
     COUNT(*) AS count,

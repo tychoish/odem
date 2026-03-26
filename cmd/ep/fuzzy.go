@@ -14,7 +14,6 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -26,15 +25,13 @@ func Fuzzy() *cmdr.Commander {
 		SetName("fuzzy").
 		Aliases("fzf").
 		SetUsage("fuzzy commandline search").
-		With(infra.DBOperationSpec(func(ctx context.Context, conn *db.Connection, operation string) error {
-			return NewMinutesAppOperation("retry").Dispatch(selectMinutesAppAction).Handle(ctx, conn, "")
-		}).Add).
+		With(infra.DBOperationSpec(MinutesAppOpRetry.Dispatch(selectMinutesAppAction).Op).Add).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("leaders").
 				Aliases("leader", "singer", "singers").
 				SetUsage("search for a leader").
-				With(infra.MakeDBOperationSpec("name", leaderAction).Add),
+				With(infra.DBOperationSpec(leaderAction).Add),
 			cmdr.MakeCommander().
 				SetName("singing").
 				Aliases("singings", "allday").
@@ -44,11 +41,11 @@ func Fuzzy() *cmdr.Commander {
 				SetName("connections").
 				Aliases("neighbors", "friends", "buddy", "buddies").
 				SetUsage("find the people that you've sung with the most").
-				With(infra.MakeDBOperationSpec("name", singerBuddiesAction).Add),
+				With(infra.DBOperationSpec(singerBuddiesAction).Add),
 			cmdr.MakeCommander().
 				SetName("strangers").
 				SetUsage("find the people that you've never sung with, surprisingly").
-				With(infra.MakeDBOperationSpec("name", singerStrangersAction).Add),
+				With(infra.DBOperationSpec(singerStrangersAction).Add),
 			cmdr.MakeCommander().
 				SetName("songs").
 				Aliases("song").
@@ -65,7 +62,7 @@ func Fuzzy() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("never-led").
 				SetUsage("find songs from the book you have never led.").
-				With(infra.MakeDBOperationSpec("name", neverLedAction).Add),
+				With(infra.DBOperationSpec(neverLedAction).Add),
 			cmdr.MakeCommander().
 				SetName("locally-popular").
 				SetUsage("find out what the top songs that are popular in a specific locality.").
@@ -83,10 +80,24 @@ func (maoh MinutesAppOperationHandler) Handle(ctx context.Context, conn *db.Conn
 	return maoh(ctx, conn, args...)
 }
 
+func (maoh MinutesAppOperationHandler) Op(ctx context.Context, conn *db.Connection, args []string) error {
+	return maoh(ctx, conn, args...)
+}
+
 type MinutesAppOperation int
 
 func (mao MinutesAppOperation) Validate() error {
-	return ers.Whenf(mao >= MinutesAppOpInvalid || mao <= MinutesAppOpUnknown, "invalid OperationID %s %d", mao, mao)
+	return ers.Whenf(!mao.Ok(), "invalid OperationID %s %d", mao, mao)
+}
+
+func (mao MinutesAppOperation) Ok() bool {
+	return (mao > MinutesAppOpUnknown && mao < MinutesAppOpInvalid) || mao == MinutesAppOpExit
+}
+
+func isOk[T interface{ Ok() bool }](in T) bool { return in.Ok() }
+func toOp(in int) MinutesAppOperation          { return MinutesAppOperation(in) }
+func AllMinutesAppOperations() iter.Seq[MinutesAppOperation] {
+	return irt.Keep(irt.Convert(irt.Range(int(MinutesAppOpUnknown), int(MinutesAppOpExit)), toOp), isOk)
 }
 
 const (
@@ -213,28 +224,14 @@ func (mao MinutesAppOperation) Dispatch(restart MinutesAppOperationHandler) Minu
 
 func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, args ...string) error {
 	grip.Debug("selecting operation to dispatch")
-	options := stw.Slice[string]{
-		"leaders",
-		"singing",
-		"songs",
-		"connections",
-		"strangers",
-		"retry",
-		"prevalent",
-		"locally-popular",
-		"popular-for-years",
-		"never-sung",
-		"never-led",
-		"exit",
-	}
 
-	operation, err := infra.NewFuzzySearch[string](options).FindOne("search")
+	operation, err := infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOperations()).FindOne("search")
 	if err != nil {
 		return err
 	}
 
 	grip.Debugln("dispatching", operation)
-	return NewMinutesAppOperation(operation).Dispatch(selectMinutesAppAction).Handle(ctx, dbconn, args...)
+	return operation.Dispatch(selectMinutesAppAction).Handle(ctx, dbconn, args...)
 }
 
 func leaderAction(ctx context.Context, conn *db.Connection, args []string) error {
@@ -472,7 +469,6 @@ func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, years...))
 }
 
-func tolocality(in string) models.SingingLocality { return models.SingingLocality(in) }
 func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, singer string) (string, error) {
 	if singer != "" {
 		return singer, nil

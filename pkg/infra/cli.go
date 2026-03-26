@@ -21,7 +21,7 @@ type WithInput[T any] struct {
 // DBOperationSpec builds a cmdr.OperationSpec[WithInput[string]] whose
 // constructor connects to the database and captures the first positional
 // CLI argument, then calls action(ctx, conn, query) as its operation.
-func DBOperationSpec(action func(context.Context, *db.Connection, string) error) *cmdr.OperationSpec[*WithInput[string]] {
+func DBOperationSpec[T cmdr.FlagTypes](action func(context.Context, *db.Connection, T) error) *cmdr.OperationSpec[*WithInput[T]] {
 	return MakeDBOperationSpec("name", action)
 }
 
