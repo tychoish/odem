@@ -2,6 +2,8 @@ package models
 
 type SingingLocality string
 
+func NewSingingLocality(in string) SingingLocality { return SingingLocality(in) }
+
 func (s SingingLocality) Valid() bool {
 	switch s {
 	case LocalityAlaska, LocalityAlabama, LocalityArkansas, LocalityArizona,

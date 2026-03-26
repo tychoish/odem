@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"iter"
-	"strings"
 	"time"
 
 	"github.com/tychoish/dbx"
@@ -297,7 +296,7 @@ LIMIT ?`
 func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...int) iter.Seq2[models.LeaderSongRank, error] {
 	currentYear := time.Now().Year()
 
-	var includeYears, excludeYears []any
+	var includeYears, excludeYears []int
 	for _, y := range years {
 		abs := y
 		if y < 0 {
@@ -316,8 +315,8 @@ func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...in
 		return irt.Two(models.LeaderSongRank{}, fmt.Errorf("cannot mix included and excluded years"))
 	}
 
-	// TODO use dbx.Builder rather than fmt.Sprintf to build the query
-	const baseQuery = `
+	var qb dbx.Builder
+	qb.WithSQL(`
 SELECT
     bsj.page_num AS song_page,
     s.title AS song_title,
@@ -325,26 +324,22 @@ SELECT
     SUM(ss.lesson_count) AS count
 FROM song_stats AS ss
 JOIN songs AS s ON s.id = ss.song_id
-JOIN book_song_joins AS bsj ON bsj.song_id = ss.song_id AND bsj.book_id = 2
-%s
-GROUP BY ss.song_id
-ORDER BY count DESC
-LIMIT 40`
+JOIN book_song_joins AS bsj ON bsj.song_id = ss.song_id AND bsj.book_id = 2`)
 
-	var args []any
-	var whereClause string
 	switch {
 	case len(includeYears) > 0:
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(includeYears)), ",")
-		whereClause = fmt.Sprintf("WHERE ss.year IN (%s)", placeholders)
-		args = includeYears
+		qb.With(" WHERE ss.year IN (%+?)", includeYears)
 	case len(excludeYears) > 0:
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(excludeYears)), ",")
-		whereClause = fmt.Sprintf("WHERE ss.year NOT IN (%s)", placeholders)
-		args = excludeYears
+		qb.With(" WHERE ss.year NOT IN (%+?)", excludeYears)
 	}
 
-	cur, err := conn.db.QueryContext(ctx, fmt.Sprintf(baseQuery, whereClause), args...)
+	qb.WithSQL(`
+GROUP BY ss.song_id
+ORDER BY count DESC
+LIMIT 40`)
+
+	query, args := qb.Build()
+	cur, err := conn.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return irt.Two(models.LeaderSongRank{}, err)
 	}
@@ -352,9 +347,13 @@ LIMIT 40`
 }
 
 func (conn *Connection) LocallyPopular(ctx context.Context, limit int, states ...models.SingingLocality) iter.Seq2[models.LeaderSongRank, error] {
-	// TODO use dbx.Builder rather than fmt.Sprintf to build the query
+	stateStrs := make([]string, len(states))
+	for i, s := range states {
+		stateStrs[i] = string(s)
+	}
 
-	const baseQuery = `
+	var qb dbx.Builder
+	qb.WithSQL(`
 SELECT
     COUNT(*) AS count,
     bsj.page_num AS song_page,
@@ -364,28 +363,22 @@ FROM song_leader_joins AS slj
 JOIN songs AS s ON s.id = slj.song_id
 JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2
 JOIN minutes_location_joins AS mlj ON mlj.minutes_id = slj.minutes_id
-JOIN locations AS loc ON loc.id = mlj.location_id
-%s
+JOIN locations AS loc ON loc.id = mlj.location_id`)
+
+	if len(stateStrs) > 0 {
+		qb.With(" WHERE loc.state_province IN (%+?)", stateStrs)
+	}
+
+	qb.WithSQL(`
 GROUP BY slj.song_id
-ORDER BY count DESC
-%s`
+ORDER BY count DESC`)
 
-	var args []any
-	var whereClause, limitClause string
-
-	if len(states) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(states)), ",")
-		whereClause = fmt.Sprintf("WHERE loc.state_province IN (%s)", placeholders)
-		for _, s := range states {
-			args = append(args, string(s))
-		}
-	}
 	if limit > 0 {
-		limitClause = "LIMIT ?"
-		args = append(args, limit)
+		qb.With(" LIMIT %?", limit)
 	}
 
-	cur, err := conn.db.QueryContext(ctx, fmt.Sprintf(baseQuery, whereClause, limitClause), args...)
+	query, args := qb.Build()
+	cur, err := conn.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return irt.Two(models.LeaderSongRank{}, err)
 	}
