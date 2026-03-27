@@ -1,0 +1,35 @@
+- All Frank
+- Annie-Lou
+- Brother Stacks
+- Buddy Nix (this could be legit)
+- Chih-ching Dill Ma
+- Clarrica Springfield
+- D. Barnett
+- David Ivey B. M. Smith
+- Elise Delmas
+- Emily Hurst Millbrook
+- Hugh Bill’s
+- J R Hardman
+- J. L.
+- J. M.
+- J. Michael Hull -> Michael Hull (he's a friend of mine and we can figure out which he prefers)
+- J. W.
+- Jamie Piedra
+- Killi Rane <-> Kelli Rane
+- Leaders Don Clark
+- Magdalena Zapedowska Eriksen
+- Magdalena Zapedowska-Eriksen
+- O Herr (this could be legit)
+- P.M.
+- Reverends Jim Miller
+- Russ Parker
+- Sash Hsuczyk
+- USA. Helen Brown
+- USA. Jessica Beer
+- USA. Jo-anne
+- USA. Joshua
+- Uncle Terry Wootten
+- W.G.
+- W.L.
+- W.M.
+- Zilpha Cornelia > Kitchens Gardner(?)
