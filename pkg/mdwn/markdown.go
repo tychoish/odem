@@ -70,8 +70,8 @@ func (m *Builder) heading(level int, text string) *Builder {
 }
 
 // Paragraph writes text followed by a blank line.
-func (m *Builder) Paragraph(text string) *Builder {
-	m.PushString(text)
+func (m *Builder) Paragraph(text ...string) *Builder {
+	m.Concat(text...)
 	m.NLines(2)
 	return m
 }
