@@ -96,11 +96,11 @@ func writeReport(ctx context.Context, conn *db.Connection, w io.Writer, singer s
 
 	mb.H2("Never Led")
 	mb.Paragraph("Songs from the 2025 book you have never led, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 50), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 25), ec.Push))
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing you attended, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 50), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 25), ec.Push))
 
 	_, err = mb.WriteTo(w)
 	ec.Push(err)
