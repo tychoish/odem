@@ -26,7 +26,7 @@ Key tables/views:
 
 ## Step 2 — Validate the SQL
 
-Run the query against `/tmp/minutes.db` using the `sqlite3` CLI before writing any Go. Use `"Bud Oliver"` and `"Rose Altha Taylor"` for leader-scoped queries; `"32t"` for song-scoped queries.
+Run the query against `/tmp/minutes.db` using the `sqlite3` CLI before writing any Go. Use `"Bud Oliver"`, `"Sam Kleinman"`, `"Rose Altha Taylor"` for leader-scoped queries; `"82t"`, `"475"`, and `"89"` for song-scoped queries.
 
 **Ask the user to confirm the results look correct before continuing.**
 
@@ -137,6 +137,22 @@ Four edits, all in `dispatch.go`:
 
 `String()`, `Commander()`, and `AllMinutesAppCommanders()` all derive from `GetInfo()` — no other changes needed.
 
-## Step 7 — Build and verify
+## Step 7 — Add a section to `cmd/ep/report.go` (leader-scoped queries only)
+
+Skip this step if the query is not leader-scoped. Otherwise add a section to `writeReport` in `cmd/ep/report.go`, placed after the most logically related existing section:
+
+```go
+mb.H2("My New Section")
+mb.Paragraph("One-line description.")
+// render — choose one:
+writeSongTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))                          // iter.Seq2[models.LeaderSongRank, error]
+mb.KVTable(irt.MakeKV("Name", "Count"),                                                             // iter.Seq2[irt.KV[string, int], error]
+    irt.Convert2(irt.KVsplit(erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push)), intValToStr))
+writeMyTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))                            // custom type — add helper at bottom of file
+```
+
+For custom types add a table helper alongside `writeSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
+
+## Step 8 — Build and verify
 
 Run `go build ./...` and fix any errors. Confirm the operation appears in the fzf menu and returns sensible output.

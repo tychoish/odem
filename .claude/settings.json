@@ -7,7 +7,7 @@
       "Bash(golangci-lint run)",
       "Bash(golangci-lint run --fix)",
       "Bash(sqlite3 /tmp/minutes.db *)",
-      "Bash(sqlite3 ./db/fasoladb/minutes.db *)",
+      "Bash(sqlite3 ./db/fasoladb/minutes.db *)"
     ]
   }
 }
