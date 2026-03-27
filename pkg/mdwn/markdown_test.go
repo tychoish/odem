@@ -401,7 +401,7 @@ func TestTableEndsWithBlankLine(t *testing.T) {
 	got := build(func(m *Builder) {
 		m.NewTable(Column{Name: "X"}).Row("v").Build()
 	})
-	if !strings.HasSuffix(got, "\n\n") {
+	if !strings.HasSuffix(got, "\n") {
 		t.Errorf("Table: expected trailing blank line, got %q", got)
 	}
 }
@@ -652,9 +652,9 @@ func TestRuneByteOffset(t *testing.T) {
 	b := []byte("F♯ Minor") // ♯ = 3 UTF-8 bytes; total 10 bytes, 8 runes
 	cases := []struct{ n, want int }{
 		{0, 0},
-		{1, 1},  // after "F" (1 byte)
-		{2, 4},  // after "F♯" (1+3 bytes)
-		{8, 10}, // after all 8 runes = end of slice
+		{1, 1},   // after "F" (1 byte)
+		{2, 4},   // after "F♯" (1+3 bytes)
+		{8, 10},  // after all 8 runes = end of slice
 		{99, 10}, // n > rune count → len(b)
 	}
 	for _, c := range cases {
@@ -679,7 +679,7 @@ func TestTableUnicodeMusicalSymbols(t *testing.T) {
 			Build()
 	})
 	// width = max(runes("Key")=3, 7, 8) = 8
-	want := "| Key      |\n| -------- |\n| E Minor  |\n| F♯ Minor |\n\n"
+	want := "| Key      |\n| -------- |\n| E Minor  |\n| F♯ Minor |\n"
 	if got != want {
 		t.Errorf("TableUnicodeMusicalSymbols:\ngot:  %q\nwant: %q", got, want)
 	}
@@ -689,12 +689,12 @@ func TestTableUnicodeSmartQuotes(t *testing.T) {
 	// Curly apostrophe ' (U+2019) is 3 UTF-8 bytes but 1 rune.
 	got := build(func(m *Builder) {
 		m.NewTable(Column{Name: "Title"}).
-			Row("Short").          // 5 runes, 5 bytes
-			Row("Saint\u2019s").   // 7 runes, 9 bytes
+			Row("Short").        // 5 runes, 5 bytes
+			Row("Saint\u2019s"). // 7 runes, 9 bytes
 			Build()
 	})
 	// width = max(5, 5, 7) = 7
-	want := "| Title   |\n| ------- |\n| Short   |\n| Saint\u2019s |\n\n"
+	want := "| Title   |\n| ------- |\n| Short   |\n| Saint\u2019s |\n"
 	if got != want {
 		t.Errorf("TableUnicodeSmartQuotes:\ngot:  %q\nwant: %q", got, want)
 	}

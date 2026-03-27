@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cheynewallace/tabby"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/mdwn"
 	"github.com/tychoish/odem/pkg/models"
 )
 
@@ -88,12 +88,20 @@ func singingAction(ctx context.Context, dbconn *db.Connection) error {
 	}
 	grip.Info("Lessons:")
 	var ec erc.Collector
-	table := tabby.New()
-	table.AddHeader("Lesson", "Leader", "Song", "Key", "Title")
-	for s := range erc.HandleAll(dbconn.SingingLessons(ctx, singing.SingingName), ec.Push) {
-		table.AddLine(s.LessonID, s.SingerName, s.SongPageNumber, s.SongKey, s.SongName)
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Lesson", RightAlign: true},
+		mdwn.Column{Name: "Leader"},
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Title"},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.SingingLessons(ctx, singing.SingingName), ec.Push), func(s models.SingingLessionInfo) []string {
+		return []string{fmt.Sprint(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
+	})).Build()
+	if ec.Ok() {
+		_, err = mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
-	table.Print()
 	return ec.Resolve()
 }
 
@@ -104,14 +112,17 @@ func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer stri
 	}
 
 	var ec erc.Collector
-	table := tabby.New()
 	grip.Infof("singing buddies for %q", singer)
-	table.AddHeader("Name", "Shared Singings")
-	for kv := range erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 40), ec.Push) {
-		table.AddLine(kv.Key, kv.Value)
-	}
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Name", "Shared Singings"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 40), ec.Push)), func(k string, v int) (string, string) {
+			return k, strconv.Itoa(v)
+		}),
+	)
 	if ec.Ok() {
-		table.Print()
+		_, err = mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }
@@ -123,14 +134,17 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 	}
 
 	var ec erc.Collector
-	table := tabby.New()
 	grip.Infof("singing strangers for %q", singer)
-	table.AddHeader("Name", "Count")
-	for name, count := range irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 40), ec.Push)) {
-		table.AddLine(name, count)
-	}
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Name", "Count"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 40), ec.Push)), func(k string, v int) (string, string) {
+			return k, strconv.Itoa(v)
+		}),
+	)
 	if ec.Ok() {
-		table.Print()
+		_, err = mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }
@@ -190,14 +204,17 @@ func unfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 
 func singersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
 	var ec erc.Collector
-	table := tabby.New()
 	grip.Info("singers ranked by connectedness ratio")
-	table.AddHeader("Name", "Connectedness")
-	for kv := range erc.HandleAll(dbconn.AllLeaderConnectedness(ctx, 32), ec.Push) {
-		table.AddLine(kv.Key, fmt.Sprintf("%.4f", kv.Value))
-	}
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Name", "Connectedness"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.AllLeaderConnectedness(ctx, 32), ec.Push)), func(k string, v float64) (string, string) {
+			return k, fmt.Sprintf("%.4f", v)
+		}),
+	)
 	if ec.Ok() {
-		table.Print()
+		_, err := mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }
@@ -211,13 +228,20 @@ func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer st
 	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer)
 
 	var ec erc.Collector
-	table := tabby.New()
-	table.AddHeader("Song", "Page", "Key", "Top Leader", "Their Leads", "Self Leads")
-	for row := range erc.HandleAll(dbconn.LeaderFootsteps(ctx, singer, 32), ec.Push) {
-		table.AddLine(row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, row.TheirLeadCount, row.SelfLeadCount)
-	}
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Page"},
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Top Leader"},
+		mdwn.Column{Name: "Their Leads", RightAlign: true},
+		mdwn.Column{Name: "Self Leads", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderFootsteps(ctx, singer, 32), ec.Push), func(row models.LeaderFootstep) []string {
+		return []string{row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, fmt.Sprint(row.TheirLeadCount), fmt.Sprint(row.SelfLeadCount)}
+	})).Build()
 	if ec.Ok() {
-		table.Print()
+		_, err = mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }

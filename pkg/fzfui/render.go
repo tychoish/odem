@@ -1,35 +1,49 @@
 package fzfui
 
 import (
+	"fmt"
 	"iter"
+	"os"
 
-	"github.com/cheynewallace/tabby"
 	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/odem/pkg/mdwn"
 	"github.com/tychoish/odem/pkg/models"
 )
 
 func renderTopLeaders(seq iter.Seq2[models.LeaderOfSongInfo, error]) error {
-	table := tabby.New()
-	table.AddHeader("Name", "Count", "Led Last Year", "Years Active")
 	var ec erc.Collector
-	for leader := range erc.Handle(seq, ec.Push) {
-		table.AddLine(leader.Name, leader.Count, leader.LedInLastYear, leader.NumYears)
-	}
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+		mdwn.Column{Name: "Led Last Year"},
+		mdwn.Column{Name: "Years Active", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(seq, ec.Push), func(l models.LeaderOfSongInfo) []string {
+		return []string{l.Name, fmt.Sprint(l.Count), fmt.Sprint(l.LedInLastYear), fmt.Sprint(l.NumYears)}
+	})).Build()
+
 	if ec.Ok() {
-		table.Print()
+		_, err := mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }
 
 func renderTopLedSongs(seq iter.Seq2[models.LeaderSongRank, error]) error {
-	table := tabby.New()
-	table.AddHeader("Count", "Song", "Title", "Key")
 	var ec erc.Collector
-	for song := range erc.Handle(seq, ec.Push) {
-		table.AddLine(song.NumLeads, song.PageNum, song.SongTitle, song.Key)
-	}
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Count", RightAlign: true},
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Title"},
+		mdwn.Column{Name: "Key"},
+	).Extend(irt.Convert(erc.HandleAll(seq, ec.Push), func(s models.LeaderSongRank) []string {
+		return []string{s.NumLeads, s.PageNum, s.SongTitle, s.Key}
+	})).Build()
 	if ec.Ok() {
-		table.Print()
+		_, err := mb.WriteTo(os.Stdout)
+		ec.Push(err)
 	}
 	return ec.Resolve()
 }

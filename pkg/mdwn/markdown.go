@@ -402,7 +402,6 @@ func (t *Table) Build() *Builder {
 		}
 		t.mb.Line()
 	}
-	t.mb.Line() // blank line after table
 
 	return t.mb
 }

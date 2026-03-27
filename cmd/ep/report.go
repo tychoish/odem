@@ -72,35 +72,41 @@ func writeReport(ctx context.Context, conn *db.Connection, w io.Writer, singer s
 	mb.Line()
 
 	mb.H2("Most Led Songs")
-	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 25), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 24), ec.Push))
 
 	mb.H2("Songs in Your Experience")
 	mb.Paragraph("Most frequently led songs at singings you attended.")
-	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 25), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
 
 	mb.H2("Singing Buddies")
 	mb.Paragraph("The people that have been the most singings that you've been at.")
 	mb.KVTable(irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer, 25), ec.Push)), intValToStr),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer, 24), ec.Push)), intValToStr),
 	)
+	mb.Line()
 
 	mb.H2("Singing Strangers")
 	mb.Paragraph("People you've never sung with who share many of your connections.")
 	mb.KVTable(irt.MakeKV("Name", "Mutual Connections"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 25), ec.Push)), intValToStr),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 24), ec.Push)), intValToStr),
 	)
+	mb.Line()
+
+	mb.H2("Singing Idols")
+	mb.Paragraph("The top leaders of all of your top songs!")
+	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer, 20), ec.Push))
 
 	mb.H2("Unfamiliar Hits")
 	mb.Paragraph("Othewise popular songs that are under represented at singing's you've been to.")
-	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 25), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
 
 	mb.H2("Never Led")
 	mb.Paragraph("Songs from the 2025 book you have never led, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 25), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 12), ec.Push))
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing you attended, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 25), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
 
 	_, err = mb.WriteTo(w)
 	ec.Push(err)
@@ -118,4 +124,19 @@ func writeSongTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderSongRank]) {
 	).Extend(func(yield func([]string) bool) {
 		irt.Flush(irt.Convert(seq, asRows), yield)
 	}).Build()
+	mb.Line()
+}
+
+func writeLeaderFootstepTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderFootstep]) {
+	mb.NewTable(
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Page"},
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Top Leader"},
+		mdwn.Column{Name: "Their Leads", RightAlign: true},
+		mdwn.Column{Name: "Self Leads", RightAlign: true},
+	).Extend(irt.Convert(seq, func(row models.LeaderFootstep) []string {
+		return []string{row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, strconv.Itoa(row.TheirLeadCount), strconv.Itoa(row.SelfLeadCount)}
+	})).Build()
+	mb.Line()
 }
