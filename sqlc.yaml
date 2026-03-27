@@ -2,7 +2,10 @@ version: "2"
 sql:
   - engine: "sqlite"
     queries: ["pkg/models/query.sql"]
-    schema: ["pkg/db/fasoladb/minutes_schema.sql", "pkg/db/views.sql"]
+    schema:
+      - "pkg/db/fasoladb/minutes_schema.sql"
+      - "pkg/db/views.sql"
+      - "pkg/db/setup.sql"
     gen:
       go:
         package: "models"

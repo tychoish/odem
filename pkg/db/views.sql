@@ -1,4 +1,4 @@
-CREATE VIEW song_details AS
+CREATE VIEW IF NOT EXISTS song_details AS
 SELECT
 	COALESCE(song_id, 0) AS song_id,
 	COALESCE(page_num, '') AS page_num,
@@ -12,7 +12,7 @@ FROM book_song_joins
 LEFT JOIN songs ON songs.id = book_song_joins.song_id
 WHERE book_id = 2;
 
-CREATE VIEW "minutes_expanded" AS
+CREATE VIEW IF NOT EXISTS "minutes_expanded" AS
 SELECT
 	COALESCE(leaders.name, '') AS leader,
 	COALESCE(bsj.page_num, '') AS song_page_number,
@@ -39,7 +39,7 @@ LEFT JOIN minutes_location_joins AS mlj ON slj.minutes_id = mlj.minutes_id
 LEFT JOIN locations ON mlj.location_id = locations.id
 LEFT JOIN book_song_joins AS bsj ON slj.song_id = bsj.song_id;
 
-CREATE VIEW "lesson_details" AS
+CREATE VIEW IF NOT EXISTS "lesson_details" AS
 SELECT
 	leaders.id,
 	COALESCE(leaders.name, '') AS name,
@@ -59,7 +59,7 @@ LEFT JOIN leader_song_stats AS lss ON (slj.leader_id = lss.leader_id AND songs.i
 LEFT JOIN book_song_joins AS bsj ON songs.id = bsj.song_id
 WHERE bsj.book_id = 2;
 
-CREATE VIEW "singing_details" AS
+CREATE VIEW IF NOT EXISTS "singing_details" AS
 SELECT
 	minutes.id AS minutes_id,
 	COALESCE(minutes."Name", '') AS minutes_name,
@@ -78,7 +78,7 @@ LEFT JOIN minutes_location_joins AS mlg ON minutes.id = mgl.minutes_id
 LEFT JOIN singings ON mlg.singing_id = singings.id
 LEFT JOIN locations ON mlg.location_id = locations.id;
 
-CREATE VIEW singing_lessons AS
+CREATE VIEW IF NOT EXISTS singing_lessons AS
 SELECT
 	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
 	COALESCE(slj.lesson_id, 0) AS lesson_id,
@@ -93,7 +93,7 @@ JOIN leaders AS l ON slj.leader_id = l.id
 JOIN songs AS s ON slj.song_id = s.id
 JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2;
 
-CREATE VIEW singing_info AS
+CREATE VIEW IF NOT EXISTS singing_info AS
 SELECT
 	m.id AS minutes_id,
 	COALESCE(slj.lesson_id, 0) AS lesson_id,
@@ -109,7 +109,7 @@ LEFT JOIN minutes_location_joins AS mlj ON m.id = mlj.minutes_id
 LEFT JOIN locations AS loc ON mlj.location_id = loc.id
 GROUP BY m.id;
 
-CREATE VIEW song_leader_stats AS
+CREATE VIEW IF NOT EXISTS song_leader_stats AS
 SELECT
 	leaders.name,
 	bsj.page_num,
@@ -124,7 +124,7 @@ JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id =
 JOIN minutes AS m ON slj.minutes_id = m.id
 GROUP BY lss.leader_id, bsj.page_num;
 
-CREATE VIEW leader_minutes AS
+CREATE VIEW IF NOT EXISTS leader_minutes AS
 SELECT
 	COALESCE(l.id, 0) AS leader_id,
 	COALESCE(l.name, '') AS leader_name,
@@ -132,38 +132,7 @@ SELECT
 FROM song_leader_joins AS slj
 JOIN leaders AS l ON slj.leader_id = l.id;
 
--- Indexes for query performance (not in embedded db file)
-CREATE INDEX leaders_name ON leaders(name);
-CREATE INDEX slj_leader_minutes ON song_leader_joins(leader_id, minutes_id);
-CREATE INDEX slj_minutes_leader ON song_leader_joins(minutes_id, leader_id);
-
--- Deduplicated (leader_id, minutes_id) pairs used for co-attendance computation.
--- song_leader_joins has ~2 rows per (leader, singing); this table deduplicates them.
-CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
-CREATE INDEX ls_minutes_leader ON leader_singings(minutes_id, leader_id);
-CREATE INDEX ls_leader_minutes ON leader_singings(leader_id, minutes_id);
-
--- Precomputed count of shared singings for every (leader_a, leader_b) pair.
--- Building this takes ~7s but makes SuprisingSingingStrangers run in <1s for typical leaders.
-CREATE TABLE leader_coattendance AS
-SELECT
-	a.leader_id AS leader_a_id,
-	b.leader_id AS leader_b_id,
-	COUNT(*) AS shared_singings
-FROM leader_singings a
-JOIN leader_singings b ON a.minutes_id = b.minutes_id AND a.leader_id != b.leader_id
-GROUP BY a.leader_id, b.leader_id;
-
-CREATE INDEX lca_a ON leader_coattendance(leader_a_id, leader_b_id);
-CREATE INDEX lca_b ON leader_coattendance(leader_b_id, leader_a_id);
-
-INSERT INTO leader_name_invalid (name) VALUES
-	('A Day That Will Be'),
-	('A Founders Lesson'),
-	('A Founder’s Lesson'),
-	('A Shenandoah Harmony');
-
-CREATE VIEW leader_details AS
+CREATE VIEW IF NOT EXISTS leader_details AS
 SELECT
 	COALESCE(leaders.name, '') AS leader_name,
 	COALESCE(leaders.lesson_count, '') AS leader_total_num_leads,
@@ -174,3 +143,33 @@ FROM leaders
 JOIN leader_song_stats AS lss ON leaders.id = lss.leader_id
 JOIN songs ON songs.id = lss.song_id
 LEFT JOIN book_song_joins AS bsj ON songs.id = bsj.song_id;
+
+-- Indexes for query performance (not in embedded db file)
+CREATE INDEX IF NOT EXISTS leaders_name ON leaders(name);
+CREATE INDEX IF NOT EXISTS slj_leader_minutes ON song_leader_joins(leader_id, minutes_id);
+CREATE INDEX IF NOT EXISTS slj_minutes_leader ON song_leader_joins(minutes_id, leader_id);
+
+-- leader_song_stats: join by leader+song (NeverLed, LeaderFootsteps, song_leader_stats view)
+CREATE INDEX IF NOT EXISTS lss_leader_song ON leader_song_stats(leader_id, song_id);
+-- leader_song_stats: window function PARTITION BY song_id ORDER BY lesson_count DESC (LeaderFootsteps)
+CREATE INDEX IF NOT EXISTS lss_song_count_desc ON leader_song_stats(song_id, lesson_count DESC);
+
+-- book_song_joins: covering index for book_id=2 filter used in nearly every query
+CREATE INDEX IF NOT EXISTS bsj_book_song_cover ON book_song_joins(book_id, song_id, page_num, keys);
+
+-- song_stats: covering index for SUM(lesson_count) GROUP BY song_id (NeverLed, NeverSung, TheUnfamilarHits)
+CREATE INDEX IF NOT EXISTS ss_song_id ON song_stats(song_id, lesson_count);
+-- song_stats: year filter for GloballyPopularForYears
+CREATE INDEX IF NOT EXISTS ss_year_song ON song_stats(year, song_id, lesson_count);
+
+-- minutes_location_joins: join on minutes_id (LocallyPopular, singing_info, minutes_expanded views)
+CREATE INDEX IF NOT EXISTS mlj_minutes ON minutes_location_joins(minutes_id, location_id);
+
+-- locations: state filter for LocallyPopular
+CREATE INDEX IF NOT EXISTS loc_state ON locations(state_province);
+
+-- song_leader_joins: song_id lookup (NeverSung, PopularSongsInOnesExperience, LocallyPopular)
+CREATE INDEX IF NOT EXISTS slj_song_minutes_lesson ON song_leader_joins(song_id, minutes_id, lesson_id);
+
+-- minutes: Year for MAX(Year) correlated subquery in song_leader_stats view
+CREATE INDEX IF NOT EXISTS minutes_year ON minutes(Year);

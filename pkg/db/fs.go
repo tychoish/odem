@@ -8,10 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 )
 
 //go:embed views.sql
+//go:embed setup.sql
 //go:embed fasoladb/minutes.db
 //go:embed fasoladb/minutes_schema.sql
 var packaged embed.FS
@@ -29,10 +32,25 @@ func Reset() error {
 func Init() error {
 	dbPath := getDBpath()
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
+		db, err := sql.Open("sqlite", dbPath)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		setupSql, err := packaged.ReadFile("views.sql")
+		if err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(string(setupSql)); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
-	grip.Infof("setting up the local minutes database", dbPath)
+	grip.Infoln("setting up the local minutes database:", dbPath)
 	f, err := packaged.Open("fasoladb/minutes.db")
 	if err != nil {
 		return err
@@ -58,15 +76,18 @@ func Init() error {
 	defer db.Close()
 
 	grip.Info("applying odem specific modifications")
-	setupSql, err := packaged.ReadFile("views.sql")
-	if err != nil {
-		return err
-	}
-
-	if _, err := db.Exec(string(setupSql)); err != nil {
-		return err
+	var ec erc.Collector
+	for file := range irt.Args("setup.sql", "views.sql") {
+		grip.Infoln("reading", file)
+		setupSql, err := packaged.ReadFile(file)
+		if ec.PushOk(err) {
+			grip.Infoln("applying", file)
+			if _, err := db.Exec(string(setupSql)); err != nil {
+				ec.Push(err)
+			}
+		}
 	}
 
 	grip.Info("database initialized")
-	return nil
+	return ec.Resolve()
 }

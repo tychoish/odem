@@ -39,6 +39,14 @@
       "type": "stdio",
       "command": "gh",
       "args":["mcp"]
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-sqlite",
+        "/tmp/minutes.db"
+      ]
     }
   }
 }

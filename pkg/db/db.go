@@ -37,24 +37,12 @@ func Connect(ctx context.Context) (*Connection, error) {
 
 func (conn *Connection) AllSongDetails(ctx context.Context) iter.Seq2[models.SongDetail, error] {
 	const query = `SELECT * FROM song_details;`
-
-	cur, err := conn.db.QueryContext(ctx, query)
-	if err != nil {
-		return irt.Two(models.SongDetail{}, err)
-	}
-
-	return dbx.Cursor[models.SongDetail](cur)
+	return dbx.Query[models.SongDetail](ctx, conn.db.QueryContext, query)
 }
 
 func (conn *Connection) AllSongPageNumbers(ctx context.Context) iter.Seq2[string, error] {
-	const query = `SELECT page_num song_details;`
-
-	cur, err := conn.db.QueryContext(ctx, query)
-	if err != nil {
-		return irt.Two("", err)
-	}
-
-	return dbx.Cursor[string](cur)
+	const query = `SELECT page_num FROM song_details;`
+	return dbx.Query[string](ctx, conn.db.QueryContext, query)
 }
 
 func (conn *Connection) AllLeaderNames(ctx context.Context) iter.Seq2[string, error] {
@@ -63,12 +51,7 @@ SELECT l.name
 FROM leaders AS l
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL;`
-
-	cur, err := conn.db.QueryContext(ctx, query)
-	if err != nil {
-		return irt.Two("", err)
-	}
-	return dbx.Cursor[string](cur)
+	return dbx.Query[string](ctx, conn.db.QueryContext, query)
 }
 
 func (conn *Connection) MostLeadSongs(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderSongRank, error] {
@@ -84,12 +67,7 @@ WHERE name = ?
 GROUP BY leader_lesson_rank, song_page
 ORDER BY count DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, leader, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) TopLeadersOfSong(ctx context.Context, song string, limit int) iter.Seq2[models.LeaderOfSongInfo, error] {
@@ -99,12 +77,7 @@ FROM song_leader_stats
 WHERE page_num = ?
 ORDER BY count DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, song, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(models.LeaderOfSongInfo{}, err)
-	}
-	return dbx.Cursor[models.LeaderOfSongInfo](cur)
+	return dbx.Query[models.LeaderOfSongInfo](ctx, conn.db.QueryContext, query, song, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) AllLessons(ctx context.Context, leader string) iter.Seq2[models.LessonInfo, error] {
@@ -119,12 +92,7 @@ SELECT
 	location_state AS singing_state
 FROM minutes_expanded
 WHERE leader = ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, leader)
-	if err != nil {
-		return irt.Two(models.LessonInfo{}, err)
-	}
-	return dbx.Cursor[models.LessonInfo](cur)
+	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader)
 }
 
 func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter.Seq2[models.SingingLessionInfo, error] {
@@ -132,12 +100,7 @@ func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter
 SELECT lesson_id, sequence_number, singer_name, song_page_number, song_name, song_key
 FROM singing_lessons
 WHERE singing_name = ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, singing)
-	if err != nil {
-		return irt.Two(models.SingingLessionInfo{}, err)
-	}
-	return dbx.Cursor[models.SingingLessionInfo](cur)
+	return dbx.Query[models.SingingLessionInfo](ctx, conn.db.QueryContext, query, singing)
 }
 
 func (conn *Connection) AllSingings(ctx context.Context) iter.Seq2[models.SingingInfo, error] {
@@ -145,12 +108,7 @@ func (conn *Connection) AllSingings(ctx context.Context) iter.Seq2[models.Singin
 SELECT singing_date, singing_name, singing_state, singing_location, number_of_lessons, number_of_leaders
 FROM singing_info
 ORDER BY minutes_id DESC;`
-
-	cur, err := conn.db.QueryContext(ctx, query)
-	if err != nil {
-		return irt.Two(models.SingingInfo{}, err)
-	}
-	return dbx.Cursor[models.SingingInfo](cur)
+	return dbx.Query[models.SingingInfo](ctx, conn.db.QueryContext, query)
 }
 
 func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
@@ -165,12 +123,7 @@ AND inv.name IS NULL
 GROUP BY lm_other.leader_id
 ORDER BY value DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(irt.KV[string, int]{}, err)
-	}
-	return dbx.Cursor[irt.KV[string, int]](cur)
+	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) PopularSongsInOnesExperience(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
@@ -188,12 +141,7 @@ WHERE lm.leader_name = ?
 GROUP BY bsj.page_num
 ORDER BY count DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) SingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
@@ -223,12 +171,7 @@ LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL
 ORDER BY value DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(irt.MakeKV("", 0), err)
-	}
-	return dbx.Cursor[irt.KV[string, int]](cur)
+	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) AllLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[irt.KV[string, float64], error] {
@@ -243,12 +186,7 @@ WHERE inv.name IS NULL
 GROUP BY l.id
 ORDER BY value DESC
 LIMIT ?;`
-
-	cur, err := conn.db.QueryContext(ctx, query, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(irt.KV[string, float64]{}, err)
-	}
-	return dbx.Cursor[irt.KV[string, float64]](cur)
+	return dbx.Query[irt.KV[string, float64]](ctx, conn.db.QueryContext, query, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) SingersConnectedness(ctx context.Context, name string) (*float64, error) {
@@ -256,8 +194,8 @@ func (conn *Connection) SingersConnectedness(ctx context.Context, name string) (
 FROM leader_coattendance
 WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)`
 
-	var v float64
-	if err := conn.db.QueryRowContext(ctx, query, name).Scan(&v); err != nil {
+	v, err := dbx.QueryRow[float64](ctx, conn.db.QueryContext, query, name)
+	if err != nil {
 		return nil, err
 	}
 	return &v, nil
@@ -295,12 +233,7 @@ LEFT JOIN (
 WHERE bsj.book_id = 2
 ORDER BY count ASC, global.total DESC
 LIMIT ?`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...int) iter.Seq2[models.LeaderSongRank, error] {
@@ -349,11 +282,7 @@ ORDER BY count DESC
 LIMIT 40`)
 
 	query, args := qb.Build()
-	cur, err := conn.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, args...)
 }
 
 func (conn *Connection) LocallyPopular(ctx context.Context, limit int, states ...models.SingingLocality) iter.Seq2[models.LeaderSongRank, error] {
@@ -388,11 +317,7 @@ ORDER BY count DESC`)
 	}
 
 	query, args := qb.Build()
-	cur, err := conn.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, args...)
 }
 
 func (conn *Connection) NeverLed(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
@@ -416,12 +341,7 @@ AND bsj.song_id NOT IN (
     WHERE l.name = ?
 )
 ORDER BY count DESC`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name)
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name)
 }
 
 func (conn *Connection) LeaderFootsteps(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderFootstep, error] {
@@ -457,12 +377,7 @@ JOIN songs AS s ON s.id = ms.song_id
 JOIN book_song_joins AS bsj ON bsj.song_id = ms.song_id AND bsj.book_id = 2
 ORDER BY ms.self_lead_count DESC
 LIMIT ?`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name, cmp.Or(limit, 32))
-	if err != nil {
-		return irt.Two(models.LeaderFootstep{}, err)
-	}
-	return dbx.Cursor[models.LeaderFootstep](cur)
+	return dbx.Query[models.LeaderFootstep](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) NeverSung(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
@@ -490,10 +405,5 @@ AND bsj.song_id NOT IN (
     )
 )
 ORDER BY count DESC`
-
-	cur, err := conn.db.QueryContext(ctx, query, name, name)
-	if err != nil {
-		return irt.Two(models.LeaderSongRank{}, err)
-	}
-	return dbx.Cursor[models.LeaderSongRank](cur)
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name)
 }
