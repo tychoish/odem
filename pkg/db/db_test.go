@@ -204,6 +204,55 @@ func TestSingingStrangersVariesByInput(t *testing.T) {
 	}
 }
 
+func TestUnfamiliarHits(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for _, err := range conn.TheUnfamilarHits(ctx, testLeader, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("TheUnfamilarHits(%q): expected at least one result", testLeader)
+	}
+}
+
+func TestUnfamiliarHitsExcludesFamiliarSongs(t *testing.T) {
+	// Regression: the old query used leader_song_stats (lead count) to measure
+	// exposure. Because leaders lead only a small fraction of the book, almost
+	// every song had count=0 and results were identical to the global most-popular
+	// list for any input — familiar songs appeared as "unfamiliar".
+	//
+	// The fix uses attendance exposure (times the song was called at a singing
+	// the leader attended). Top-attended songs must not appear in the top
+	// unfamiliar hits.
+	const limit = 15
+
+	conn, ctx := testConn(t)
+
+	experienced := make(map[string]bool)
+	for song, err := range conn.PopularSongsInOnesExperience(ctx, testLeader, limit) {
+		if err != nil {
+			t.Fatalf("PopularSongsInOnesExperience(%q): %v", testLeader, err)
+		}
+		experienced[song.PageNum] = true
+	}
+	if len(experienced) == 0 {
+		t.Fatalf("PopularSongsInOnesExperience(%q): no results; cannot run regression check", testLeader)
+	}
+
+	for song, err := range conn.TheUnfamilarHits(ctx, testLeader, limit) {
+		if err != nil {
+			t.Fatalf("TheUnfamilarHits(%q): %v", testLeader, err)
+		}
+		if experienced[song.PageNum] {
+			t.Errorf("TheUnfamilarHits(%q): %s (%q) is highly familiar (top attended) but appears in unfamiliar hits",
+				testLeader, song.PageNum, song.SongTitle)
+		}
+	}
+}
+
 func TestSingersConnectedness(t *testing.T) {
 	conn, ctx := testConn(t)
 	v, err := conn.SingersConnectedness(ctx, testLeader)

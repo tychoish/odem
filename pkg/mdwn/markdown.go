@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"iter"
+	"unicode/utf8"
 
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/strut"
@@ -28,6 +29,22 @@ func (c Column) truncMarker() string {
 		return c.TruncMarker
 	}
 	return "..."
+}
+
+// runeByteOffset returns the byte index of the start of the (n+1)th rune in b,
+// i.e. the byte position immediately after n runes. Used to truncate cell
+// content at a rune boundary rather than a byte boundary.
+// Returns len(b) if b contains fewer than n runes.
+func runeByteOffset(b []byte, n int) int {
+	pos := 0
+	for range n {
+		if pos >= len(b) {
+			return len(b)
+		}
+		_, size := utf8.DecodeRune(b[pos:])
+		pos += size
+	}
+	return pos
 }
 
 // Builder wraps strut.Buffer with methods for writing markdown
@@ -294,15 +311,19 @@ func (t *Table) Build() *Builder {
 		t.rows = nil
 	}()
 
-	// Compute per-column widths from pre-escaped cell byte lengths.
+	// Compute per-column widths using rune count (visual width), not byte
+	// length. Multi-byte Unicode characters (e.g. ♯ = 3 UTF-8 bytes, 1 rune)
+	// must count as one column character to keep rows visually aligned.
 	widths := make([]int, len(t.cols))
 	for i, col := range t.cols {
-		widths[i] = max(len(col.Name), col.MinWidth, 3)
+		widths[i] = max(utf8.RuneCountInString(col.Name), col.MinWidth, 3)
 	}
 	for _, row := range t.rows {
 		for i, cell := range row {
-			if i < len(widths) && cell.Len() > widths[i] {
-				widths[i] = cell.Len()
+			if i < len(widths) {
+				if rw := utf8.RuneCount([]byte(*cell)); rw > widths[i] {
+					widths[i] = rw
+				}
 			}
 		}
 	}
@@ -324,7 +345,7 @@ func (t *Table) Build() *Builder {
 	t.mb.PushString("|")
 	for i, col := range t.cols {
 		t.mb.Concat(" ", col.Name)
-		t.mb.Repeat(" ", widths[i]-len(col.Name))
+		t.mb.Repeat(" ", widths[i]-utf8.RuneCountInString(col.Name))
 		t.mb.PushString(" |")
 	}
 	t.mb.Line()
@@ -352,16 +373,18 @@ func (t *Table) Build() *Builder {
 			if i < len(row) && row[i] != nil {
 				cellBytes = []byte(*row[i])
 			}
-			cellLen := len(cellBytes)
+			cellLen := utf8.RuneCount(cellBytes)
 
 			// Truncate if cell exceeds capped column width.
 			needsTrunc := col.MaxWidth > 0 && cellLen > widths[i]
 			if needsTrunc {
 				marker := col.truncMarker()
-				if widths[i] > len(marker) {
-					cellBytes = append(cellBytes[:widths[i]-len(marker):widths[i]-len(marker)], marker...)
+				markerLen := utf8.RuneCountInString(marker)
+				if widths[i] > markerLen {
+					cutAt := runeByteOffset(cellBytes, widths[i]-markerLen)
+					cellBytes = append(cellBytes[:cutAt:cutAt], marker...)
 				} else {
-					cellBytes = cellBytes[:widths[i]]
+					cellBytes = cellBytes[:runeByteOffset(cellBytes, widths[i])]
 				}
 				cellLen = widths[i]
 			}

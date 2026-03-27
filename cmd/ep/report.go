@@ -75,23 +75,23 @@ func writeReport(ctx context.Context, conn *db.Connection, w io.Writer, singer s
 	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 25), ec.Push))
 
 	mb.H2("Songs in Your Experience")
-	mb.ItalicParagraph("Most frequently led songs at singings you attended.")
+	mb.Paragraph("Most frequently led songs at singings you attended.")
 	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 25), ec.Push))
 
 	mb.H2("Singing Buddies")
-	mb.ItalicParagraph("The people that have been at the same singings with you.")
+	mb.Paragraph("The people that have been the most singings that you've been at.")
 	mb.KVTable(irt.MakeKV("Name", "Shared Singings"),
 		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer, 25), ec.Push)), intValToStr),
 	)
 
 	mb.H2("Singing Strangers")
-	mb.ItalicParagraph("People you've never sung with who share many of your connections.")
+	mb.Paragraph("People you've never sung with who share many of your connections.")
 	mb.KVTable(irt.MakeKV("Name", "Mutual Connections"),
 		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 25), ec.Push)), intValToStr),
 	)
 
 	mb.H2("Unfamiliar Hits")
-	mb.ItalicParagraph("Popular songs you have little exposure to.")
+	mb.Paragraph("Othewise popular songs that are under represented at singing's you've been to.")
 	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 25), ec.Push))
 
 	mb.H2("Never Led")
@@ -99,7 +99,7 @@ func writeReport(ctx context.Context, conn *db.Connection, w io.Writer, singer s
 	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 50), ec.Push))
 
 	mb.H2("Never Sung")
-	mb.ItalicParagraph("Songs that have not been called at a singing you attended, by global popularity.")
+	mb.Paragraph("Songs that have not been called at a singing you attended, by global popularity.")
 	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 50), ec.Push))
 
 	_, err = mb.WriteTo(w)

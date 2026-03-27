@@ -4,6 +4,7 @@ import (
 	"iter"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/tychoish/fun/irt"
 )
@@ -642,6 +643,91 @@ func TestKVTableEmpty(t *testing.T) {
 	})
 	if got != "" {
 		t.Errorf("KVTable(empty seq): expected empty output, got %q", got)
+	}
+}
+
+// --- runeByteOffset ---
+
+func TestRuneByteOffset(t *testing.T) {
+	b := []byte("F♯ Minor") // ♯ = 3 UTF-8 bytes; total 10 bytes, 8 runes
+	cases := []struct{ n, want int }{
+		{0, 0},
+		{1, 1},  // after "F" (1 byte)
+		{2, 4},  // after "F♯" (1+3 bytes)
+		{8, 10}, // after all 8 runes = end of slice
+		{99, 10}, // n > rune count → len(b)
+	}
+	for _, c := range cases {
+		if got := runeByteOffset(b, c.n); got != c.want {
+			t.Errorf("runeByteOffset(%q, %d) = %d, want %d", b, c.n, got, c.want)
+		}
+	}
+}
+
+// --- Unicode column widths ---
+
+func TestTableUnicodeMusicalSymbols(t *testing.T) {
+	// Regression: column widths were computed from byte length, causing
+	// multi-byte Unicode characters (♯ = 3 UTF-8 bytes, 1 rune) to produce
+	// under-padded cells.  Width must be rune count (visual width).
+	//
+	// "F♯ Minor" = 8 runes, 10 bytes.  Column width must be 8, not 10.
+	got := build(func(m *Builder) {
+		m.NewTable(Column{Name: "Key"}).
+			Row("E Minor").  // 7 runes, 7 bytes
+			Row("F♯ Minor"). // 8 runes, 10 bytes — ♯ is 3 UTF-8 bytes
+			Build()
+	})
+	// width = max(runes("Key")=3, 7, 8) = 8
+	want := "| Key      |\n| -------- |\n| E Minor  |\n| F♯ Minor |\n\n"
+	if got != want {
+		t.Errorf("TableUnicodeMusicalSymbols:\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestTableUnicodeSmartQuotes(t *testing.T) {
+	// Curly apostrophe ' (U+2019) is 3 UTF-8 bytes but 1 rune.
+	got := build(func(m *Builder) {
+		m.NewTable(Column{Name: "Title"}).
+			Row("Short").          // 5 runes, 5 bytes
+			Row("Saint\u2019s").   // 7 runes, 9 bytes
+			Build()
+	})
+	// width = max(5, 5, 7) = 7
+	want := "| Title   |\n| ------- |\n| Short   |\n| Saint\u2019s |\n\n"
+	if got != want {
+		t.Errorf("TableUnicodeSmartQuotes:\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestTableUnicodeColumnConsistency(t *testing.T) {
+	// Every cell in a column must have the same visual width after padding.
+	got := build(func(m *Builder) {
+		m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
+			Row("plain", "A♭ Major"). // ♭ = 3 UTF-8 bytes
+			Row("x", "B Major").
+			Build()
+	})
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("expected at least 4 lines, got %d", len(lines))
+	}
+	// Collect visual widths of the second column cell across data rows.
+	colWidths := make([]int, 0, len(lines)-2)
+	for _, line := range lines[2:] {
+		parts := strings.Split(line, "|")
+		if len(parts) < 3 {
+			continue
+		}
+		// parts[2] is " cell " — strip the two surrounding spaces.
+		cell := parts[2]
+		colWidths = append(colWidths, utf8.RuneCountInString(cell))
+	}
+	for i := 1; i < len(colWidths); i++ {
+		if colWidths[i] != colWidths[0] {
+			t.Errorf("column visual width inconsistent: row 0=%d row %d=%d\n%s",
+				colWidths[0], i, colWidths[i], got)
+		}
 	}
 }
 

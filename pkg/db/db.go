@@ -263,15 +263,20 @@ WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)`
 }
 
 func (conn *Connection) TheUnfamilarHits(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	// Exposure is measured by attendance: how many times the song was called at
+	// a singing the leader attended. Using leader_song_stats (lead count) instead
+	// was the source of a bug — leaders lead a small fraction of the book, so
+	// nearly every song had count=0 and results were identical to the global
+	// most-popular list regardless of the input leader.
 	const query = `
 SELECT
     ? AS name,
-    COALESCE(lss.lesson_count, 0) AS count,
+    COALESCE(attended.call_count, 0) AS count,
     bsj.page_num AS song_page,
     s.title AS song_title,
     bsj.keys AS song_keys,
     CASE WHEN COALESCE(global.total, 0) > 0
-         THEN CAST(COALESCE(lss.lesson_count, 0) AS REAL) / global.total
+         THEN CAST(COALESCE(attended.call_count, 0) AS REAL) / global.total
          ELSE 0.0
     END AS ratio
 FROM book_song_joins AS bsj
@@ -279,8 +284,13 @@ JOIN songs AS s ON s.id = bsj.song_id
 LEFT JOIN (
     SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
 ) AS global ON global.song_id = bsj.song_id
-LEFT JOIN leaders AS l ON l.name = ?
-LEFT JOIN leader_song_stats AS lss ON lss.leader_id = l.id AND lss.song_id = bsj.song_id
+LEFT JOIN (
+    SELECT slj.song_id, COUNT(DISTINCT slj.lesson_id || '-' || slj.minutes_id) AS call_count
+    FROM leader_minutes AS lm
+    JOIN song_leader_joins AS slj ON slj.minutes_id = lm.minutes_id
+    WHERE lm.leader_name = ?
+    GROUP BY slj.song_id
+) AS attended ON attended.song_id = bsj.song_id
 WHERE bsj.book_id = 2
 ORDER BY count ASC, global.total DESC
 LIMIT ?`
