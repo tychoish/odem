@@ -188,6 +188,40 @@ func unfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 	return renderTopLedSongs(dbconn.TheUnfamilarHits(ctx, singer, 32))
 }
 
+func singersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
+	var ec erc.Collector
+	table := tabby.New()
+	grip.Info("singers ranked by connectedness ratio")
+	table.AddHeader("Name", "Connectedness")
+	for kv := range erc.HandleAll(dbconn.AllLeaderConnectedness(ctx, 32), ec.Push) {
+		table.AddLine(kv.Key, fmt.Sprintf("%.4f", kv.Value))
+	}
+	if ec.Ok() {
+		table.Print()
+	}
+	return ec.Resolve()
+}
+
+func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer)
+
+	var ec erc.Collector
+	table := tabby.New()
+	table.AddHeader("Song", "Page", "Key", "Top Leader", "Their Leads", "Self Leads")
+	for row := range erc.HandleAll(dbconn.LeaderFootsteps(ctx, singer, 32), ec.Push) {
+		table.AddLine(row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, row.TheirLeadCount, row.SelfLeadCount)
+	}
+	if ec.Ok() {
+		table.Print()
+	}
+	return ec.Resolve()
+}
+
 func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
 	var years []int
 	var err error

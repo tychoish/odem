@@ -65,3 +65,14 @@ type SingingLessionInfo struct {
 	SongName       string `db:"song_name"`
 	SongKey        string `db:"song_key"`
 }
+
+// LeaderFootstep represents a song the queried singer has led, paired with
+// the most frequent other leader of that same song.
+type LeaderFootstep struct {
+	LeaderName     string `db:"leader_name"`   // most frequent other leader of this song
+	SongTitle      string `db:"song_title"`
+	SongPage       string `db:"song_page"`
+	SongKeys       string `db:"song_keys"`
+	SelfLeadCount  int    `db:"self_lead_count"`  // times the queried singer has led it
+	TheirLeadCount int    `db:"their_lead_count"` // times the most frequent other leader has led it
+}

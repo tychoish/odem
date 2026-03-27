@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	_ "modernc.org/sqlite"
 	"github.com/tychoish/fun/srv"
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -253,6 +253,26 @@ func TestUnfamiliarHitsExcludesFamiliarSongs(t *testing.T) {
 	}
 }
 
+func TestLeaderFootsteps(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for row, err := range conn.LeaderFootsteps(ctx, testLeader, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.TheirLeadCount <= 0 {
+			t.Errorf("LeaderFootsteps(%q): TheirLeadCount should be > 0, got %d", testLeader, row.TheirLeadCount)
+		}
+		if row.SelfLeadCount <= 0 {
+			t.Errorf("LeaderFootsteps(%q): MyLeadCount should be > 0, got %d", testLeader, row.SelfLeadCount)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("LeaderFootsteps(%q): expected at least one result", testLeader)
+	}
+}
+
 func TestSingersConnectedness(t *testing.T) {
 	conn, ctx := testConn(t)
 	v, err := conn.SingersConnectedness(ctx, testLeader)
@@ -267,7 +287,7 @@ func TestSingersConnectedness(t *testing.T) {
 func TestAllLeaderConnectedness(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
-	for kv, err := range conn.AllLeaderConnectedness(ctx) {
+	for kv, err := range conn.AllLeaderConnectedness(ctx, 20) {
 		if err != nil {
 			t.Fatal(err)
 		}
