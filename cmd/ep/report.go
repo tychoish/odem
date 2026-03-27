@@ -95,7 +95,7 @@ func writeReport(ctx context.Context, conn *db.Connection, w io.Writer, singer s
 	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 25), ec.Push))
 
 	mb.H2("Never Led")
-	mb.ItalicParagraph("Songs from the 2025 book you have never led, by global popularity.")
+	mb.Paragraph("Songs from the 2025 book you have never led, by global popularity.")
 	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 50), ec.Push))
 
 	mb.H2("Never Sung")
