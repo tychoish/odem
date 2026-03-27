@@ -71,7 +71,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 		ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
 		ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
 		grip.Infoln("top leaders of", s.PageNum)
-		ec.Push(renderTopLeaders(ctx, conn, s.PageNum))
+		ec.Push(renderTopLeaders(conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
 	}
 
 	return ec.Resolve()

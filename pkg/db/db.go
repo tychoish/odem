@@ -26,7 +26,7 @@ func Connect(ctx context.Context) (*Connection, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite3", getDBpath())
+	db, err := sql.Open("sqlite", getDBpath())
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,6 @@ LIMIT ?;`
 }
 
 func (conn *Connection) PopularSongsInOnesExperience(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
-	// TODO "count" in this query should refer to
 	const query = `
 SELECT
       COUNT(DISTINCT slj.lesson_id || "-" || slj.minutes_id) AS count,

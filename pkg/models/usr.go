@@ -15,6 +15,10 @@ type LeaderSongRank struct {
 	Ratio     float64 `db:"ratio"` // ratio of this song to total number of leads.
 }
 
+func (lsr *LeaderSongRank) StringFields() []string {
+	return []string{lsr.NumLeads, lsr.PageNum, lsr.SongTitle, lsr.Key}
+}
+
 type LeaderOfSongInfo struct {
 	Name          string `db:"name"`
 	Count         int    `db:"count"`
@@ -61,12 +65,3 @@ type SingingLessionInfo struct {
 	SongName       string `db:"song_name"`
 	SongKey        string `db:"song_key"`
 }
-
-// type SingingInfo struct {
-// 	SingingName     string   `db:"singing_name"`
-// 	SingingDate     DateTime `db:"singing_date"`
-// 	SingingLocation string   `db:"singing_location"`
-// 	SingingState    string   `db:"singing_state"`
-// 	NumberOfLessons int      `db:"number_of_lessons"`
-// 	NumberOfLeaders int      `db:"number_of_leaders"`
-// }
