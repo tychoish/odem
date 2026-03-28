@@ -36,14 +36,13 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	var mb mdwn.Builder
 
 	mb.H1(singer)
-	mb.KV("Generated", time.Now().Format(time.DateOnly))
-	mb.Line()
 
 	share, err := conn.LeaderShareOfLeads(ctx, singer)
 	ec.Push(err)
 	v, err := conn.SingersConnectedness(ctx, singer)
 	ec.Push(err)
 
+	mb.KV("Generated", time.Now().Format(time.DateOnly))
 	mb.KV("Share of All Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100))
 	mb.KV("Connectedness", fmt.Sprintf("%.2f%%", stw.DerefZ(v)*100))
 	mb.Line()
