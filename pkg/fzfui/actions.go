@@ -3,7 +3,6 @@ package fzfui
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -17,23 +16,7 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, arg string) error {
-	grip.Debug("selecting operation to dispatch")
-
-	operation := NewMinutesAppOperation(arg)
-	if !operation.Ok() {
-		var err error
-		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOperations()).Prompt("odem operation").FindOne()
-		if err != nil {
-			return err
-		}
-	}
-
-	grip.Debugln("dispatching", operation)
-	return operation.Dispatch().Handle(ctx, dbconn)
-}
-
-func leaderAction(ctx context.Context, conn *db.Connection, args []string) error {
+func LeaderAction(ctx context.Context, conn *db.Connection, args []string) error {
 	singer, err := interactivelyResolveSingerName(ctx, conn, strings.Join(args, " "))
 	if err != nil {
 		return err
@@ -44,7 +27,7 @@ func leaderAction(ctx context.Context, conn *db.Connection, args []string) error
 	return renderTopLedSongs(conn.MostLeadSongs(ctx, singer, -20))
 }
 
-func songAction(ctx context.Context, conn *db.Connection, song string) error {
+func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 	var s *models.SongDetail
 	var ec erc.Collector
 
@@ -81,7 +64,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 	return ec.Resolve()
 }
 
-func singingAction(ctx context.Context, dbconn *db.Connection) error {
+func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 	singing, err := SelectSinging(ctx, dbconn)
 	if err != nil {
 		return err
@@ -109,7 +92,7 @@ func singingAction(ctx context.Context, dbconn *db.Connection) error {
 	return nil
 }
 
-func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -130,7 +113,7 @@ func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer stri
 	return nil
 }
 
-func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -151,7 +134,7 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 	return nil
 }
 
-func popularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -161,7 +144,7 @@ func popularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, s
 	return renderTopLedSongs(dbconn.PopularSongsInOnesExperience(ctx, singer, 25))
 }
 
-func neverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func NeverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -171,7 +154,7 @@ func neverSungAction(ctx context.Context, dbconn *db.Connection, singer string) 
 	return renderTopLedSongs(dbconn.NeverSung(ctx, singer))
 }
 
-func neverLedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func NeverLedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -181,7 +164,7 @@ func neverLedAction(ctx context.Context, dbconn *db.Connection, singer string) e
 	return renderTopLedSongs(dbconn.NeverLed(ctx, singer))
 }
 
-func locallyPopularAction(ctx context.Context, dbconn *db.Connection, localities ...models.SingingLocality) error {
+func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, localities ...models.SingingLocality) error {
 	if len(localities) == 0 {
 		var err error
 		localities, err = erc.FromIteratorAll(infra.NewFuzzySearch[models.SingingLocality](models.AllLocalities()).Prompt("location").Find())
@@ -194,7 +177,7 @@ func locallyPopularAction(ctx context.Context, dbconn *db.Connection, localities
 	return renderTopLedSongs(dbconn.LocallyPopular(ctx, 32, localities...))
 }
 
-func unfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -204,7 +187,7 @@ func unfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 	return renderTopLedSongs(dbconn.TheUnfamilarHits(ctx, singer, 32))
 }
 
-func singersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
+func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
 	var ec erc.Collector
 	grip.Info("singers ranked by connectedness ratio")
 	var mb mdwn.Builder
@@ -220,7 +203,7 @@ func singersByConnectednessAction(ctx context.Context, dbconn *db.Connection) er
 	return nil
 }
 
-func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {
 		return err
@@ -248,7 +231,7 @@ func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer st
 	return nil
 }
 
-func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
+func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
 	// input may be "Singer Name" or "Singer Name,2023,2024"
 	parts := strings.SplitN(input, ",", 2)
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, strings.TrimSpace(parts[0]))
@@ -277,7 +260,7 @@ func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input 
 	return flush(os.Stdout, &mb)
 }
 
-func topLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
 	var years []int
 	if yrs != "" {
 		var err error
@@ -309,7 +292,7 @@ func topLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 	return nil
 }
 
-func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
 	years, err := SelectYears(yrs)
 	if err != nil {
 		return err
@@ -318,5 +301,3 @@ func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 	grip.Infof("songs by popularity in year(s) %v", years)
 	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, years...))
 }
-
-func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
