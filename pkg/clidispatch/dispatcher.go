@@ -50,35 +50,35 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpLeaders
 	case "song", "tune", "hymn", "songs":
 		return MinutesAppOpSongs
-	case "singing", "allday", "convention":
+	case "singing", "singings", "allday", "convention":
 		return MinutesAppOpSingings
-	case "buddies", "connections", "neighbors":
+	case "buddies", "buddy", "connections", "neighbors":
 		return MinutesAppOpBuddies
 	case "strangers", "enemies", "never-neighbors":
 		return MinutesAppOpStrangers
 	case "exit", "return", "abort":
 		return MinutesAppOpExit
-	case "retry", "restart":
+	case "retry", "again", "restart", "repeat":
 		return MinutesAppOpRetry
 	case "prevalent", "popular-in-ones-experience":
 		return MinutesAppOpPopularInOnesExperience
 	case "never-sung", "unknown":
 		return MinutesAppOpNeverSung
-	case "never-led", "neverled":
+	case "never-led", "neverled", "unled":
 		return MinutesAppOpNeverLed
 	case "locally-popular", "localpop", "locally":
 		return MinutesAppOpLocallyPopular
-	case "unfamilar-hits", "unsung-hits":
+	case "unfamilar-hits", "unsung-hits", "unexpectedly-rare":
 		return MinutesAppOpUnfamilarHits
 	case "connectedness", "connected", "network":
 		return MinutesAppOpConnectedness
 	case "popular-for-years", "popular-in-years":
 		return MinutesAppOpPopularInYears
-	case "leader-footsteps", "footsteps", "giants":
+	case "leader-footsteps", "footsteps", "giants", "singing-idols":
 		return MinutesAppOpLeaderFootsteps
 	case "top-leaders", "leaderboard":
 		return MinutesAppOpTopLeaders
-	case "leader-share", "share":
+	case "leader-share", "share", "leaders-share":
 		return MinutesAppOpLeaderShare
 	default:
 		return MinutesAppOpInvalid
@@ -96,6 +96,7 @@ func (mao MinutesAppOperation) isValidOp() bool {
 }
 
 func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
+	// response maps the subcommand (key) to the usage text.
 	switch mao {
 	case MinutesAppOpLeaders:
 		return irt.MakeKV("leaders", "learn more about the leaders of a song")
