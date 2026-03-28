@@ -16,7 +16,39 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
+func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SongDetail, error) {
+	songDetails, err  := erc.FromIteratorAll(dbconn.AllSongDetails(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	sg := infra.NewFuzzySearch[models.SongDetail](songDetails).
+		WithToString(func(in models.SongDetail) string {
+			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
+		}).Search(strings.Join(args, " "))
+	// TODO skip this is we didnt get ny results and go back to normal
+	sdIdx := map[models.SongDetail]int{}
+	for i, v := range songDetails {
+		sdIdx[v] = i
+	}
+	preselction := []int{}
+	for  detail := range  sg {
+		if sidx, ok := sdIdx[detail]; ok == true {
+			preselction = append(preselction, sidx )
+		}
+	}
+	res, err := infra.NewFuzzySearch[models.SongDetail](songDetails).
+		WithSelections(preselction).
+		WithToString(func(in models.SongDetail) string {
+			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
+		}).FindOne()
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (string, error) {
 	var ec erc.Collector
 
 	names := irt.Collect(erc.HandleAll(dbconn.AllLeaderNames(ctx), ec.Push))
@@ -24,7 +56,21 @@ func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 		return "", ec.Resolve()
 	}
 
-	leader, err := infra.NewFuzzySearch[string](names).FindOne("leaders")
+	selections := infra.NewFuzzySearch[string](names).Search(strings.Join(args, " "))
+	var idxs []int
+	namesIndexMap := map[string]int{}
+
+	for i, item := range names {
+		namesIndexMap[item] = i
+	}
+	for preSelected := range selections {
+		if idx, ok := namesIndexMap[preSelected]; ok {
+			idxs = append(idxs, idx)
+		}
+	}
+
+	leader, err := infra.NewFuzzySearch[string](names).WithSelections(idxs).FindOne()
+
 	if !ec.PushOk(err) {
 		return "", ec.Resolve()
 	}
@@ -33,7 +79,7 @@ func selectLeader(ctx context.Context, dbconn *db.Connection) (string, error) {
 	return leader, nil
 }
 
-func selectSinging(ctx context.Context, dbconn *db.Connection) (*models.SingingInfo, error) {
+func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SingingInfo, error) {
 	var ec erc.Collector
 
 	singings := irt.Collect(erc.HandleAll(dbconn.AllSingings(ctx), ec.Push))
@@ -41,7 +87,8 @@ func selectSinging(ctx context.Context, dbconn *db.Connection) (*models.SingingI
 		WithToString(func(info models.SingingInfo) string {
 			return fmt.Sprintf("%s -- %s (%s)", info.SingingDate.Time().Format("2006-01-02"), strings.Split(info.SingingName, "\\n")[0], info.SingingLocation)
 		}).
-		FindOne("leaders")
+		Prompt("leaders").
+		FindOne()
 
 	if !ec.PushOk(err) || !ec.Ok() {
 		return nil, ec.Resolve()
@@ -50,12 +97,14 @@ func selectSinging(ctx context.Context, dbconn *db.Connection) (*models.SingingI
 	return &singing, nil
 }
 
+// TODO implement exported/reusable SelectSong handler
+
 func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, singer string) (string, error) {
 	if singer != "" {
 		return singer, nil
 	}
 
-	singer, err := selectLeader(ctx, conn)
+	singer, err := SelectLeader(ctx, conn)
 	if err != nil {
 		return "", err
 	}
@@ -66,10 +115,10 @@ func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, si
 	return singer, nil
 }
 
-// selectYears parses years from userInput (comma-separated integers) or
+// SelectYears parses years from userInput (comma-separated integers) or
 // prompts the user with a fuzzy selector. Selecting or passing 0 means
 // "all years" and returns nil, nil. An empty selection also returns nil, nil.
-func selectYears(userInput string) ([]int, error) {
+func SelectYears(userInput string) ([]int, error) {
 	if userInput != "" {
 		years, err := erc.FromIteratorAll(
 			irt.With2(
@@ -93,8 +142,7 @@ func selectYears(userInput string) ([]int, error) {
 			irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
 			irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
 		)),
-	).Find("years (0 = all)"))
-
+	).Prompt("years (0 = all)").Find())
 	if err != nil {
 		return nil, err
 	}

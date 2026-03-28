@@ -23,7 +23,7 @@ func selectMinutesAppAction(ctx context.Context, dbconn *db.Connection, arg stri
 	operation := NewMinutesAppOperation(arg)
 	if !operation.Ok() {
 		var err error
-		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOperations()).FindOne("odem operation")
+		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOperations()).Prompt("odem operation").FindOne()
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 			irt.Collect(erc.HandleAll(conn.AllSongDetails(ctx), ec.Push)),
 		).WithToString(func(in models.SongDetail) string {
 			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
-		}).FindOne("songs")
+		}).Prompt("songs").FindOne()
 
 		ec.Push(err)
 		s = &sg
@@ -82,7 +82,7 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 }
 
 func singingAction(ctx context.Context, dbconn *db.Connection) error {
-	singing, err := selectSinging(ctx, dbconn)
+	singing, err := SelectSinging(ctx, dbconn)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func neverLedAction(ctx context.Context, dbconn *db.Connection, singer string) e
 func locallyPopularAction(ctx context.Context, dbconn *db.Connection, localities ...models.SingingLocality) error {
 	if len(localities) == 0 {
 		var err error
-		localities, err = erc.FromIteratorAll(infra.NewFuzzySearch[models.SingingLocality](models.AllLocalities()).Find("location"))
+		localities, err = erc.FromIteratorAll(infra.NewFuzzySearch[models.SingingLocality](models.AllLocalities()).Prompt("location").Find())
 		if err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input 
 		return err
 	}
 
-	years, err := selectYears(input)
+	years, err := SelectYears(input)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func topLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 }
 
 func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := selectYears(yrs)
+	years, err := SelectYears(yrs)
 	if err != nil {
 		return err
 	}

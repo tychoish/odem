@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"reflect"
@@ -35,6 +36,10 @@ func IterStruct(foo any) iter.Seq2[string, any] {
 }
 
 type FuzzySearchItems[T any] struct {
+	prompt        string
+	caseSensitive bool
+	selections []int
+	prefix string
 	stw.Slice[T]
 	toString func(in T) string
 }
@@ -72,10 +77,21 @@ func (fsi *FuzzySearchItems[T]) ItemString(i int) string {
 	}
 	return fsi.toString(fsi.Index(i))
 }
+
+func (fsi *FuzzySearchItems[T]) Prompt(prompt string) *FuzzySearchItems[T] {
+	fsi.prompt = prompt
+	return fsi
+}
+
+func (fsi *FuzzySearchItems[T]) CaseSensitive(v bool) *FuzzySearchItems[T] {
+	fsi.caseSensitive = v
+	return fsi
+}
+func joinstr(args ...string) string                   { return irt.JoinStrings(irt.Slice(args)) }
 func (fsi *FuzzySearchItems[T]) Len() int             { return fsi.Slice.Len() }
 func (fsi *FuzzySearchItems[T]) toItem(m fzf.Match) T { return fsi.Index(m.Index) }
 func (fsi *FuzzySearchItems[T]) Search(searchFor string) iter.Seq[T] {
-	return irt.Convert(irt.Slice(fzf.Search(fsi, searchFor, fzf.WithSearchCaseSensitive(true))), fsi.toItem)
+	return irt.Convert(irt.Slice(fzf.Search(fsi, searchFor, fzf.WithSearchCaseSensitive(fsi.caseSensitive))), fsi.toItem)
 }
 
 func (fsi *FuzzySearchItems[T]) WithToString(in func(T) string) *FuzzySearchItems[T] {
@@ -86,11 +102,20 @@ func (fsi *FuzzySearchItems[T]) WithToString(in func(T) string) *FuzzySearchItem
 func (FuzzySearchItems[T]) defaultString(in T) string { return fmt.Sprint(in) }
 func (FuzzySearchItems[T]) zero() (z T)               { return z }
 func (FuzzySearchItems[T]) noError(T) error           { return nil }
-func (fsi *FuzzySearchItems[T]) Find(prompt string) iter.Seq2[T, error] {
-	ff, err := fzf.New(
-		fzf.WithPrompt(fmt.Sprintf("%s => ", prompt)),
-		fzf.WithCaseSensitive(false),
-	)
+func (fsi *FuzzySearchItems[T]) WithSelectedPrefix(pre string) *FuzzySearchItems[T] { fsi.prefix = pre; return fsi}
+func (fsi *FuzzySearchItems[T]) WithSelections(idxs []int) *FuzzySearchItems[T] { fsi.selections = idxs; return fsi}
+func (fsi *FuzzySearchItems[T]) Find() iter.Seq2[T, error] {
+	args := []fzf.Option{
+		fzf.WithPrompt(joinstr(cmp.Or(fsi.prompt, "find (many)"), " => ")),
+		fzf.WithCaseSensitive(fsi.caseSensitive),
+	}
+
+	if fsi.prefix != "" {
+		args = append(args, fzf.WithSelectedPrefix(fsi.prefix))
+	}
+
+	ff, err := fzf.New(args...)
+
 	if err != nil {
 		return irt.Two(fsi.zero(), err)
 	}
@@ -102,8 +127,9 @@ func (fsi *FuzzySearchItems[T]) Find(prompt string) iter.Seq2[T, error] {
 	return irt.With(irt.Convert(irt.Slice(idxs), fsi.Index), fsi.noError)
 }
 
-func (fsi *FuzzySearchItems[T]) FindOne(prompt string) (T, error) {
-	for v, err := range fsi.Find(prompt) {
+func (fsi *FuzzySearchItems[T]) FindOne() (T, error) {
+	fsi.Prompt(cmp.Or(fsi.prompt, "find (one)"))
+	for v, err := range fsi.Find() {
 		return v, err
 	}
 	return fsi.zero(), ers.New("not found")
