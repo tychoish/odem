@@ -29,6 +29,24 @@ func SimpleDBOperationSpec(action func(context.Context, *db.Connection) error) *
 	return MakeDBOperationSpec("name", func(ctx context.Context, db *db.Connection, _ string) error { return action(ctx, db) })
 }
 
+// DBOperationSpecWith builds a cmdr.OperationSpec that connects to the database
+// and extracts arbitrary input from the CLI command. Unlike DBOperationSpec, T
+// is unconstrained so callers can bundle multiple flags into a struct.
+func DBOperationSpecWith[T any](
+	extract func(*cli.Command) T,
+	action func(context.Context, *db.Connection, T) error,
+) *cmdr.OperationSpec[*WithInput[T]] {
+	return cmdr.SpecBuilder(
+		func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
+			conn, err := db.Connect(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &WithInput[T]{DB: conn, Args: extract(cc)}, nil
+		},
+	).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) })
+}
+
 func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.Context, *db.Connection, T) error) *cmdr.OperationSpec[*WithInput[T]] {
 	return cmdr.SpecBuilder(
 		func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {

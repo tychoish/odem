@@ -1,6 +1,7 @@
 package ep
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -26,51 +27,32 @@ import (
 )
 
 type reportInput struct {
-	db     *db.Connection
-	singer string
-	stdout bool
+	Arg      string
+	ToStdout bool
 }
 
-func reportOperationSpec() *cmdr.OperationSpec[*reportInput] {
-	// TODO should be able to use the infra.DBoperation spec and the `WithInput[T]` type wihtout (potentially having a very thin wrapper around that to read the name+stduout flag)
-	return cmdr.SpecBuilder(
-		func(ctx context.Context, cc *cli.Command) (*reportInput, error) {
-			conn, err := db.Connect(ctx)
-			if err != nil {
-				return nil, err
+func reportOperationSpec() *cmdr.OperationSpec[*infra.WithInput[reportInput]] {
+	return infra.DBOperationSpecWith(
+		func(cc *cli.Command) reportInput {
+			return reportInput{
+				Arg:      cmdr.GetFlagOrFirstArg[string](cc, "name"),
+				ToStdout: cmdr.GetFlag[bool](cc, "stdout"),
 			}
-			return &reportInput{
-				db:     conn,
-				singer: cmdr.GetFlagOrFirstArg[string](cc, "name"),
-				stdout: cmdr.GetFlag[bool](cc, "stdout"), 
-			}, nil
 		},
-	).SetAction(func(ctx context.Context, in *reportInput) error {
-		return reportAction(ctx, in.db, in.singer, in.stdout)
-	})
+		func(ctx context.Context, conn *db.Connection, in reportInput) error {
+			return reportAction(ctx, conn, in)
+		},
+	)
 }
 
-// THe subcommand and the fullcommand should be factorable into a single implementation once the arguents are sorted out. 
 func reportSubcmd(op fzfui.MinutesAppOperation) *cmdr.Commander {
 	info := op.GetInfo()
 	return cmdr.MakeCommander().
 		SetName(info.Key).
 		SetUsage(info.Value).
 		With(infra.DBOperationSpec(func(ctx context.Context, conn *db.Connection, arg string) error {
-			reporter := dispatcher(op)
-			if reporter == nil {
-				return nil
-			}
-			return reporter(ctx, conn, os.Stdout, arg)
+			return dispatcher(op).Report(ctx, conn, os.Stdout, reportParams{Arg: arg})
 		}).Add)
-}
-
-func reportSubcmdFull() *cmdr.Commander {
-	info := fzfui.MinutesAppOpLeaders.GetInfo()
-	return cmdr.MakeCommander().
-		SetName(info.Key).
-		SetUsage(info.Value).
-		With(reportOperationSpec().Add)
 }
 
 func Report() *cmdr.Commander {
@@ -78,33 +60,16 @@ func Report() *cmdr.Commander {
 		SetName("report").
 		Aliases("rpt").
 		SetUsage("generate a markdown report for a singer").
-		Flags(cmdr.FlagBuilder[bool](false).
+		Flags(cmdr.FlagBuilder(false).
 			SetName("stdout", "o").
 			SetUsage("write report to stdout instead of a file").
 			Flag()).
 		With(reportOperationSpec().Add).
-		Subcommanders(
-			// TODO derive this by being able to iterate through the names/ids of the
-			// MinutesAppOperation enum values
-			reportSubcmdFull(),
-			reportSubcmd(fzfui.MinutesAppOpSongs),
-			reportSubcmd(fzfui.MinutesAppOpSingings),
-			reportSubcmd(fzfui.MinutesAppOpBuddies),
-			reportSubcmd(fzfui.MinutesAppOpStrangers),
-			reportSubcmd(fzfui.MinutesAppOpPopularInOnesExperience),
-			reportSubcmd(fzfui.MinutesAppOpPopularInYears),
-			reportSubcmd(fzfui.MinutesAppOpLocallyPopular),
-			reportSubcmd(fzfui.MinutesAppOpNeverSung),
-			reportSubcmd(fzfui.MinutesAppOpNeverLed),
-			reportSubcmd(fzfui.MinutesAppOpUnfamilarHits),
-			reportSubcmd(fzfui.MinutesAppOpConnectedness),
-			reportSubcmd(fzfui.MinutesAppOpTopLeaders),
-			reportSubcmd(fzfui.MinutesAppOpLeaderShare),
-			reportSubcmd(fzfui.MinutesAppOpLeaderFootsteps),
-		)
+		Subcommanders(irt.Collect(irt.Convert(fzfui.AllMinutesAppOperations(), reportSubcmd))...)
 }
 
-func reportAction(ctx context.Context, conn *db.Connection, singer string, stdout bool) (err error) {
+func reportAction(ctx context.Context, conn *db.Connection, in reportInput) (err error) {
+	singer := in.Arg
 	if singer == "" {
 		var ec erc.Collector
 		names := irt.Collect(erc.HandleAll(conn.AllLeaderNames(ctx), ec.Push))
@@ -117,20 +82,13 @@ func reportAction(ctx context.Context, conn *db.Connection, singer string, stdou
 		}
 	}
 
-	// TODO use the gitWriter function here to get a correct fileName and produce the correct writer.
-	var w io.Writer
-	if stdout {
-		w = os.Stdout
-	} else {
-		f, err := getFile(singer)
-		if err != nil {
-			return err
-		}
-
-		defer func() { err = erc.Join(f.Close()) }()
-		defer grip.Infof("report written to %s", f.Name())
-		grip.Infof("writing report for %q to %s", singer, f.Name())
-		w = f
+	w, cleanup, err := getWriter(in.ToStdout, singer)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(cleanup()) }()
+	if !in.ToStdout {
+		grip.Infof("writing report for %q to file", singer)
 	}
 
 	if err := fullReport(ctx, conn, w, singer); err != nil {
@@ -158,7 +116,7 @@ func getFile(singer string, tags ...string) (*os.File, error) {
 	defer mut.Release()
 	mut.PushString(singer)
 	mut.ReplaceAllString(" ", "-")
-	mut.ReplaceAllString("’", "-")
+	mut.ReplaceAllString("'", "-")
 	mut.ReplaceAllString(".", "")
 	mut.ToLower()
 	mut.JoinStrings(tags, "-")
@@ -172,17 +130,18 @@ func getFile(singer string, tags ...string) (*os.File, error) {
 	return f, nil
 }
 
-func fullReport(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
+func fullReport(ctx context.Context, conn *db.Connection, w io.Writer, params reportParams) error {
 	var ec erc.Collector
 	var mb mdwn.Builder
+	var singer string
 
-	mb.H1(singer)
+	mb.H1(params.Arg)
 	mb.KV("Generated", time.Now().Format(time.DateOnly))
 	mb.Line()
 
-	share, err := conn.LeaderShareOfLeads(ctx, singer)
+	share, err := conn.LeaderShareOfLeads(ctx, params.Arg)
 	ec.Push(err)
-	v, err := conn.SingersConnectedness(ctx, singer)
+	v, err := conn.Params.ArgsConnectedness(ctx, params.Arg)
 	ec.Push(err)
 
 	mb.KV("Share of All Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100))
@@ -190,43 +149,42 @@ func fullReport(ctx context.Context, conn *db.Connection, w io.Writer, singer st
 	mb.Line()
 
 	mb.H2("Most Led Songs")
-	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 24), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, params.Arg, 24), ec.Push))
 
 	mb.H2("Songs in Your Experience")
-	mb.Paragraph("Most frequently led songs at singings ", singer, " attended.")
-	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
+	mb.Paragraph("Most frequently led songs at singings ", params.Arg, " attended.")
+	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, params.Arg, 12), ec.Push))
 
 	mb.H2("Singing Buddies")
-	mb.Paragraph("The people that have been the most singings that ", singer, " was at.")
+	mb.Paragraph("The people that have been the most singings that ", params.Arg, " was at.")
 	mb.KVTable(irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer, 24), ec.Push)), intValToStr),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, params.Arg, 24), ec.Push)), intValToStr),
 	)
 	mb.Line()
 
 	mb.H2("Singing Strangers")
-	mb.Paragraph("People that ", singer, " has never sung with who share many connections.")
+	mb.Paragraph("People that ", params.Arg, " has never sung with who share many connections.")
 	mb.KVTable(irt.MakeKV("Name", "Mutual Connections"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 24), ec.Push)), intValToStr),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, params.Arg, 24), ec.Push)), intValToStr),
 	)
 	mb.Line()
 
 	mb.H2("Singing Idols")
-	mb.Paragraph("The top leaders of all of ", singer, "'s top songs!")
-	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer, 20), ec.Push))
+	mb.Paragraph("The top leaders of all of ", params.Arg, "'s top songs!")
+	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, params.Arg, 20), ec.Push))
 
 	mb.H2("Unfamiliar Hits")
-	mb.Paragraph("Othewise popular songs that are under represented at singings ", singer, " has been at.")
-	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
+	mb.Paragraph("Othewise popular songs that are under represented at singings ", params.Arg, " has been at.")
+	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, params.Arg, 20), ec.Push))
 
 	mb.H2("Never Led")
-	mb.Paragraph("Songs from the 2025 book that ", singer, " has never led, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 12), ec.Push))
+	mb.Paragraph("Songs from the 2025 book that ", params.Arg, " has never led, by global popularity.")
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, params.Arg), 12), ec.Push))
 
 	mb.H2("Never Sung")
-	mb.Paragraph("Songs that have not been called at a singing ", singer, " attended, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
+	mb.Paragraph("Songs that have not been called at a singing ", params.Arg, " attended, by global popularity.")
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, params.Arg), 12), ec.Push))
 
-	// todo
 	_, err = mb.WriteTo(w)
 	ec.Push(err)
 	return ec.Resolve()
@@ -270,349 +228,335 @@ func writeLeaderFootstepTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderFootst
 	mb.Line()
 }
 
-type reporterFunc func(context.Context, *db.Connection, io.Writer, string) error
-
-func (r Reporter) Report(ctx context.Context, conn*db.Connection, wr io.Writer, argstring) error {
-	return r(ctx, conn, wr, arg)
+type reportParams struct {
+	Arg   string
+	Limit int // 0 means use the function's built-in default
 }
 
-type reporter interface {
-	Report((context.Context, *db.Connection, io.Writer, string) error)
+type reporterFunc func(context.Context, *db.Connection, io.Writer, reportParams) error
+
+func (r reporterFunc) Report(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	return r(ctx, conn, w, p)
+}
+
+const defaultN = 25
+
+func songsReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	sg, err := conn.GetSong(ctx, p.Arg)
+	ec.Push(err)
+
+	mb.H2(fmt.Sprintf("Song: %s — %s", sg.PageNum, sg.SongTitle))
+	mb.KV("Page", sg.PageNum)
+	mb.KV("Keys", sg.Keys)
+	mb.KV("Meter", sg.SongMeter)
+	mb.KV("Music", sg.MusicAttribution)
+	mb.KV("Words", sg.WordsAttribution)
+	mb.Line()
+
+	mb.H3("Top Leaders")
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+		mdwn.Column{Name: "Led Last Year"},
+		mdwn.Column{Name: "Years Active", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersOfSong(ctx, sg.PageNum, cmp.Or(p.Limit, 20)), ec.Push), func(l models.LeaderOfSongInfo) []string {
+		return []string{l.Name, strconv.Itoa(l.Count), strconv.FormatBool(l.LedInLastYear), strconv.Itoa(l.NumYears)}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func singingsReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	if p.Arg == "" {
+		return ers.New("singing name required")
+	}
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	var found *models.SingingInfo
+	for s, err := range conn.AllSingings(ctx) {
+		if !ec.PushOk(err) {
+			break
+		}
+		if s.SingingName == p.Arg {
+			s := s
+			found = &s
+			break
+		}
+	}
+	if !ec.Ok() {
+		return ec.Resolve()
+	}
+
+	if found != nil {
+		mb.H2(fmt.Sprintf("Singing: %s", found.SingingName))
+		mb.KV("Date", found.SingingDate.Time().Format(time.DateOnly))
+		mb.KV("Location", found.SingingLocation)
+		mb.KV("State", found.SingingState)
+		mb.KV("Lessons", strconv.FormatInt(found.NumberOfLessons, 10))
+		mb.KV("Leaders", strconv.FormatInt(found.NumberOfLeaders, 10))
+		mb.Line()
+	} else {
+		mb.H2(fmt.Sprintf("Singing: %s", p.Arg))
+	}
+
+	mb.H3("Lessons")
+	mb.NewTable(
+		mdwn.Column{Name: "Lesson", RightAlign: true},
+		mdwn.Column{Name: "Leader"},
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Title"},
+	).Extend(irt.Convert(erc.HandleAll(conn.SingingLessons(ctx, p.Arg), ec.Push), func(s models.SingingLessionInfo) []string {
+		return []string{strconv.Itoa(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func buddiesReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Singing Buddies: %s", p.Arg))
+	mb.KVTable(
+		irt.MakeKV("Name", "Shared Singings"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, p.Arg, cmp.Or(p.Limit, 24)), ec.Push)), intValToStr),
+	)
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func strangersReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Singing Strangers: %s", p.Arg))
+	mb.KVTable(
+		irt.MakeKV("Name", "Mutual Connections"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, p.Arg, cmp.Or(p.Limit, 24)), ec.Push)), intValToStr),
+	)
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func popularInExperienceReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Popular in %s's Experience", p.Arg))
+	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, p.Arg, cmp.Or(p.Limit, defaultN)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func popularInYearsReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	var years []int
+	for part := range strings.SplitSeq(p.Arg, ",") {
+		y, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil && y != 0 {
+			years = append(years, y)
+		}
+	}
+
+	if len(years) > 0 {
+		mb.H2(fmt.Sprintf("Globally Popular (years: %v)", years))
+	} else {
+		mb.H2("Globally Popular")
+	}
+	writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, years...), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func locallyPopularReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	var localities []models.SingingLocality
+	for part := range strings.SplitSeq(p.Arg, ",") {
+		localities = append(localities, models.NewSingingLocality(strings.TrimSpace(part)))
+	}
+
+	mb.H2(fmt.Sprintf("Locally Popular: %s", p.Arg))
+	writeSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func neverSungReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Never Sung: %s", p.Arg))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, p.Arg), cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func neverLedReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Never Led: %s", p.Arg))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, p.Arg), cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func unfamilarHitsReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", p.Arg))
+	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, p.Arg, cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func connectednessReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2("Leaders by Connectedness")
+	mb.KVTable(
+		irt.MakeKV("Name", "Connectedness"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push)), func(k string, v float64) (string, string) {
+			return k, fmt.Sprintf("%.4f%%", v*100)
+		}),
+	)
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func topLeadersReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	years := irt.Collect(irt.RemoveZeros(irt.Convert(strings.SplitSeq(p.Arg, ","), atoi)))
+
+	if len(years) > 0 {
+		mb.H2(fmt.Sprintf("Top Leaders (years: %v)", years))
+	} else {
+		mb.H2("Top Leaders")
+	}
+
+	pos := 0
+	mb.NewTable(
+		mdwn.Column{Name: "#", RightAlign: true},
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Leads", RightAlign: true},
+		mdwn.Column{Name: "Last Year", RightAlign: true},
+		mdwn.Column{Name: "%", RightAlign: true},
+		mdwn.Column{Name: "Running Total %", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 40), years...), ec.Push), func(row models.LeaderLeadCount) []string {
+		pos++
+		return []string{strconv.Itoa(pos), row.Name, strconv.Itoa(row.Count), strconv.Itoa(row.LastLeadYear), fmt.Sprintf("%.2f%%", row.Percentage*100), fmt.Sprintf("%.2f%%", row.RunningTotal*100)}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func leaderShareReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	// TODO avoid parsing the p.Arg and just add another explicit arg to the structure and the
+	// parsing of the command
+	parts := strings.SplitN(p.Arg, ",", 2)
+	singer := strings.TrimSpace(parts[0])
+
+	var years []int
+	if len(parts) > 1 {
+		years = irt.Collect(irt.RemoveZeros(irt.Convert(strings.SplitSeq(parts[1], ","), atoi)))
+	}
+
+	v, err := conn.LeaderShareOfLeads(ctx, singer, years...)
+	ec.Push(err)
+
+	label := "Share of All Leads"
+	if len(years) > 0 {
+		label = fmt.Sprintf("Share of Leads (%v)", years)
+	}
+
+	mb.H2(fmt.Sprintf("Leader Share: %s", singer))
+	mb.KV("Leader", singer)
+	mb.KV(label, fmt.Sprintf("%.4f%%", stw.DerefZ(v)*100))
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func atoi(in string) (n int) { n, _ = strconv.Atoi(in); return }
+func leaderFootstepsReport(ctx context.Context, conn *db.Connection, w io.Writer, p reportParams) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Leader Footsteps: %s", p.Arg))
+	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, p.Arg, cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
 }
 
 func dispatcher(op fzfui.MinutesAppOperation) reporterFunc {
-	// TODO reexamine the implementation in pkg/fzfui/dispatch. and modify this accordingly. Move these anonomus functions into named <name>Report(<...>) functions, 
-
-	// TODO we should remove the io.Writer from the interface: there should be a params{} struct with: {arg string, usestdout bool, limit int } passed to each function instead. 
-
-
 	switch op {
 	case fzfui.MinutesAppOpLeaders:
 		return fullReport
 	case fzfui.MinutesAppOpSongs:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			sg, err := conn.GetSong(ctx, arg)
-			ec.Push(err)
-
-			mb.H2(fmt.Sprintf("Song: %s — %s", sg.PageNum, sg.SongTitle))
-			mb.KV("Page", sg.PageNum)
-			mb.KV("Keys", sg.Keys)
-			mb.KV("Meter", sg.SongMeter)
-			mb.KV("Music", sg.MusicAttribution)
-			mb.KV("Words", sg.WordsAttribution)
-			mb.Line()
-
-			mb.H3("Top Leaders")
-			mb.NewTable(
-				mdwn.Column{Name: "Name"},
-				mdwn.Column{Name: "Count", RightAlign: true},
-				mdwn.Column{Name: "Led Last Year"},
-				mdwn.Column{Name: "Years Active", RightAlign: true},
-			).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersOfSong(ctx, sg.PageNum, 20), ec.Push), func(l models.LeaderOfSongInfo) []string {
-				return []string{l.Name, strconv.Itoa(l.Count), strconv.FormatBool(l.LedInLastYear), strconv.Itoa(l.NumYears)}
-			})).Build()
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return songsReport
 	case fzfui.MinutesAppOpSingings:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			if arg == "" {
-				return ers.New("singing name required")
-			}
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			// Find the singing by name
-			var found *models.SingingInfo
-			// TODO use erc.HandleAll to avoid this loop
-			for s, err := range conn.AllSingings(ctx) {
-				if !ec.PushOk(err) {
-					break
-				}
-
-				if s.SingingName == arg {
-					s := s
-					found = &s
-					break
-				}
-			}
-			if !ec.Ok() {
-				return ec.Resolve()
-			}
-
-			if found != nil {
-				mb.H2(fmt.Sprintf("Singing: %s", found.SingingName))
-				mb.KV("Date", found.SingingDate.Time().Format(time.DateOnly))
-				mb.KV("Location", found.SingingLocation)
-				mb.KV("State", found.SingingState)
-				mb.KV("Lessons", strconv.FormatInt(found.NumberOfLessons, 10))
-				mb.KV("Leaders", strconv.FormatInt(found.NumberOfLeaders, 10))
-				mb.Line()
-			} else {
-				// TODO is there a case where we don't find a singing, but there's not an error? I don't believe so.
-				//   regardless, iterator gets the first element 
-				mb.H2(fmt.Sprintf("Singing: %s", arg))
-			}
-
-			mb.H3("Lessons")
-			mb.NewTable(
-				mdwn.Column{Name: "Lesson", RightAlign: true},
-				mdwn.Column{Name: "Leader"},
-				mdwn.Column{Name: "Song"},
-				mdwn.Column{Name: "Key"},
-				mdwn.Column{Name: "Title"},
-			).Extend(irt.Convert(erc.HandleAll(conn.SingingLessons(ctx, arg), ec.Push), func(s models.SingingLessionInfo) []string {
-				return []string{strconv.Itoa(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
-			})).Build()
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return singingsReport
 	case fzfui.MinutesAppOpBuddies:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Singing Buddies: %s", singer))
-			mb.KVTable(
-				irt.MakeKV("Name", "Shared Singings"),
-				irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer, 24), ec.Push)), intValToStr),
-			)
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return buddiesReport
 	case fzfui.MinutesAppOpStrangers:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Singing Strangers: %s", singer))
-			mb.KVTable(
-				irt.MakeKV("Name", "Mutual Connections"),
-				irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 24), ec.Push)), intValToStr),
-			)
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return strangersReport
 	case fzfui.MinutesAppOpPopularInOnesExperience:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Popular in %s's Experience", singer))
-			writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 25), ec.Push))
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return popularInExperienceReport
 	case fzfui.MinutesAppOpPopularInYears:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			var years []int
-			if arg != "" {
-				for _, part := range strings.Split(arg, ",") {
-					y, err := strconv.Atoi(strings.TrimSpace(part))
-					if err == nil && y != 0 {
-						years = append(years, y)
-					}
-				}
-			}
-
-			if len(years) > 0 {
-				mb.H2(fmt.Sprintf("Globally Popular (years: %v)", years))
-			} else {
-				mb.H2("Globally Popular")
-			}
-			writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, years...), ec.Push))
-
-			ec.Push(flush(w, &mb))
-
-			return ec.Resolve()
-		}
+		return popularInYearsReport
 	case fzfui.MinutesAppOpLocallyPopular:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			var localities []models.SingingLocality
-			if arg != "" {
-				for _, part := range strings.Split(arg, ",") {
-					localities = append(localities, models.NewSingingLocality(strings.TrimSpace(part)))
-				}
-			}
-
-			mb.H2(fmt.Sprintf("Locally Popular: %s", arg))
-			writeSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, 32, localities...), ec.Push))
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
-	case fzfui.MinutesAppOpRetry:
-		return func(_ context.Context, _ *db.Connection, _ io.Writer, _ string) error {
-			return nil
-		}
+		return locallyPopularReport
 	case fzfui.MinutesAppOpNeverSung:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Never Sung: %s", singer))
-			writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 20), ec.Push))
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
+		return neverSungReport
 	case fzfui.MinutesAppOpNeverLed:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Never Led: %s", singer))
-			writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 20), ec.Push))
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
+		return neverLedReport
 	case fzfui.MinutesAppOpUnfamilarHits:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", singer))
-			writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
+		return unfamilarHitsReport
 	case fzfui.MinutesAppOpConnectedness:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, _ string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2("Leaders by Connectedness")
-			mb.KVTable(
-				irt.MakeKV("Name", "Connectedness"),
-				irt.Convert2(irt.KVsplit(erc.HandleAll(conn.AllLeaderConnectedness(ctx, 40), ec.Push)), func(k string, v float64) (string, string) {
-					return k, fmt.Sprintf("%.4f%%", v*100)
-				}),
-			)
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-			_, err := mb.WriteTo(w)
-			ec.Push(err)
-			return ec.Resolve()
-		}
+		return connectednessReport
 	case fzfui.MinutesAppOpTopLeaders:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			var years []int
-			if arg != "" {
-				for _, part := range strings.Split(arg, ",") {
-					y, err := strconv.Atoi(strings.TrimSpace(part))
-					if err == nil && y != 0 {
-						years = append(years, y)
-					}
-				}
-			}
-
-			if len(years) > 0 {
-				mb.H2(fmt.Sprintf("Top Leaders (years: %v)", years))
-			} else {
-				mb.H2("Top Leaders")
-			}
-
-			pos := 0
-			mb.NewTable(
-				mdwn.Column{Name: "#", RightAlign: true},
-				mdwn.Column{Name: "Name"},
-				mdwn.Column{Name: "Leads", RightAlign: true},
-				mdwn.Column{Name: "Last Year", RightAlign: true},
-				mdwn.Column{Name: "%", RightAlign: true},
-				mdwn.Column{Name: "Running Total %", RightAlign: true},
-			).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersByLeads(ctx, 40, years...), ec.Push), func(row models.LeaderLeadCount) []string {
-				pos++
-				return []string{strconv.Itoa(pos), row.Name, strconv.Itoa(row.Count), strconv.Itoa(row.LastLeadYear), fmt.Sprintf("%.2f%%", row.Percentage*100), fmt.Sprintf("%.2f%%", row.RunningTotal*100)}
-			})).Build()
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
+		return topLeadersReport
 	case fzfui.MinutesAppOpLeaderShare:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, arg string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			parts := strings.SplitN(arg, ",", 2)
-			singer := strings.TrimSpace(parts[0])
-
-			var years []int
-			if len(parts) > 1 {
-				for _, part := range strings.Split(parts[1], ",") {
-					y, err := strconv.Atoi(strings.TrimSpace(part))
-					if err == nil && y != 0 {
-						years = append(years, y)
-					}
-				}
-			}
-
-			v, err := conn.LeaderShareOfLeads(ctx, singer, years...)
-			ec.Push(err)
-
-			label := "Share of All Leads"
-			if len(years) > 0 {
-				label = fmt.Sprintf("Share of Leads (%v)", years)
-			}
-
-			mb.H2(fmt.Sprintf("Leader Share: %s", singer))
-			mb.KV("Leader", singer)
-			mb.KV(label, fmt.Sprintf("%.4f%%", stw.DerefZ(v)*100))
-			mb.Line()
-
-			ec.Push(flush(w, &mb))
-			return ec.Resolve()
-		}
+		return leaderShareReport
 	case fzfui.MinutesAppOpLeaderFootsteps:
-		return func(ctx context.Context, conn *db.Connection, w io.Writer, singer string) error {
-			var ec erc.Collector
-			var mb mdwn.Builder
-
-			mb.H2(fmt.Sprintf("Leader Footsteps: %s", singer))
-			writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer, 20), ec.Push))
-
-			return ec.Resolve()
-		}
-	case fzfui.MinutesAppOpExit:
-		grip.Info("goodbye!")
-		return nil
-	case fzfui.MinutesAppOpInvalid:
-		erc.Invariant(ers.New("explicitly invalid"))
-		return nil
-	case fzfui.MinutesAppOpUnknown:
-		erc.Invariant(ers.New("unknown"))
-		return nil
+		return leaderFootstepsReport
 	default:
-		erc.Invariant(ers.New("implicitly invalid"))
 		return nil
 	}
 }
