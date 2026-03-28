@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +30,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
@@ -90,17 +89,19 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	var ec erc.Collector
-	var mb mdwn.Builder
-
 	sg, err := fzfui.SelectSong(ctx, conn, p.Name)
-	ec.Push(err)
+	if err != nil {
+		return err
+	}
 
 	wr, err := p.getWriter(stw.DerefZ(sg).PageNum)
-	if !ec.PushOk(err) {
-		return ec.Resolve()
+	if err != nil {
+		return err
 	}
 	defer func() { err = erc.Join(err, wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Song: %s — %s", sg.PageNum, sg.SongTitle))
 	mb.KV("Page", sg.PageNum)
@@ -130,18 +131,19 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	if err != nil {
 		return err
 	}
+	wr, err := p.getWriter("siging", stw.DerefZ(info).SingingName)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(err, wr.Close()) }()
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
-	wr, err := p.getWriter("siging", stw.DerefZ(info).SingingName)
-	if !ec.PushOk(err) {
-		return ec.Resolve()
-	}
-	defer func() { err = erc.Join(err, wr.Close()) }()
-
-	mb.H2(fmt.Sprintf("Singing: %s", info.SingingName))
+	mb.H2("Singing Details")
+	mb.KV("Name", info.SingingName)
 	mb.KV("Date", info.SingingDate.Time().Format(time.DateOnly))
-	mb.KV("", info.SingingLocation)
+	mb.KV("Location", info.SingingLocation)
 	mb.KV("State", info.SingingState)
 	mb.KV("Lessons", strconv.FormatInt(info.NumberOfLessons, 10))
 	mb.KV("Leaders", strconv.FormatInt(info.NumberOfLeaders, 10))
@@ -164,9 +166,6 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	var ec erc.Collector
-	var mb mdwn.Builder
-
 	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
 	if err != nil {
 		return err
@@ -177,6 +176,9 @@ func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singing Buddies: %s", singer))
 	mb.KVTable(
@@ -190,9 +192,6 @@ func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func Strangers(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	var ec erc.Collector
-	var mb mdwn.Builder
-
 	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
 	if err != nil {
 		return err
@@ -203,6 +202,9 @@ func Strangers(ctx context.Context, conn *db.Connection, p Params) (err error) {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singing Strangers: %s", singer))
 	mb.KVTable(
@@ -226,7 +228,7 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
@@ -237,38 +239,26 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 	return ec.Resolve()
 }
 
-func itoa(in int) string { return strconv.Itoa(in) }
 func PopularityInYears(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
-	if err != nil {
-		return err
-	}
-	years, err := fzfui.SelectYears("") // TODO change upstream function to take integers and separate out parings
+	years, err := fzfui.SelectYears(p.Name) // TODO change upstream function to take integers and separate out parings
 	if err != nil {
 		return err
 	}
 
-	w, err := p.getWriter(slices.AppendSeq([]string{"popular", "year"}, irt.Convert(irt.Slice(years), itoa))...)
+	yearsStrs := irt.Collect(irt.Convert(irt.Slice(years), itoa))
+	w, err := p.getWriter(append([]string{"popular"}, yearsStrs...)...)
 	if err != nil {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
-	for part := range strings.SplitSeq(singer, ",") {
-		y, err := strconv.Atoi(strings.TrimSpace(part))
-		if err == nil && y != 0 {
-			years = append(years, y)
-		}
-	}
+	mb.H2("Globally Popular")
 
-	if len(years) > 0 {
-		mb.H2(fmt.Sprintf("Globally Popular (years: %v)", years))
-	} else {
-		mb.H2("Globally Popular")
-	}
+	mb.KV("Years", cmp.Or(strings.Join(yearsStrs, ", "), "(all)"))
+
 	writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
@@ -289,7 +279,7 @@ func LocallyPopular(ctx context.Context, conn *db.Connection, p Params) (err err
 		return ec.Resolve()
 	}
 	defer func() { err = erc.Join(wr.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Locally Popular: %s", p.Name))
 	writeSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
 
@@ -308,7 +298,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p Params) error {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
@@ -330,7 +320,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
-
+	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
 
@@ -355,7 +345,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
 
 	var ec erc.Collector
 	var mb mdwn.Builder
-
+	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", singer))
 	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
 
@@ -364,21 +354,19 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
-	var ec erc.Collector
-	var mb mdwn.Builder
-
 	w, err := p.getWriter("report", "connectedness")
 	if err != nil {
 		return err
 	}
-
 	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
 	mb.H2("Leaders by Connectedness")
 	mb.KVTable(
 		irt.MakeKV("Name", "Connectedness"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push)), func(k string, v float64) (string, string) {
-			return k, fmt.Sprintf("%.4f%%", v*100)
-		}),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push)), fmtPercentKVs),
 	)
 	mb.Line()
 
@@ -387,8 +375,6 @@ func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	var ec erc.Collector
-	var mb mdwn.Builder
 	years, err := fzfui.SelectYears(p.Name) // TODO change upstream function to take integers and separate out parings
 	if err != nil {
 		return err
@@ -400,6 +386,9 @@ func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
 
 	mb.H2("Top Leaders")
 	if len(years) > 0 {
@@ -425,9 +414,6 @@ func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
-	var ec erc.Collector
-	var mb mdwn.Builder
-
 	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
 	if err != nil {
 		return err
@@ -438,10 +424,13 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 	}
 	yearsStr := irt.Collect(irt.Convert(irt.Slice(years), itoa))
 	wr, err := p.getWriter(append(append([]string{}, singer, "leading", "share"), yearsStr...)...)
-	if !ec.PushOk(err) {
-		return ec.Resolve()
+	if err != nil {
+		return err
 	}
 	defer func() { err = erc.Join(wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
 
 	v, err := conn.LeaderShareOfLeads(ctx, singer, years...)
 	ec.Push(err)
@@ -459,16 +448,20 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func LeaderFootsteps(ctx context.Context, conn *db.Connection, p Params) error {
-	var ec erc.Collector
-	var mb mdwn.Builder
+	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	if err != nil {
+		return err
+	}
 
-	wr, err := p.getWriter("report-leading-in-the-footsteps")
-	if !ec.PushOk(err) {
-		return ec.Resolve()
+	wr, err := p.getWriter(singer, "footsteps")
+	if err != nil {
+		return err
 	}
 	defer func() { err = erc.Join(wr.Close()) }()
-
-	mb.H2(fmt.Sprintf("Leader Footsteps: %s", p.Name))
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2(fmt.Sprintf("Leader Footsteps: %s", singer))
 	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(wr, &mb))

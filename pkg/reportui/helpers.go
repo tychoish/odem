@@ -1,6 +1,7 @@
 package reportui
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -10,8 +11,10 @@ import (
 )
 
 func atoi(in string) (n int)                              { n, _ = strconv.Atoi(in); return }
+func itoa(in int) string                                  { return strconv.Itoa(in) }
 func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
 func intValToStr(key string, value int) (string, string)  { return key, strconv.Itoa(value) }
+func fmtPercentKVs(k string, v float64) (string, string)  { return k, fmt.Sprintf("%.4f%%", v*100) }
 func asRows(lsr models.LeaderSongRank) []string           { return (&lsr).StringFields() }
 
 func sumLens(in []string) (total int) {

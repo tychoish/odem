@@ -74,7 +74,7 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpConnectedness
 	case "popular-for-years", "popular-in-years":
 		return MinutesAppOpPopularInYears
-	case "leader-footsteps", "footsteps":
+	case "leader-footsteps", "footsteps", "giants":
 		return MinutesAppOpLeaderFootsteps
 	case "top-leaders", "leaderboard":
 		return MinutesAppOpTopLeaders
@@ -97,8 +97,6 @@ func (mao MinutesAppOperation) isValidOp() bool {
 
 func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 	switch mao {
-	case MinutesAppOpUnknown:
-		return irt.MakeKV("unknown", "operation is not defined (zero)")
 	case MinutesAppOpLeaders:
 		return irt.MakeKV("leaders", "learn more about the leaders of a song")
 	case MinutesAppOpSongs:
@@ -110,9 +108,9 @@ func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 	case MinutesAppOpStrangers:
 		return irt.MakeKV("strangers", "for a singer, find out who they've never been at a singing with (but most of their buddies have!)")
 	case MinutesAppOpPopularInOnesExperience:
-		return irt.MakeKV("popular-in-ones-experience", "rank order the popularity of songs at the singings one singer has attended")
+		return irt.MakeKV("popular-in-ones-experience", "total ordering of the popularity of songs at the singings one singer has attended")
 	case MinutesAppOpLocallyPopular:
-		return irt.MakeKV("popular-locally", "rank order the popularity of songs in a given region or locality")
+		return irt.MakeKV("popular-locally", "total ordering of the popularity of songs in a given region or locality")
 	case MinutesAppOpPopularInYears:
 		return irt.MakeKV("popular", "the most popular song for a year (or negative, without that year)")
 	case MinutesAppOpNeverSung:
@@ -124,15 +122,17 @@ func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 	case MinutesAppOpUnfamilarHits:
 		return irt.MakeKV("unfamilar-hits", "otherwise popular songs which a singer has less exposure to")
 	case MinutesAppOpConnectedness:
-		return irt.MakeKV("connectedness", "rank all singers by their connectedness ratio (fraction of the community they've sung with)")
+		return irt.MakeKV("connectedness", "total order of all singers by their connectedness ratio (fraction of the community they've sung with)")
 	case MinutesAppOpLeaderFootsteps:
 		return irt.MakeKV("leader-footsteps", "for each song a singer has led, show the most frequent other leader of that song")
 	case MinutesAppOpTopLeaders:
-		return irt.MakeKV("top-leaders", "rank all leaders by total number of leads, optionally filtered by year")
+		return irt.MakeKV("top-leaders", "total ordering of all leaders by the number of leads, optionally filtered by year")
 	case MinutesAppOpLeaderShare:
 		return irt.MakeKV("leader-share", "fraction of total leads a given singer accounts for, optionally filtered by year")
 	case MinutesAppOpExit:
 		return irt.MakeKV("exit", "181")
+	case MinutesAppOpUnknown:
+		return irt.MakeKV("unknown", "operation is not defined (zero)")
 	case MinutesAppOpInvalid:
 		return irt.MakeKV("invalid", fmt.Sprintf("invalid operation %d", mao))
 	default:
@@ -183,7 +183,7 @@ func (mao MinutesAppOperation) FuzzyDispatcher() MinutesAppOperationHandler {
 		case MinutesAppOpUnknown:
 			return ers.New("unknown operation")
 		default:
-			return fmt.Errorf("ivalid operation at %d (%s)", mao, mao)
+			return fmt.Errorf("undefined operation at %d (%s)", mao, mao)
 		}
 	}
 }
@@ -231,13 +231,14 @@ func (mao MinutesAppOperation) ReportDispatcher() Reporter {
 		case MinutesAppOpInvalid:
 			return ers.New("explicitly invalid operation")
 		default:
-			return fmt.Errorf("ivalid operation at %d (%s)", mao, mao)
+			return fmt.Errorf("undefinedoperation at %d (%s)", mao, mao)
 		}
 	}
 }
 
 func fuzzySelectOperation(arg string) MinutesAppOperation {
-	// this needs to be in the dispatcher package to avoid a circular dependency to avoid
+	// this needs to be in the dispatcher package to avoid a circular dependency, even though it
+	// feels like it wants to be in the fzfui package.
 	grip.Debugln("selecting operation to dispatch", arg)
 
 	operation := NewMinutesAppOperation(arg)
