@@ -113,14 +113,16 @@ ORDER BY minutes_id DESC;`
 
 func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
 	const query = `
-SELECT lm_other.leader_name AS key, COUNT(DISTINCT lm_me.minutes_id) AS value
-FROM leader_minutes AS lm_me
-JOIN leader_minutes AS lm_other ON lm_other.minutes_id = lm_me.minutes_id
-LEFT JOIN leader_name_invalid AS inv ON inv.name = lm_other.leader_name
-WHERE lm_me.leader_name = ?
-AND lm_other.leader_name != ?
+SELECT l2.name AS key, COUNT(*) AS value
+FROM leader_singings AS ls_me
+JOIN leaders AS l_me ON l_me.id = ls_me.leader_id
+JOIN leader_singings AS ls_other ON ls_other.minutes_id = ls_me.minutes_id AND ls_other.leader_id != ls_me.leader_id
+JOIN leaders AS l2 ON l2.id = ls_other.leader_id
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l2.name
+WHERE l_me.name = ?
+AND l2.name != ?
 AND inv.name IS NULL
-GROUP BY lm_other.leader_id
+GROUP BY ls_other.leader_id
 ORDER BY value DESC
 LIMIT ?;`
 	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
@@ -128,17 +130,12 @@ LIMIT ?;`
 
 func (conn *Connection) PopularSongsInOnesExperience(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
-SELECT
-      COUNT(DISTINCT slj.lesson_id || "-" || slj.minutes_id) AS count,
-      bsj.page_num AS song_page,
-      s.title AS song_title,
-      bsj.keys AS song_keys
-FROM leader_minutes AS lm
-JOIN song_leader_joins AS slj ON slj.minutes_id = lm.minutes_id
-JOIN songs AS s ON slj.song_id = s.id
-JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2
-WHERE lm.leader_name = ?
-GROUP BY bsj.page_num
+SELECT lsa.attendance_count AS count, bsj.page_num AS song_page, s.title AS song_title, bsj.keys AS song_keys
+FROM leader_song_attendance AS lsa
+JOIN leaders AS l ON l.id = lsa.leader_id
+JOIN songs AS s ON s.id = lsa.song_id
+JOIN book_song_joins AS bsj ON bsj.song_id = lsa.song_id AND bsj.book_id = 2
+WHERE l.name = ?
 ORDER BY count DESC
 LIMIT ?;`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
@@ -210,28 +207,21 @@ func (conn *Connection) TheUnfamilarHits(ctx context.Context, name string, limit
 	const query = `
 SELECT
     ? AS name,
-    COALESCE(attended.call_count, 0) AS count,
+    COALESCE(lsa.attendance_count, 0) AS count,
     bsj.page_num AS song_page,
     s.title AS song_title,
     bsj.keys AS song_keys,
-    CASE WHEN COALESCE(global.total, 0) > 0
-         THEN CAST(COALESCE(attended.call_count, 0) AS REAL) / global.total
+    CASE WHEN COALESCE(sst.total, 0) > 0
+         THEN CAST(COALESCE(lsa.attendance_count, 0) AS REAL) / sst.total
          ELSE 0.0
     END AS ratio
 FROM book_song_joins AS bsj
 JOIN songs AS s ON s.id = bsj.song_id
-LEFT JOIN (
-    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
-) AS global ON global.song_id = bsj.song_id
-LEFT JOIN (
-    SELECT slj.song_id, COUNT(DISTINCT slj.lesson_id || '-' || slj.minutes_id) AS call_count
-    FROM leader_minutes AS lm
-    JOIN song_leader_joins AS slj ON slj.minutes_id = lm.minutes_id
-    WHERE lm.leader_name = ?
-    GROUP BY slj.song_id
-) AS attended ON attended.song_id = bsj.song_id
+LEFT JOIN song_stats_totals AS sst ON sst.song_id = bsj.song_id
+LEFT JOIN leader_song_attendance AS lsa ON lsa.song_id = bsj.song_id
+    AND lsa.leader_id = (SELECT id FROM leaders WHERE name = ?)
 WHERE bsj.book_id = 2
-ORDER BY count ASC, global.total DESC
+ORDER BY count ASC, sst.total DESC
 LIMIT ?`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
@@ -324,15 +314,13 @@ func (conn *Connection) NeverLed(ctx context.Context, name string) iter.Seq2[mod
 	const query = `
 SELECT
     ? AS name,
-    COALESCE(global.total, 0) AS count,
+    COALESCE(sst.total, 0) AS count,
     bsj.page_num AS song_page,
     s.title AS song_title,
     bsj.keys AS song_keys
 FROM book_song_joins AS bsj
 JOIN songs AS s ON s.id = bsj.song_id
-LEFT JOIN (
-    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
-) AS global ON global.song_id = bsj.song_id
+LEFT JOIN song_stats_totals AS sst ON sst.song_id = bsj.song_id
 WHERE bsj.book_id = 2
 AND bsj.song_id NOT IN (
     SELECT lss.song_id
@@ -357,12 +345,16 @@ top_other_leaders AS (
         lss.song_id,
         l.name AS other_leader_name,
         lss.lesson_count AS other_count,
+        MAX(m.Year) AS their_last_lead_year,
         ROW_NUMBER() OVER (PARTITION BY lss.song_id ORDER BY lss.lesson_count DESC) AS rn
     FROM leader_song_stats AS lss
     JOIN leaders AS l ON l.id = lss.leader_id
+    JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id = lss.song_id
+    JOIN minutes AS m ON m.id = slj.minutes_id
     LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
     WHERE l.name != ?
     AND inv.name IS NULL
+    GROUP BY lss.song_id, lss.leader_id
 )
 SELECT
     tol.other_leader_name AS leader_name,
@@ -370,7 +362,8 @@ SELECT
     s.title AS song_title,
     bsj.keys AS song_keys,
     ms.self_lead_count AS self_lead_count,
-    tol.other_count AS their_lead_count
+    tol.other_count AS their_lead_count,
+    tol.their_last_lead_year
 FROM my_songs AS ms
 JOIN top_other_leaders AS tol ON tol.song_id = ms.song_id AND tol.rn = 1
 JOIN songs AS s ON s.id = ms.song_id
@@ -439,7 +432,7 @@ JOIN minutes AS m ON m.id = slj.minutes_id`)
 	return &v, nil
 }
 
-func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years ...int) iter.Seq2[irt.KV[string, int], error] {
+func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years ...int) iter.Seq2[models.LeaderLeadCount, error] {
 	currentYear := time.Now().Year()
 
 	var includeYears, excludeYears []int
@@ -449,7 +442,7 @@ func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years 
 			abs = -y
 		}
 		if abs < 1995 || abs > currentYear {
-			return irt.Two(irt.KV[string, int]{}, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear))
+			return irt.Two(models.LeaderLeadCount{}, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear))
 		}
 		if y < 0 {
 			excludeYears = append(excludeYears, abs)
@@ -458,17 +451,18 @@ func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years 
 		}
 	}
 	if len(includeYears) > 0 && len(excludeYears) > 0 {
-		return irt.Two(irt.KV[string, int]{}, fmt.Errorf("cannot mix included and excluded years"))
+		return irt.Two(models.LeaderLeadCount{}, fmt.Errorf("cannot mix included and excluded years"))
 	}
 
 	var qb dbx.Builder
 	qb.WithSQL(`
-SELECT l.name AS key, COUNT(slj.id) AS value
-FROM leaders AS l
-JOIN song_leader_joins AS slj ON slj.leader_id = l.id
-JOIN minutes AS m ON m.id = slj.minutes_id
-LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
-WHERE inv.name IS NULL`)
+WITH counts AS (
+    SELECT l.name AS name, COUNT(slj.id) AS count, MAX(m.Year) AS last_lead_year
+    FROM leaders AS l
+    JOIN song_leader_joins AS slj ON slj.leader_id = l.id
+    JOIN minutes AS m ON m.id = slj.minutes_id
+    LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+    WHERE inv.name IS NULL`)
 
 	switch {
 	case len(includeYears) > 0:
@@ -478,38 +472,62 @@ WHERE inv.name IS NULL`)
 	}
 
 	qb.WithSQL(`
-GROUP BY l.id
-ORDER BY value DESC`)
-
+    GROUP BY l.id
+    ORDER BY count DESC`)
 	qb.With(" LIMIT %?", cmp.Or(limit, 40))
 
+	qb.WithSQL(`
+),
+total AS (
+    SELECT COUNT(slj2.id) AS grand_total
+    FROM leaders AS l2
+    JOIN song_leader_joins AS slj2 ON slj2.leader_id = l2.id
+    JOIN minutes AS m2 ON m2.id = slj2.minutes_id
+    LEFT JOIN leader_name_invalid AS inv2 ON inv2.name = l2.name
+    WHERE inv2.name IS NULL`)
+
+	switch {
+	case len(includeYears) > 0:
+		qb.With(" AND m2.Year IN (%+?)", includeYears)
+	case len(excludeYears) > 0:
+		qb.With(" AND m2.Year NOT IN (%+?)", excludeYears)
+	}
+
+	qb.WithSQL(`
+),
+totaled AS (
+    SELECT name, count, last_lead_year, CAST(count AS REAL) / (SELECT grand_total FROM total) AS pct
+    FROM counts
+)
+SELECT
+    name,
+    count,
+    last_lead_year,
+    pct,
+    SUM(pct) OVER (ORDER BY count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+FROM totaled
+ORDER BY count DESC`)
+
 	query, args := qb.Build()
-	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, args...)
+	return dbx.Query[models.LeaderLeadCount](ctx, conn.db.QueryContext, query, args...)
 }
 
 func (conn *Connection) NeverSung(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT
     ? AS name,
-    COALESCE(global.total, 0) AS count,
+    COALESCE(sst.total, 0) AS count,
     bsj.page_num AS song_page,
     s.title AS song_title,
     bsj.keys AS song_keys
 FROM book_song_joins AS bsj
 JOIN songs AS s ON s.id = bsj.song_id
-LEFT JOIN (
-    SELECT song_id, SUM(lesson_count) AS total FROM song_stats GROUP BY song_id
-) AS global ON global.song_id = bsj.song_id
+LEFT JOIN song_stats_totals AS sst ON sst.song_id = bsj.song_id
 WHERE bsj.book_id = 2
 AND bsj.song_id NOT IN (
-    SELECT DISTINCT slj.song_id
-    FROM song_leader_joins AS slj
-    WHERE slj.minutes_id IN (
-        SELECT DISTINCT slj2.minutes_id
-        FROM song_leader_joins AS slj2
-        JOIN leaders AS l ON l.id = slj2.leader_id
-        WHERE l.name = ?
-    )
+    SELECT lsa.song_id FROM leader_song_attendance AS lsa
+    JOIN leaders AS l ON l.id = lsa.leader_id
+    WHERE l.name = ?
 )
 ORDER BY count DESC`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name)

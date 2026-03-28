@@ -3,6 +3,7 @@ package fzfui
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -65,13 +66,17 @@ func songAction(ctx context.Context, conn *db.Connection, song string) error {
 	}
 
 	ec.When(s == nil, "no matching song found")
-	if ec.Ok() {
-		grip.Infoln("song info for", s.PageNum)
-		ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
-		ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
-		grip.Infoln("top leaders of", s.PageNum)
-		ec.Push(renderTopLeaders(conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
+	if !ec.Ok() {
+		return ec.Resolve()
 	}
+
+	grip.Infoln("song info for", s.PageNum)
+
+	// TODO convert this to use the standard KV table.
+	ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
+	ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
+	grip.Infoln("top leaders of", s.PageNum)
+	ec.Push(renderTopLeaders(conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
 
 	return ec.Resolve()
 }
@@ -95,13 +100,13 @@ func singingAction(ctx context.Context, dbconn *db.Connection) error {
 		mdwn.Column{Name: "Key"},
 		mdwn.Column{Name: "Title"},
 	).Extend(irt.Convert(erc.HandleAll(dbconn.SingingLessons(ctx, singing.SingingName), ec.Push), func(s models.SingingLessionInfo) []string {
-		return []string{fmt.Sprint(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
+		return []string{strconv.Itoa(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
 	})).Build()
-	if ec.Ok() {
-		_, err = mb.WriteTo(os.Stdout)
-		ec.Push(err)
+
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -119,11 +124,10 @@ func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer stri
 			return k, strconv.Itoa(v)
 		}),
 	)
-	if ec.Ok() {
-		_, err = mb.WriteTo(os.Stdout)
-		ec.Push(err)
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -141,11 +145,10 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 			return k, strconv.Itoa(v)
 		}),
 	)
-	if ec.Ok() {
-		_, err = mb.WriteTo(os.Stdout)
-		ec.Push(err)
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func popularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -211,11 +214,10 @@ func singersByConnectednessAction(ctx context.Context, dbconn *db.Connection) er
 			return k, fmt.Sprintf("%.4f", v)
 		}),
 	)
-	if ec.Ok() {
-		_, err := mb.WriteTo(os.Stdout)
-		ec.Push(err)
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -234,15 +236,16 @@ func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer st
 		mdwn.Column{Name: "Key"},
 		mdwn.Column{Name: "Top Leader"},
 		mdwn.Column{Name: "Their Leads", RightAlign: true},
+		mdwn.Column{Name: "Last Year", RightAlign: true},
 		mdwn.Column{Name: "Self Leads", RightAlign: true},
 	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderFootsteps(ctx, singer, 32), ec.Push), func(row models.LeaderFootstep) []string {
-		return []string{row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, fmt.Sprint(row.TheirLeadCount), fmt.Sprint(row.SelfLeadCount)}
+		return []string{row.SongTitle, row.SongPage, row.SongKeys, row.LeaderName, fmt.Sprint(row.TheirLeadCount), fmt.Sprint(row.TheirLastLeadYear), fmt.Sprint(row.SelfLeadCount)}
 	})).Build()
-	if ec.Ok() {
-		_, err = mb.WriteTo(os.Stdout)
-		ec.Push(err)
+
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -270,31 +273,40 @@ func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input 
 	var mb mdwn.Builder
 	mb.KV("Leader", singer)
 	mb.KV(label, fmt.Sprintf("%.4f%%", *v*100))
-	_, err = mb.WriteTo(os.Stdout)
-	return err
+
+	return flush(os.Stdout, &mb)
 }
 
 func topLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := selectYears(yrs)
-	if err != nil {
-		return err
+	var years []int
+	if yrs != "" {
+		var err error
+		years, err = erc.FromIteratorAll(irt.With2(irt.Slice(strings.Split(yrs, ",")), strconv.Atoi))
+		if err != nil {
+			return err
+		}
 	}
 
 	grip.Infof("leaders by total leads in year(s) %v", years)
 
 	var ec erc.Collector
 	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Name", "Leads"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.TopLeadersByLeads(ctx, 32, years...), ec.Push)), func(k string, v int) (string, string) {
-			return k, strconv.Itoa(v)
-		}),
-	)
-	if ec.Ok() {
-		_, err = mb.WriteTo(os.Stdout)
-		ec.Push(err)
+	pos := 0
+	mb.NewTable(
+		mdwn.Column{Name: "#", RightAlign: true},
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Leads", RightAlign: true},
+		mdwn.Column{Name: "Last Year", RightAlign: true},
+		mdwn.Column{Name: "%", RightAlign: true},
+		mdwn.Column{Name: "Running Total %", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.TopLeadersByLeads(ctx, 40, years...), ec.Push), func(row models.LeaderLeadCount) []string {
+		pos++
+		return []string{strconv.Itoa(pos), row.Name, strconv.Itoa(row.Count), strconv.Itoa(row.LastLeadYear), fmt.Sprintf("%.2f%%", row.Percentage*100), fmt.Sprintf("%.2f%%", row.RunningTotal*100)}
+	})).Build()
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
 	}
-	return ec.Resolve()
+	return nil
 }
 
 func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
@@ -306,3 +318,5 @@ func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 	grip.Infof("songs by popularity in year(s) %v", years)
 	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, years...))
 }
+
+func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }

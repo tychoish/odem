@@ -173,3 +173,26 @@ CREATE INDEX IF NOT EXISTS slj_song_minutes_lesson ON song_leader_joins(song_id,
 
 -- minutes: Year for MAX(Year) correlated subquery in song_leader_stats view
 CREATE INDEX IF NOT EXISTS minutes_year ON minutes(Year);
+
+-- song_leader_joins: (leader_id, song_id, minutes_id) covering index for LeaderFootsteps.
+-- The modified query joins leader_song_stats with song_leader_joins on both leader_id AND
+-- song_id to compute MAX(m.Year). Without this, SQLite uses slj_leader_minutes and scans
+-- all lessons for each leader then filters by song_id — O(lessons/leader × songs).
+CREATE INDEX IF NOT EXISTS slj_leader_song_minutes ON song_leader_joins(leader_id, song_id, minutes_id);
+
+-- leader_song_attendance: covering index for PopularSongsInOnesExperience, TheUnfamilarHits, NeverSung.
+-- The table is built in setup.sql; this index makes leader_id lookups O(songs attended) vs O(all leaders).
+CREATE INDEX IF NOT EXISTS lsa_leader_song ON leader_song_attendance(leader_id, song_id, attendance_count);
+
+-- leader_year_stats: pre-aggregated lesson counts per leader per year, analogous to song_stats.
+-- Used by TopLeadersByLeads (both the counts and total CTEs) and LeaderShareOfLeads
+-- (numerator and denominator). Without this, both queries do a full song_leader_joins scan
+-- joined to minutes — O(SLJ) — for every call. With it, year-filtered aggregation is
+-- O(leaders × years), matching the performance of GloballyPopularForYears on song_stats.
+CREATE TABLE IF NOT EXISTS leader_year_stats (
+    leader_id    INTEGER NOT NULL,
+    year         INTEGER NOT NULL,
+    lesson_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (leader_id, year)
+);
+CREATE INDEX IF NOT EXISTS lys_year_leader ON leader_year_stats(year, leader_id, lesson_count);

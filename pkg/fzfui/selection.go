@@ -66,6 +66,9 @@ func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, si
 	return singer, nil
 }
 
+// selectYears parses years from userInput (comma-separated integers) or
+// prompts the user with a fuzzy selector. Selecting or passing 0 means
+// "all years" and returns nil, nil. An empty selection also returns nil, nil.
 func selectYears(userInput string) ([]int, error) {
 	if userInput != "" {
 		years, err := erc.FromIteratorAll(
@@ -78,7 +81,7 @@ func selectYears(userInput string) ([]int, error) {
 		case err != nil:
 			return nil, err
 		case len(years) != 0:
-			return years, nil
+			return filterYears(years), nil
 		}
 	}
 
@@ -86,17 +89,26 @@ func selectYears(userInput string) ([]int, error) {
 
 	years, err := erc.FromIteratorAll(infra.NewFuzzySearch[int](
 		irt.Chain(irt.Args(
+			irt.Args(0), // 0 = all years (no filter)
 			irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
 			irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
 		)),
-	).Find("years"))
+	).Find("years (0 = all)"))
 
-	switch {
-	case err != nil:
+	if err != nil {
 		return nil, err
-	case len(years) == 0:
-		return nil, ers.New("not found")
-	default:
-		return years, nil
 	}
+	return filterYears(years), nil
+}
+
+// filterYears removes 0 from the slice (0 = all years sentinel).
+// Returns nil if the result would be empty or contained only zeros.
+func filterYears(years []int) []int {
+	var out []int
+	for _, y := range years {
+		if y != 0 {
+			out = append(out, y)
+		}
+	}
+	return out
 }

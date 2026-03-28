@@ -33,6 +33,21 @@ FROM song_stats
 GROUP BY song_id;
 CREATE INDEX IF NOT EXISTS sst_song_id ON song_stats_totals(song_id);
 
+-- Precomputed per-leader song attendance counts: how many times each song was called
+-- at a singing that leader attended. Built from leader_singings (distinct per leader+singing)
+-- joined to song_leader_joins (all songs at each singing).
+-- Used by PopularSongsInOnesExperience, TheUnfamilarHits, and NeverSung — each of which
+-- previously re-derived this by joining leader_singings (or leader_minutes) to song_leader_joins
+-- and grouping, costing O(leaders × singings × songs/singing) per query.
+-- ~4.1M rows; build takes ~15s but queries using it complete in <1ms.
+-- Note: same CREATE TABLE ... AS SELECT limitation as above.
+CREATE TABLE leader_song_attendance AS
+SELECT ls.leader_id, slj.song_id, COUNT(*) AS attendance_count
+FROM leader_singings AS ls
+JOIN song_leader_joins AS slj ON slj.minutes_id = ls.minutes_id
+GROUP BY ls.leader_id, slj.song_id;
+CREATE INDEX IF NOT EXISTS lsa_leader_song ON leader_song_attendance(leader_id, song_id, attendance_count);
+
 -- Seed data: known-invalid leader name strings to filter from leader lookups.
 -- Note: leader_name_invalid has no UNIQUE constraint on name, so this INSERT is not
 -- idempotent. Adding UNIQUE(name) + INSERT OR IGNORE would fix that if needed.

@@ -3,8 +3,10 @@ package db
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/tychoish/fun/srv"
+	"github.com/tychoish/odem/pkg/models"
 	_ "modernc.org/sqlite"
 )
 
@@ -255,6 +257,7 @@ func TestUnfamiliarHitsExcludesFamiliarSongs(t *testing.T) {
 
 func TestLeaderFootsteps(t *testing.T) {
 	conn, ctx := testConn(t)
+	currentYear := time.Now().Year()
 	count := 0
 	for row, err := range conn.LeaderFootsteps(ctx, testLeader, 5) {
 		if err != nil {
@@ -265,6 +268,9 @@ func TestLeaderFootsteps(t *testing.T) {
 		}
 		if row.SelfLeadCount <= 0 {
 			t.Errorf("LeaderFootsteps(%q): MyLeadCount should be > 0, got %d", testLeader, row.SelfLeadCount)
+		}
+		if row.TheirLastLeadYear < 1995 || row.TheirLastLeadYear > currentYear {
+			t.Errorf("LeaderFootsteps(%q): TheirLastLeadYear out of range for %q: %d", testLeader, row.LeaderName, row.TheirLastLeadYear)
 		}
 		count++
 	}
@@ -308,14 +314,31 @@ func TestLeaderShareOfLeadsWithYear(t *testing.T) {
 
 func TestTopLeadersByLeads(t *testing.T) {
 	conn, ctx := testConn(t)
+	currentYear := time.Now().Year()
+	var prev models.LeaderLeadCount
 	count := 0
-	for kv, err := range conn.TopLeadersByLeads(ctx, 5) {
+	for row, err := range conn.TopLeadersByLeads(ctx, 5) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if kv.Value <= 0 {
-			t.Errorf("TopLeadersByLeads: expected positive lead count, got %d for %q", kv.Value, kv.Key)
+		if row.Count <= 0 {
+			t.Errorf("TopLeadersByLeads: expected positive lead count, got %d for %q", row.Count, row.Name)
 		}
+		if row.Percentage <= 0 || row.Percentage > 1 {
+			t.Errorf("TopLeadersByLeads: pct out of range for %q: %v", row.Name, row.Percentage)
+		}
+		if row.LastLeadYear < 1995 || row.LastLeadYear > currentYear {
+			t.Errorf("TopLeadersByLeads: last_lead_year out of range for %q: %d", row.Name, row.LastLeadYear)
+		}
+		if count > 0 && row.RunningTotal < prev.RunningTotal {
+			t.Errorf("TopLeadersByLeads: running_total decreased from %v to %v between %q and %q",
+				prev.RunningTotal, row.RunningTotal, prev.Name, row.Name)
+		}
+		if count > 0 && row.Percentage > prev.Percentage {
+			t.Errorf("TopLeadersByLeads: pct increased from %v to %v (not sorted DESC) between %q and %q",
+				prev.Percentage, row.Percentage, prev.Name, row.Name)
+		}
+		prev = row
 		count++
 	}
 	if count == 0 {
@@ -326,9 +349,12 @@ func TestTopLeadersByLeads(t *testing.T) {
 func TestTopLeadersByLeadsWithYear(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
-	for _, err := range conn.TopLeadersByLeads(ctx, 5, 2023) {
+	for row, err := range conn.TopLeadersByLeads(ctx, 5, 2023) {
 		if err != nil {
 			t.Fatal(err)
+		}
+		if row.LastLeadYear != 2023 {
+			t.Errorf("TopLeadersByLeads(2023): last_lead_year should be 2023, got %d for %q", row.LastLeadYear, row.Name)
 		}
 		count++
 	}
