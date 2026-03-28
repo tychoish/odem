@@ -40,7 +40,7 @@ func Init() error {
 		// should rebuild the database. otherwise the database was built with this binary
 		// and we can just run the idempotent index creation (for the 'go run' case) and use
 		// the database otherwise we fall through and set up the local database
-		if odemMtime.IsZero() || dbMtime.After(odemMtime) {
+		if odemMtime.IsZero() || dbMtime.After(odemMtime) || os.Getenv("ODEM_DEVLOP") != "" {
 			db, err := sql.Open("sqlite", dbPath)
 			if err != nil {
 				return err
