@@ -3,7 +3,9 @@ package fzfui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
@@ -62,4 +64,39 @@ func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, si
 	}
 
 	return singer, nil
+}
+
+func selectYears(userInput string) ([]int, error) {
+	if userInput != "" {
+		years, err := erc.FromIteratorAll(
+			irt.With2(
+				irt.Slice(strings.Split(userInput, ",")),
+				strconv.Atoi,
+			),
+		)
+		switch {
+		case err != nil:
+			return nil, err
+		case len(years) != 0:
+			return years, nil
+		}
+	}
+
+	currentYear := time.Now().Year()
+
+	years, err := erc.FromIteratorAll(infra.NewFuzzySearch[int](
+		irt.Chain(irt.Args(
+			irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
+			irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
+		)),
+	).Find("years"))
+
+	switch {
+	case err != nil:
+		return nil, err
+	case len(years) == 0:
+		return nil, ers.New("not found")
+	default:
+		return years, nil
+	}
 }

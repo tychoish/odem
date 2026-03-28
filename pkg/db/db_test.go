@@ -284,6 +284,59 @@ func TestSingersConnectedness(t *testing.T) {
 	}
 }
 
+func TestLeaderShareOfLeads(t *testing.T) {
+	conn, ctx := testConn(t)
+	v, err := conn.LeaderShareOfLeads(ctx, testLeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v == nil || *v <= 0 || *v > 1 {
+		t.Errorf("LeaderShareOfLeads(%q): expected ratio in (0,1], got %v", testLeader, v)
+	}
+}
+
+func TestLeaderShareOfLeadsWithYear(t *testing.T) {
+	conn, ctx := testConn(t)
+	v, err := conn.LeaderShareOfLeads(ctx, "Sam Kleinman", 2023, 2024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v == nil || *v < 0 || *v > 1 {
+		t.Errorf("LeaderShareOfLeads(Sam Kleinman, 2023, 2024): expected ratio in [0,1], got %v", v)
+	}
+}
+
+func TestTopLeadersByLeads(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for kv, err := range conn.TopLeadersByLeads(ctx, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kv.Value <= 0 {
+			t.Errorf("TopLeadersByLeads: expected positive lead count, got %d for %q", kv.Value, kv.Key)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("TopLeadersByLeads: expected at least one result")
+	}
+}
+
+func TestTopLeadersByLeadsWithYear(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for _, err := range conn.TopLeadersByLeads(ctx, 5, 2023) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("TopLeadersByLeads(2023): expected at least one result")
+	}
+}
+
 func TestAllLeaderConnectedness(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0

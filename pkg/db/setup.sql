@@ -4,7 +4,7 @@
 -- Deduplicated (leader_id, minutes_id) pairs used for co-attendance computation.
 -- song_leader_joins has ~2 rows per (leader, singing); this table deduplicates them.
 -- Note: CREATE TABLE ... AS SELECT does not support IF NOT EXISTS in SQLite.
--- CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
+CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
 CREATE INDEX IF NOT EXISTS ls_minutes_leader ON leader_singings(minutes_id, leader_id);
 CREATE INDEX IF NOT EXISTS ls_leader_minutes ON leader_singings(leader_id, minutes_id);
 

@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -116,7 +115,7 @@ func singerBuddiesAction(ctx context.Context, dbconn *db.Connection, singer stri
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 40), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 32), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -138,7 +137,7 @@ func singerStrangersAction(ctx context.Context, dbconn *db.Connection, singer st
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Count"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 40), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 32), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -246,27 +245,60 @@ func leaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer st
 	return ec.Resolve()
 }
 
-func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	var years []int
-	var err error
-	if yrs != "" {
-		years, err = erc.FromIteratorAll(
-			irt.With2(
-				irt.Slice(strings.Split(yrs, ",")),
-				strconv.Atoi,
-			),
-		)
+func leaderShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	// input may be "Singer Name" or "Singer Name,2023,2024"
+	parts := strings.SplitN(input, ",", 2)
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, strings.TrimSpace(parts[0]))
+	if err != nil {
+		return err
 	}
-	if len(years) == 0 {
-		currentYear := time.Now().Year()
 
-		years, err = erc.FromIteratorAll(infra.NewFuzzySearch[int](
-			irt.Chain(irt.Args(
-				irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
-				irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
-			)),
-		).Find("years"))
+	years, err := selectYears(input)
+	if err != nil {
+		return err
 	}
+
+	grip.Infof("lead share for %q in year(s) %v", singer, years)
+	v, err := dbconn.LeaderShareOfLeads(ctx, singer, years...)
+	if err != nil {
+		return err
+	}
+	label := "Share of All Leads"
+	if len(years) > 0 {
+		label = fmt.Sprintf("Share of Leads (%v)", years)
+	}
+	var mb mdwn.Builder
+	mb.KV("Leader", singer)
+	mb.KV(label, fmt.Sprintf("%.4f%%", *v*100))
+	_, err = mb.WriteTo(os.Stdout)
+	return err
+}
+
+func topLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+	years, err := selectYears(yrs)
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("leaders by total leads in year(s) %v", years)
+
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Name", "Leads"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.TopLeadersByLeads(ctx, 32, years...), ec.Push)), func(k string, v int) (string, string) {
+			return k, strconv.Itoa(v)
+		}),
+	)
+	if ec.Ok() {
+		_, err = mb.WriteTo(os.Stdout)
+		ec.Push(err)
+	}
+	return ec.Resolve()
+}
+
+func popularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+	years, err := selectYears(yrs)
 	if err != nil {
 		return err
 	}

@@ -41,6 +41,8 @@ const (
 	MinutesAppOpUnfamilarHits
 	MinutesAppOpConnectedness
 	MinutesAppOpLeaderFootsteps
+	MinutesAppOpTopLeaders
+	MinutesAppOpLeaderShare
 	MinutesAppOpInvalid
 	MinutesAppOpExit = 181
 )
@@ -77,6 +79,10 @@ func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 		return irt.MakeKV("connectedness", "rank all singers by their connectedness ratio (fraction of the community they've sung with)")
 	case MinutesAppOpLeaderFootsteps:
 		return irt.MakeKV("leader-footsteps", "for each song a singer has led, show the most frequent other leader of that song")
+	case MinutesAppOpTopLeaders:
+		return irt.MakeKV("top-leaders", "rank all leaders by total number of leads, optionally filtered by year")
+	case MinutesAppOpLeaderShare:
+		return irt.MakeKV("leader-share", "fraction of total leads a given singer accounts for, optionally filtered by year")
 	case MinutesAppOpExit:
 		return irt.MakeKV("exit", "181")
 	case MinutesAppOpInvalid:
@@ -115,6 +121,10 @@ func (mao MinutesAppOperation) Dispatch() MinutesAppOperationHandler {
 			return singersByConnectednessAction(ctx, conn)
 		case MinutesAppOpLeaderFootsteps:
 			return leaderFootstepsAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpTopLeaders:
+			return topLeadersByLeadsAction(ctx, conn, strings.Join(args, ","))
+		case MinutesAppOpLeaderShare:
+			return leaderShareOfLeadsAction(ctx, conn, strings.Join(args, ","))
 		case MinutesAppOpExit:
 			grip.Info("goodbye!")
 			return nil
@@ -160,6 +170,10 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpPopularInYears
 	case "leader-footsteps", "footsteps":
 		return MinutesAppOpLeaderFootsteps
+	case "top-leaders", "leaderboard":
+		return MinutesAppOpTopLeaders
+	case "leader-share", "share":
+		return MinutesAppOpLeaderShare
 	default:
 		return MinutesAppOpInvalid
 	}

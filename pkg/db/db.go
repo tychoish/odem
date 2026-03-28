@@ -380,6 +380,113 @@ LIMIT ?`
 	return dbx.Query[models.LeaderFootstep](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
+func (conn *Connection) LeaderShareOfLeads(ctx context.Context, name string, years ...int) (*float64, error) {
+	currentYear := time.Now().Year()
+
+	var includeYears, excludeYears []int
+	for _, y := range years {
+		abs := y
+		if y < 0 {
+			abs = -y
+		}
+		if abs < 1995 || abs > currentYear {
+			return nil, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear)
+		}
+		if y < 0 {
+			excludeYears = append(excludeYears, abs)
+		} else {
+			includeYears = append(includeYears, y)
+		}
+	}
+	if len(includeYears) > 0 && len(excludeYears) > 0 {
+		return nil, fmt.Errorf("cannot mix included and excluded years")
+	}
+
+	var qb dbx.Builder
+	// denominator subquery (total leads for the year filter)
+	qb.WithSQL(`
+SELECT CAST(COUNT(slj.id) AS REAL) / (
+    SELECT COUNT(slj2.id)
+    FROM song_leader_joins AS slj2
+    JOIN minutes AS m2 ON m2.id = slj2.minutes_id`)
+	switch {
+	case len(includeYears) > 0:
+		qb.With(" WHERE m2.Year IN (%+?)", includeYears)
+	case len(excludeYears) > 0:
+		qb.With(" WHERE m2.Year NOT IN (%+?)", excludeYears)
+	}
+	// numerator outer query — name param placed after denominator years
+	qb.WithSQL(`) AS value
+FROM song_leader_joins AS slj
+JOIN leaders AS l ON l.id = slj.leader_id`)
+	if len(includeYears)+len(excludeYears) > 0 {
+		qb.WithSQL(`
+JOIN minutes AS m ON m.id = slj.minutes_id`)
+	}
+	qb.With("\nWHERE l.name = %?", name)
+	switch {
+	case len(includeYears) > 0:
+		qb.With(" AND m.Year IN (%+?)", includeYears)
+	case len(excludeYears) > 0:
+		qb.With(" AND m.Year NOT IN (%+?)", excludeYears)
+	}
+
+	query, args := qb.Build()
+	v, err := dbx.QueryRow[float64](ctx, conn.db.QueryContext, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years ...int) iter.Seq2[irt.KV[string, int], error] {
+	currentYear := time.Now().Year()
+
+	var includeYears, excludeYears []int
+	for _, y := range years {
+		abs := y
+		if y < 0 {
+			abs = -y
+		}
+		if abs < 1995 || abs > currentYear {
+			return irt.Two(irt.KV[string, int]{}, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear))
+		}
+		if y < 0 {
+			excludeYears = append(excludeYears, abs)
+		} else {
+			includeYears = append(includeYears, y)
+		}
+	}
+	if len(includeYears) > 0 && len(excludeYears) > 0 {
+		return irt.Two(irt.KV[string, int]{}, fmt.Errorf("cannot mix included and excluded years"))
+	}
+
+	var qb dbx.Builder
+	qb.WithSQL(`
+SELECT l.name AS key, COUNT(slj.id) AS value
+FROM leaders AS l
+JOIN song_leader_joins AS slj ON slj.leader_id = l.id
+JOIN minutes AS m ON m.id = slj.minutes_id
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL`)
+
+	switch {
+	case len(includeYears) > 0:
+		qb.With(" AND m.Year IN (%+?)", includeYears)
+	case len(excludeYears) > 0:
+		qb.With(" AND m.Year NOT IN (%+?)", excludeYears)
+	}
+
+	qb.WithSQL(`
+GROUP BY l.id
+ORDER BY value DESC`)
+
+	qb.With(" LIMIT %?", cmp.Or(limit, 40))
+
+	query, args := qb.Build()
+	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, args...)
+}
+
 func (conn *Connection) NeverSung(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT
