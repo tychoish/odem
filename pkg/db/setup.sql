@@ -4,7 +4,7 @@
 -- Deduplicated (leader_id, minutes_id) pairs used for co-attendance computation.
 -- song_leader_joins has ~2 rows per (leader, singing); this table deduplicates them.
 -- Note: CREATE TABLE ... AS SELECT does not support IF NOT EXISTS in SQLite.
-CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
+-- CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
 CREATE INDEX IF NOT EXISTS ls_minutes_leader ON leader_singings(minutes_id, leader_id);
 CREATE INDEX IF NOT EXISTS ls_leader_minutes ON leader_singings(leader_id, minutes_id);
 
@@ -27,9 +27,10 @@ CREATE INDEX IF NOT EXISTS lca_b ON leader_coattendance(leader_b_id, leader_a_id
 -- materializing it once here avoids three independent full-table aggregations.
 -- Note: same CREATE TABLE ... AS SELECT limitation as above.
 CREATE TABLE song_stats_totals AS
-    SELECT song_id, SUM(lesson_count) AS total
-    FROM song_stats
-    GROUP BY song_id;
+    SELECT song_id,
+    SUM(lesson_count) AS total
+FROM song_stats
+GROUP BY song_id;
 CREATE INDEX IF NOT EXISTS sst_song_id ON song_stats_totals(song_id);
 
 -- Seed data: known-invalid leader name strings to filter from leader lookups.
@@ -61,14 +62,15 @@ INSERT INTO leader_name_invalid (name) VALUES
 	('Old Days'),
 	('PVADS'),
 	('S.M.'),
-	('South Hampton'), -- likely, just a guess
+	 -- likely, just a guess
+	('South Hampton'),
 	('Tell Me Of The Angels'),
 	('Thankful Heart'),
 	('The Bristol'),
-	('The Butterfly’'),
+	('The Butterfly'),
 	('The Chairladies'),
 	('The Chicago'),
-	('The Founders')
+	('The Founders'),
 	('The Founder’s Lesson'),
 	('The IV'),
 	('The Ladykillers'),
