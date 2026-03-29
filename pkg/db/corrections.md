@@ -2,6 +2,9 @@
 - Annie-Lou
 - Brother Stacks
 - Buddy Nix (this could be legit)
+- But The Blood
+- But The Blood Of Jesus
+- Cayce-The Good Old Songs
 - Chih-ching Dill Ma
 - Clarrica Springfield
 - D. Barnett
@@ -12,11 +15,16 @@
 - J R Hardman
 - J. L.
 - J. M.
-- J. Michael Hull -> Michael Hull (he's a friend of mine and we can figure out which he prefers)
+- J. Michael Hull -> Michael Hull (he's a friend of mine (samk) and we can figure out which he prefers)
 - J. W.
 - Jamie Piedra
 - Killi Rane <-> Kelli Rane
 - Leaders Don Clark
+- Leaders Don Clark
+- Leaders Kathrine Glatter
+- Leaders Malinda Snow
+- Leaders Marco Weßnigk
+- Light At The River
 - Magdalena Zapedowska Eriksen
 - Magdalena Zapedowska-Eriksen
 - O Herr (this could be legit)
@@ -24,12 +32,76 @@
 - Reverends Jim Miller
 - Russ Parker
 - Sash Hsuczyk
+- Tell Me Of The Angels
+- The Alexander
+- The Avery Family
+- The Beasley
+- The Beasley Family
+- The Brady
+- The Bristol
+- The Butterfly’
+- The Chairladies
+- The Chicago
+- The Cork Singers
+- The Creel
+- The Dallas
+- The Danby
+- The Dayton Harmonist
+- The Eddins
+- The Founders
+- The Founders’
+- The Founder’s Lesson
+- The Friday
+- The Geneva
+- The Gilmore Family
+- The Great Roll Call
+- The Green Family
+- The Harper
+- The Harris Family
+- The IV
+- The Introductory Lesson
+- The Ivey Family
+- The Jamulus Singers
+- The Kerr
+- The Kerr Family
+- The Lacy Family-Reba Windom
+- The Ladykillers
+- The Landing
+- The Locating
+- The London
+- The Lonnie Rogers
+- The Man With
+- The Monday
+- The Montréal
+- The Morton
+- The Munich
+- The New Year’s Day
+- The Oliver
+- The Olney Hymns
+- The Registration
+- The Rogers
+- The Rogers Children
+- The Roots
+- The Sheppards
+- The Sherbrooke
+- The Silverton Grange
+- The Supertonic
+- The Texas
+- The Trumpet
+- The Tuesday Night Singers
+- The Union
+- The Wakefield Singers
+- The Wallowa Valley
+- The Youth Boys
+- UK Singers
 - USA. Helen Brown
 - USA. Jessica Beer
 - USA. Jo-anne
 - USA. Joshua
+- USA. The Winchester Singers
 - Uncle Terry Wootten
 - W.G.
 - W.L.
 - W.M.
+- Will Sing With The Angels
 - Zilpha Cornelia > Kitchens Gardner(?)
