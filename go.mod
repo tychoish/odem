@@ -6,7 +6,7 @@ require (
 	github.com/cheynewallace/tabby v1.1.1
 	github.com/goccy/go-yaml v1.19.2
 	github.com/koki-develop/go-fzf v0.15.0
-	github.com/tychoish/cmdr v0.5.3
+	github.com/tychoish/cmdr v0.5.4
 	github.com/tychoish/dbx v0.8.0
 	github.com/tychoish/fun v0.14.8
 	github.com/tychoish/grip v0.4.9
@@ -52,9 +52,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/tychoish/dbx => ../dbx/
-
-replace github.com/tychoish/cmdr => ../cmdr
 
 tool github.com/mrjoshuak/godoc-mcp

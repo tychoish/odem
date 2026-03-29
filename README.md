@@ -14,7 +14,7 @@ Allowing to the fact that this isn't running on a phone _and_ doesn't need to be
 
 - singers' "_connectedness_" or the percentage of total singers that you've been at singings with.
 
-- _unfamilar hits_: the most popular songs that are underrepresented at the singings you've been at.
+- _unfamiliar hits_: the most popular songs that are underrepresented at the singings you've been at.
 
 - _never sung_: songs that have never been sung at a singing you've been at.
 
@@ -109,7 +109,7 @@ I plan to have pre-built artifacts at some point in the future if pepole are int
 
    The procedure to make this permanent is probably beyond the scope of this document, and depending on your system and configuration.
 
-   At some point soon, hopefully, I'll have an installation procudre with fewer sharp edges.
+   At some point soon, hopefully, I'll have an installation procedure with fewer sharp edges.
 
 4. You can write the database to the temporary space explicitly:
 
@@ -155,6 +155,8 @@ Agents have written many of the queries, and are responsible for much of the dat
 
 The process of adding a new query is characterized as an agent skill as `add-minutes-query`. If you direct the agent to use this skill with a tight/clear description of the analysis, it does a reasonable job of producing a new operation.
 
+Additionally, I've set up a number of MCP servers that I find useful, generally: `sqlite` adapters to make it easier to query data from the database; `gh` cli tool wrappers for github stuff; `gopls` to use the LSP server to facilitate code editing (with a preference for using shared instances of `gopls`; as well as `ripgrep` and `godoc` for code discovery.
+
 In genreal my take, for the moment, is that agents are great for:
 
 - writing tests, both during development and when fixing bugs to prevent future regressions.
@@ -175,7 +177,7 @@ This project uses a collection of other tools and libraries that I've written th
 
   In particular the `irt` library provides tooling for working with go's (newish) native iterator types. This leads to a programming style that's a bit more "lispy" and lazy/iterator driven, and function-centered than the mainline go conventions.
 
-  Also the `strut` package (for **str**ing **ut**ilities) package provides some higher-level interaces around `strings.Builder`,  `bytes.Buffer`, (and `Mutable` for providing a pooled, string-ish type around around a `[]byte` slice.) This all makes building text nd string output more ergonomic and higher-level.
+  Also the `strut` package (for **str**ing **ut**ilities) package provides some higher-level interaces around `strings.Builder`,  `bytes.Buffer`, (and `Mutable` for providing a pooled, string-ish type around a `[]byte` slice.) This all makes building text and string output more ergonomic and higher-level.
 
 - [github.com/tychoish/grip](https://github.com/tychoish/grip), a structured logging library with a focus on ease-of-use, flexibility, and ergonomics.
 

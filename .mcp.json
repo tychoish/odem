@@ -40,12 +40,20 @@
       "command": "gh",
       "args":["mcp"]
     },
-    "sqlite": {
+    "sqlite-appdb": {
       "command": "npx",
       "args": [
         "-y",
         "mcp-sqlite",
         "/tmp/minutes.db"
+      ]
+    },
+    "sqlite-sourcedb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-sqlite",
+        "pkg/db/fasoladb/minutes.db"
       ]
     }
   }
