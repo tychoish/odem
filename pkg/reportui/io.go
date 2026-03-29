@@ -3,6 +3,7 @@ package reportui
 import (
 	"os"
 
+	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 )
@@ -10,6 +11,7 @@ import (
 func getFile(args ...string) (*os.File, error) {
 	mut := strut.MakeMutable(sumLens(args) + 3)
 	defer mut.Release()
+
 	mut.JoinStrings(args, "-")
 	mut.ReplaceAllString(" ", "-")
 	mut.ReplaceAllString("'", "-")
@@ -25,19 +27,19 @@ func getFile(args ...string) (*os.File, error) {
 	return f, nil
 }
 
-type wstdout struct {
-	*os.File
+type wstdout struct{ adt.Once[*os.File] }
+
+func (w *wstdout) stdout() *os.File            { return w.Do(w.init) }
+func (w *wstdout) init() *os.File              { return os.Stdout }
+func (w *wstdout) Write(b []byte) (int, error) { return w.stdout().Write(b) }
+func (*wstdout) Close() error                  { return nil }
+
+type wrcloselog struct {
+	name string
+	f    *os.File
 }
 
-func (wstdout) Close() error { return nil }
+const wrclTmpl = "wrote %q to %s"
 
-type loggingCloser struct {
-	reportName string
-	f          *os.File
-}
-
-func (f *loggingCloser) Write(in []byte) (int, error) { return f.f.Write(in) }
-func (f *loggingCloser) Close() error {
-	grip.Infof("wrote report %s to %s", f.reportName, f.f.Name())
-	return f.f.Close()
-}
+func (f *wrcloselog) Write(in []byte) (int, error) { return f.f.Write(in) }
+func (f *wrcloselog) Close() error                 { grip.Infof(wrclTmpl, f.name, f.f.Name()); return f.f.Close() }

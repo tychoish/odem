@@ -1,4 +1,4 @@
-package clidispatch
+package dispatch
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 type MinutesAppOperationHandler func(context.Context, *db.Connection, ...string) error
 
 func (maoh MinutesAppOperationHandler) Handle(ctx context.Context, conn *db.Connection, args ...string) error {
-	return maoh(ctx, conn, args...)
+	return maoh.Op(ctx, conn, args)
 }
 
 func (maoh MinutesAppOperationHandler) Op(ctx context.Context, conn *db.Connection, args []string) error {

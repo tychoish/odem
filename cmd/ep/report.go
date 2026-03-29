@@ -3,7 +3,7 @@ package ep
 import (
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/odem/pkg/clidispatch"
+	"github.com/tychoish/odem/pkg/dispatch"
 )
 
 func Report() *cmdr.Commander {
@@ -15,6 +15,6 @@ func Report() *cmdr.Commander {
 			SetName("stdout", "o").
 			SetUsage("write report to stdout instead of a file").
 			Flag()).
-		With(clidispatch.ReportOperationSpec(clidispatch.MinutesAppOpRetry.ReportDispatcher()).Add).
-		Subcommanders(irt.Collect(clidispatch.AllReportMinutesAppCmdrs())...)
+		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher()).Add).
+		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...)
 }

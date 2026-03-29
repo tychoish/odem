@@ -1,4 +1,4 @@
-package clidispatch
+package dispatch
 
 import (
 	"iter"
