@@ -47,8 +47,9 @@ func (conn *Connection) AllSongPageNumbers(ctx context.Context) iter.Seq2[string
 
 func (conn *Connection) AllLeaderNames(ctx context.Context) iter.Seq2[string, error] {
 	const query = `
-SELECT l.name
+SELECT COALESCE(lna.name, l.name) AS name
 FROM leaders AS l
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL;`
 	return dbx.Query[string](ctx, conn.db.QueryContext, query)
@@ -113,11 +114,12 @@ ORDER BY minutes_id DESC;`
 
 func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
 	const query = `
-SELECT l2.name AS key, COUNT(*) AS value
+SELECT COALESCE(lna2.name, l2.name) AS key, COUNT(*) AS value
 FROM leader_singings AS ls_me
 JOIN leaders AS l_me ON l_me.id = ls_me.leader_id
 JOIN leader_singings AS ls_other ON ls_other.minutes_id = ls_me.minutes_id AND ls_other.leader_id != ls_me.leader_id
 JOIN leaders AS l2 ON l2.id = ls_other.leader_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna2 ON lna2.alias = l2.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l2.name
 WHERE l_me.name = ?
 AND l2.name != ?
@@ -160,10 +162,11 @@ stranger_scores AS (
 	GROUP BY lca.leader_b_id
 )
 SELECT
-        l.name AS key,
+        COALESCE(lna.name, l.name) AS key,
         mutual AS value
 FROM stranger_scores
 JOIN leaders AS l ON l.id = stranger_scores.stranger_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL
 ORDER BY value DESC
@@ -174,10 +177,11 @@ LIMIT ?;`
 func (conn *Connection) AllLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[irt.KV[string, float64], error] {
 	const query = `
 SELECT
-        l.name AS key,
+        COALESCE(lna.name, l.name) AS key,
         CAST(COUNT(lca.leader_b_id) AS REAL) / (SELECT COUNT(*) FROM leaders) AS value
 FROM leaders l
 LEFT JOIN leader_coattendance lca ON lca.leader_a_id = l.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL
 GROUP BY l.id
@@ -343,7 +347,7 @@ WITH my_songs AS (
 top_other_leaders AS (
     SELECT
         lss.song_id,
-        l.name AS other_leader_name,
+        COALESCE(lna.name, l.name) AS other_leader_name,
         lss.lesson_count AS other_count,
         MAX(m.Year) AS their_last_lead_year,
         ROW_NUMBER() OVER (PARTITION BY lss.song_id ORDER BY lss.lesson_count DESC) AS rn
@@ -351,6 +355,7 @@ top_other_leaders AS (
     JOIN leaders AS l ON l.id = lss.leader_id
     JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id = lss.song_id
     JOIN minutes AS m ON m.id = slj.minutes_id
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
     LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
     WHERE l.name != ?
     AND inv.name IS NULL
@@ -457,10 +462,11 @@ func (conn *Connection) TopLeadersByLeads(ctx context.Context, limit int, years 
 	var qb dbx.Builder
 	qb.WithSQL(`
 WITH counts AS (
-    SELECT l.name AS name, COUNT(slj.id) AS count, MAX(m.Year) AS last_lead_year
+    SELECT COALESCE(lna.name, l.name) AS name, COUNT(slj.id) AS count, MAX(m.Year) AS last_lead_year
     FROM leaders AS l
     JOIN song_leader_joins AS slj ON slj.leader_id = l.id
     JOIN minutes AS m ON m.id = slj.minutes_id
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
     LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
     WHERE inv.name IS NULL`)
 
