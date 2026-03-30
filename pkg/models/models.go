@@ -31,7 +31,8 @@ type Leader struct {
 	LocationCount *int64   `db:"location_count" json:"location_count"`
 }
 
-type LeaderCoattendance struct{}
+type LeaderCoattendance struct {
+}
 
 type LeaderDetail struct {
 	LeaderName          string `db:"leader_name" json:"leader_name"`
@@ -60,7 +61,21 @@ type LeaderNameInvalid struct {
 	Name *string `db:"name" json:"name"`
 }
 
-type LeaderSinging struct{}
+type LeaderProfile struct {
+	LeaderID          int64  `db:"leader_id" json:"leader_id"`
+	Name              string `db:"name" json:"name"`
+	LessonCount       int64  `db:"lesson_count" json:"lesson_count"`
+	UniqueLessonCount int64  `db:"unique_lesson_count" json:"unique_lesson_count"`
+	SingingCount      int64  `db:"singing_count" json:"singing_count"`
+	FirstYear         int64  `db:"first_year" json:"first_year"`
+	LastYear          int64  `db:"last_year" json:"last_year"`
+}
+
+type LeaderSinging struct {
+}
+
+type LeaderSongAttendance struct {
+}
 
 type LeaderSongStat struct {
 	ID          int64  `db:"id" json:"id"`
@@ -68,6 +83,12 @@ type LeaderSongStat struct {
 	SongID      *int64 `db:"song_id" json:"song_id"`
 	LessonCount *int64 `db:"lesson_count" json:"lesson_count"`
 	LessonRank  *int64 `db:"lesson_rank" json:"lesson_rank"`
+}
+
+type LeaderYearStat struct {
+	LeaderID    int64 `db:"leader_id" json:"leader_id"`
+	Year        int64 `db:"year" json:"year"`
+	LessonCount int64 `db:"lesson_count" json:"lesson_count"`
 }
 
 type LessonDetails struct {
@@ -223,7 +244,7 @@ type SongLeaderJoin struct {
 }
 
 type SongLeaderStat struct {
-	Name          *string `db:"name" json:"name"`
+	Name          string  `db:"name" json:"name"`
 	PageNum       *string `db:"page_num" json:"page_num"`
 	Count         *int64  `db:"count" json:"count"`
 	NumYears      int64   `db:"num_years" json:"num_years"`
@@ -243,4 +264,7 @@ type SongStat struct {
 	Year        *int64 `db:"year" json:"year"`
 	LessonCount *int64 `db:"lesson_count" json:"lesson_count"`
 	Rank        *int64 `db:"rank" json:"rank"`
+}
+
+type SongStatsTotal struct {
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/strut"
-	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -62,28 +60,20 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (s
 			return "", ec.Resolve()
 		}
 	}
-
-	leader, err := infra.NewFuzzySearch[models.Leader](
-		erc.HandleAll(dbconn.AllLeaders(ctx), ec.Push),
-	).WithToString(func(ld models.Leader) string {
-		name := *ld.Name
-		mut := strut.MakeMutable(len(name) * 3)
-		defer mut.Release()
-		mut.Concat(name, " -- ")
-		mut.PushInt(int(stw.DerefZ(ld.LessonCount)))
-		// TODO: add in first/last year lead at singings
-		return mut.String()
+	leader, err := infra.NewFuzzySearch[models.LeaderProfile](
+		erc.HandleAll(dbconn.AllLeaderProfiles(ctx), ec.Push),
+	).WithToString(func(l models.LeaderProfile) string {
+		return fmt.Sprintf("%s (%d-%d) -- %d lesson(s) [%d unique] at %d singing(s)",
+			l.Name, l.FirstYear, l.LastYear, l.LessonCount, l.UniqueLessonCount, l.SingingCount,
+		)
 	}).FindOne()
-
-	name := stw.DerefZ(leader.Name)
-	ec.When(name == "", "cannot select the empty leader")
 
 	if !ec.PushOk(err) {
 		return "", ec.Resolve()
 	}
 
 	grip.Debugln("selected leader", leader)
-	return name, nil
+	return leader.Name, nil
 }
 
 func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SingingInfo, error) {

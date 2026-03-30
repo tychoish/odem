@@ -39,7 +39,8 @@ func (q *Queries) GetLeader(ctx context.Context, name *string) (GetLeaderRow, er
 }
 
 const getSingerConnectedness = `-- name: GetSingerConnectedness :one
-SELECT CAST(COUNT(DISTINCT b.leader_id) AS REAL) / (SELECT COUNT(*) FROM leaders) AS connectedness
+SELECT
+	CAST(COUNT(DISTINCT b.leader_id) AS REAL) / (SELECT COUNT(*) FROM leaders) AS connectedness
 FROM song_leader_joins a
 JOIN song_leader_joins b ON b.minutes_id = a.minutes_id AND b.leader_id != a.leader_id
 WHERE a.leader_id = (SELECT id FROM leaders WHERE leaders.name = ?)

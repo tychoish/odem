@@ -40,15 +40,9 @@ func (conn *Connection) AllSongDetails(ctx context.Context) iter.Seq2[models.Son
 	return dbx.Query[models.SongDetail](ctx, conn.db.QueryContext, query)
 }
 
-func (conn *Connection) AllLeaders(ctx context.Context) iter.Seq2[models.Leader, error] {
-	const query = `
-SELECT *
-     --  name,
-     --  num_leads,
-     --  first_year,
-     --  last_year,
-FROM leaders;`
-	return dbx.Query[models.Leader](ctx, conn.db.QueryContext, query)
+func (conn *Connection) AllLeaderProfiles(ctx context.Context) iter.Seq2[models.LeaderProfile, error] {
+	const query = `SELECT * FROM leader_profiles;`
+	return dbx.Query[models.LeaderProfile](ctx, conn.db.QueryContext, query)
 }
 
 func (conn *Connection) AllSongPageNumbers(ctx context.Context) iter.Seq2[string, error] {

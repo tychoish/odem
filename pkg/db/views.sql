@@ -14,7 +14,7 @@ WHERE book_id = 2;
 
 CREATE VIEW IF NOT EXISTS "minutes_expanded" AS
 SELECT
-	COALESCE(lna.name, leaders.name, '') AS leader,
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS leader,
 	COALESCE(bsj.page_num, '') AS song_page_number,
 	COALESCE(songs.title, '') AS song_title,
 	COALESCE(minutes."Name", '') AS minutes_name,
@@ -43,7 +43,7 @@ LEFT JOIN book_song_joins AS bsj ON slj.song_id = bsj.song_id;
 CREATE VIEW IF NOT EXISTS "lesson_details" AS
 SELECT
 	leaders.id,
-	COALESCE(lna.name, leaders.name, '') AS name,
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS name,
 	COALESCE(lss.lesson_count, 0) AS leader_lesson_count,
 	COALESCE(lss.lesson_rank, 0) AS leader_lesson_rank,
 	COALESCE(bsj.page_num, '') AS song_page,
@@ -85,7 +85,7 @@ SELECT
 	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
 	COALESCE(slj.lesson_id, 0) AS lesson_id,
 	COALESCE(m."Name", '') AS singing_name,
-	COALESCE(lna.name, l.name, '') AS singer_name,
+	CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS singer_name,
 	COALESCE(bsj.page_num, '') AS song_page_number,
 	COALESCE(s.title, '') AS song_name,
 	COALESCE(bsj.keys, '') AS song_key
@@ -114,7 +114,7 @@ GROUP BY m.id;
 
 CREATE VIEW IF NOT EXISTS song_leader_stats AS
 SELECT
-	COALESCE(lna.name, leaders.name) AS name,
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS name,
 	bsj.page_num,
 	lss.lesson_count AS count,
 	MAX(m.Year) - MIN(m.Year) AS num_years,
@@ -131,7 +131,7 @@ GROUP BY lss.leader_id, bsj.page_num;
 CREATE VIEW IF NOT EXISTS leader_minutes AS
 SELECT
 	COALESCE(l.id, 0) AS leader_id,
-	COALESCE(lna.name, l.name, '') AS leader_name,
+	CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS leader_name,
 	COALESCE(slj.minutes_id, 0) AS minutes_id
 FROM song_leader_joins AS slj
 JOIN leaders AS l ON slj.leader_id = l.id
@@ -139,7 +139,7 @@ LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader
 
 CREATE VIEW IF NOT EXISTS leader_details AS
 SELECT
-	COALESCE(lna.name, leaders.name, '') AS leader_name,
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS leader_name,
 	COALESCE(leaders.lesson_count, '') AS leader_total_num_leads,
 	COALESCE(songs.title, '') AS song_title,
 	COALESCE(bsj.page_num, '') AS page_number,
@@ -149,6 +149,23 @@ JOIN leader_song_stats AS lss ON leaders.id = lss.leader_id
 JOIN songs ON songs.id = lss.song_id
 LEFT JOIN book_song_joins AS bsj ON songs.id = bsj.song_id
 LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = leaders.name;
+
+CREATE VIEW IF NOT EXISTS leader_profiles AS
+SELECT
+	leaders.id AS leader_id,
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS name,
+	COALESCE(leaders.lesson_count, 0) AS lesson_count,
+	CAST(COUNT(DISTINCT slj.lesson_id) AS INTEGER) AS unique_lesson_count,
+	CAST(COUNT(DISTINCT slj.minutes_id) AS INTEGER) AS singing_count,
+	CAST(COALESCE(MIN(m.Year), 0) AS INTEGER) AS first_year,
+	CAST(COALESCE(MAX(m.Year), 0) AS INTEGER) AS last_year
+FROM leaders
+JOIN song_leader_joins AS slj ON leaders.id = slj.leader_id
+JOIN minutes AS m ON slj.minutes_id = m.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = leaders.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = leaders.name
+WHERE inv.name IS NULL
+GROUP BY leaders.id;
 
 -- Indexes for query performance (not in embedded db file)
 CREATE INDEX IF NOT EXISTS leaders_name ON leaders(name);
@@ -202,3 +219,9 @@ CREATE TABLE IF NOT EXISTS leader_year_stats (
     PRIMARY KEY (leader_id, year)
 );
 CREATE INDEX IF NOT EXISTS lys_year_leader ON leader_year_stats(year, leader_id, lesson_count);
+
+-- leader_profiles view: filter invalid names and resolve aliases
+CREATE INDEX IF NOT EXISTS inv_name ON leader_name_invalid(name);
+CREATE INDEX IF NOT EXISTS lna_alias_name ON leader_name_aliases(alias, name);
+-- leader_profiles view: covering index for GROUP BY leader_id with DISTINCT lesson_id and minutes_id
+CREATE INDEX IF NOT EXISTS slj_leader_lesson_minutes ON song_leader_joins(leader_id, lesson_id, minutes_id);

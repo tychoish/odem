@@ -42,7 +42,10 @@ CREATE INDEX IF NOT EXISTS sst_song_id ON song_stats_totals(song_id);
 -- ~4.1M rows; build takes ~15s but queries using it complete in <1ms.
 -- Note: same CREATE TABLE ... AS SELECT limitation as above.
 CREATE TABLE leader_song_attendance AS
-SELECT ls.leader_id, slj.song_id, COUNT(*) AS attendance_count
+SELECT
+    ls.leader_id,
+    slj.song_id,
+    COUNT(*) AS attendance_count
 FROM leader_singings AS ls
 JOIN song_leader_joins AS slj ON slj.minutes_id = ls.minutes_id
 GROUP BY ls.leader_id, slj.song_id;
@@ -87,7 +90,7 @@ INSERT INTO leader_name_invalid (name) VALUES
 	('The Beasley'),
 	('The Brady'),
 	('The Bristol'),
-	('The Butterfly’')
+	('The Butterfly'),
 	('The Chairladies'),
 	('The Chicago'),
 	('The Cork Singers'),
@@ -162,5 +165,3 @@ INSERT INTO leader_name_invalid (name) VALUES
 	('[Parsing error—no such leader. Attributed song was led by Alice Ann Vaughan Borge and David Ivey only]'),
 	('[Various—can these be corrected and parsed individually?]'),
 	('[Venue name incorrectly parsed as leader; song WAS sung by other attributed leader]');
-
-
