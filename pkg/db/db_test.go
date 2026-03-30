@@ -101,6 +101,41 @@ func TestAllLessons(t *testing.T) {
 	}
 }
 
+func TestLeaderLeadHistory(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for _, err := range conn.LeaderLeadHistory(ctx, testLeader) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		count++
+		break // unbounded query — only check first result
+	}
+	if count == 0 {
+		t.Errorf("LeaderLeadHistory(%q): expected at least one result", testLeader)
+	}
+}
+
+func TestLeaderSingingsAttended(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for row, err := range conn.LeaderSingingsAttended(ctx, testLeader, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.NumberOfLeaders <= 0 {
+			t.Errorf("LeaderSingingsAttended(%q): expected number_of_leaders > 0, got %d", testLeader, row.NumberOfLeaders)
+		}
+		if row.LeaderLeadCount <= 0 {
+			t.Errorf("LeaderSingingsAttended(%q): expected leader_lead_count > 0, got %d", testLeader, row.LeaderLeadCount)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("LeaderSingingsAttended(%q): expected at least one result", testLeader)
+	}
+}
+
 func TestSingingLessons(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0

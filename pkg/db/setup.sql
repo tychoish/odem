@@ -51,6 +51,33 @@ JOIN song_leader_joins AS slj ON slj.minutes_id = ls.minutes_id
 GROUP BY ls.leader_id, slj.song_id;
 CREATE INDEX IF NOT EXISTS lsa_leader_song ON leader_song_attendance(leader_id, song_id, attendance_count);
 
+-- Materialized leader_profiles: replaces the view of the same name.
+-- The view re-runs two COUNT(DISTINCT ...) aggregations on every call, costing ~640ms.
+-- Singing stats (count, first/last year) are read from leader_singings instead of
+-- re-aggregating song_leader_joins, halving the number of temp B-trees.
+-- Note: DROP VIEW is required because CREATE TABLE ... AS SELECT cannot replace a view.
+CREATE TABLE leader_profiles AS
+SELECT
+    l.id AS leader_id,
+    CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
+    COALESCE(l.lesson_count, 0) AS lesson_count,
+    CAST(COUNT(DISTINCT slj.lesson_id) AS INTEGER) AS unique_lesson_count,
+    CAST(COALESCE(ls_stats.singing_count, 0) AS INTEGER) AS singing_count,
+    CAST(COALESCE(ls_stats.first_year, 0) AS INTEGER) AS first_year,
+    CAST(COALESCE(ls_stats.last_year, 0) AS INTEGER) AS last_year
+FROM leaders AS l
+JOIN song_leader_joins AS slj ON l.id = slj.leader_id
+LEFT JOIN (
+    SELECT ls.leader_id, COUNT(*) AS singing_count, MIN(m.Year) AS first_year, MAX(m.Year) AS last_year
+    FROM leader_singings AS ls
+    JOIN minutes AS m ON m.id = ls.minutes_id
+    GROUP BY ls.leader_id
+) AS ls_stats ON ls_stats.leader_id = l.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name WHERE inv.name IS NULL
+GROUP BY l.id;
+CREATE INDEX leader_profiles_name ON leader_profiles(name);
+
 -- Seed data: known-invalid leader name strings to filter from leader lookups.
 -- Note: leader_name_invalid has no UNIQUE constraint on name, so this INSERT is not
 -- idempotent. Adding UNIQUE(name) + INSERT OR IGNORE would fix that if needed.

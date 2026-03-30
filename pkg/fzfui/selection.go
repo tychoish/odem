@@ -50,26 +50,33 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 
 func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (string, error) {
 	var ec erc.Collector
-	input := strings.Join(args, " ")
-	if len(input) > 0 {
-		selections := irt.Collect(infra.NewFuzzySearch[string](erc.HandleAll(dbconn.AllLeaderNames(ctx), ec.Push)).Search(input))
-		if len(selections) == 1 {
-			return selections[0], nil
-		}
-		if !ec.Ok() {
-			return "", ec.Resolve()
-		}
+	profiles := erc.HandleAll(dbconn.AllLeaderProfiles(ctx), ec.Push)
+	if !ec.Ok() {
+		return "", ec.Resolve()
 	}
-	leader, err := infra.NewFuzzySearch[models.LeaderProfile](
-		erc.HandleAll(dbconn.AllLeaderProfiles(ctx), ec.Push),
-	).WithToString(func(l models.LeaderProfile) string {
+
+	toString := func(l models.LeaderProfile) string {
 		return fmt.Sprintf("%s (%d-%d) -- %d lesson(s) [%d unique] at %d singing(s)",
 			l.Name, l.FirstYear, l.LastYear, l.LessonCount, l.UniqueLessonCount, l.SingingCount,
 		)
-	}).FindOne()
+	}
 
-	if !ec.PushOk(err) {
-		return "", ec.Resolve()
+	input := strings.Join(args, " ")
+	if input != "" {
+		matches := irt.Collect(infra.NewFuzzySearch[models.LeaderProfile](profiles).
+			WithToString(toString).
+			Search(input))
+		if len(matches) == 1 {
+			grip.Debugln("resolved leader", matches[0].Name)
+			return matches[0].Name, nil
+		}
+	}
+
+	leader, err := infra.NewFuzzySearch[models.LeaderProfile](profiles).
+		WithToString(toString).
+		FindOne()
+	if err != nil {
+		return "", err
 	}
 
 	grip.Debugln("selected leader", leader)
@@ -84,7 +91,7 @@ func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (
 		WithToString(func(info models.SingingInfo) string {
 			return fmt.Sprintf("%s -- %s (%s)",
 				info.SingingDate.Time().Format("2006-01-02"),
-				strings.Split(info.SingingName, "\\n")[0],
+				strings.ReplaceAll(info.SingingName, "\\n", "; "),
 				info.SingingLocation,
 			)
 		}).

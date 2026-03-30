@@ -101,6 +101,60 @@ WHERE leader = ?;`
 	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader)
 }
 
+func (conn *Connection) LeaderLeadHistory(ctx context.Context, leader string) iter.Seq2[models.LessonInfo, error] {
+	const query = `
+SELECT
+	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS singer_name,
+	COALESCE(bsj.page_num, '') AS song_page_number,
+	COALESCE(songs.title, '') AS song_name,
+	COALESCE(bsj.keys, '') AS song_key,
+	COALESCE(minutes."Date", '') AS singing_date,
+	COALESCE(minutes."Name", '') AS singing_name,
+	COALESCE(loc.state_province, '') AS singing_state
+FROM song_leader_joins AS slj
+LEFT JOIN minutes ON slj.minutes_id = minutes.id
+LEFT JOIN leaders ON slj.leader_id = leaders.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = leaders.name
+LEFT JOIN songs ON slj.song_id = songs.id
+LEFT JOIN (
+	SELECT mlj.minutes_id, MIN(loc.state_province) AS state_province
+	FROM minutes_location_joins AS mlj
+	JOIN locations AS loc ON loc.id = mlj.location_id
+	GROUP BY mlj.minutes_id
+) AS loc ON loc.minutes_id = slj.minutes_id
+LEFT JOIN book_song_joins AS bsj ON slj.song_id = bsj.song_id AND bsj.book_id = 2
+WHERE CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) = ?
+ORDER BY minutes.Year DESC, slj.minutes_id DESC`
+	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader)
+}
+
+func (conn *Connection) LeaderSingingsAttended(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderSingingAttendance, error] {
+	const query = `
+SELECT
+	COALESCE(m."Name", '') AS singing_name,
+	COALESCE(m."Date", '') AS singing_date,
+	COALESCE(loc.state_province, '') AS singing_state,
+	COALESCE(loc.city, '') AS singing_city,
+	COUNT(slj.id) AS leader_lead_count,
+	COALESCE(total.number_of_leaders, 0) AS number_of_leaders
+FROM song_leader_joins AS slj
+JOIN minutes AS m ON slj.minutes_id = m.id
+JOIN leaders AS l ON slj.leader_id = l.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN minutes_location_joins AS mlj ON m.id = mlj.minutes_id
+LEFT JOIN locations AS loc ON mlj.location_id = loc.id
+LEFT JOIN (
+	SELECT minutes_id, COUNT(DISTINCT leader_id) AS number_of_leaders
+	FROM song_leader_joins
+	GROUP BY minutes_id
+) AS total ON total.minutes_id = m.id
+WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
+GROUP BY m.id
+ORDER BY m.Year DESC, m.id DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSingingAttendance](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 100))
+}
+
 func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter.Seq2[models.SingingLessionInfo, error] {
 	const query = `
 SELECT lesson_id, sequence_number, singer_name, song_page_number, song_name, song_key

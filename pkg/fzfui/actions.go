@@ -91,6 +91,57 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 	return nil
 }
 
+func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+	grip.Infof("lead history for: %s", singer)
+
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Date"},
+		mdwn.Column{Name: "Singing"},
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Page"},
+		mdwn.Column{Name: "Key"},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderLeadHistory(ctx, singer), ec.Push), func(row models.LessonInfo) []string {
+		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SongName, row.SongPageNumber, row.SongKey}
+	})).Build()
+
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
+	}
+	return nil
+}
+
+func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+	grip.Infof("singings attended by: %s", singer)
+
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Date"},
+		mdwn.Column{Name: "Singing"},
+		mdwn.Column{Name: "State"},
+		mdwn.Column{Name: "City"},
+		mdwn.Column{Name: "Led", RightAlign: true},
+		mdwn.Column{Name: "Leaders", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderSingingsAttended(ctx, singer, 0), ec.Push), func(row models.LeaderSingingAttendance) []string {
+		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SingingState, row.SingingCity, fmt.Sprint(row.LeaderLeadCount), fmt.Sprint(row.NumberOfLeaders)}
+	})).Build()
+
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
+	}
+	return nil
+}
+
 func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
 	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
 	if err != nil {

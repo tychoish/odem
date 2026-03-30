@@ -20,7 +20,7 @@ type MinutesAppOperation int
 
 const (
 	MinutesAppOpUnknown MinutesAppOperation = iota
-	MinutesAppOpLeaders
+	MinutesAppOpLeaderMostLed
 	MinutesAppOpSongs
 	MinutesAppOpSingings
 	MinutesAppOpBuddies
@@ -36,6 +36,8 @@ const (
 	MinutesAppOpLeaderFootsteps
 	MinutesAppOpTopLeaders
 	MinutesAppOpLeaderShare
+	MinutesAppOpLeaderLeadHistory
+	MinutesAppOpLeaderSingings
 	MinutesAppOpInvalid
 	MinutesAppOpExit = 181
 )
@@ -46,16 +48,24 @@ func AllMinutesAppOperations() iter.Seq[MinutesAppOperation] {
 
 func NewMinutesAppOperation(arg string) MinutesAppOperation {
 	switch arg {
-	case "leaders", "leader", "singer", "person":
-		return MinutesAppOpLeaders
+	case "leaders", "leader", "lead-history", "leader-history", "all-leads":
+		return MinutesAppOpLeaderLeadHistory
+	case "leader-most-led", "leader-most-frequent", "most-led", "often-led":
+		return MinutesAppOpLeaderMostLed
+	case "leader-footsteps", "footsteps", "giants", "singing-idols":
+		return MinutesAppOpLeaderFootsteps
+	case "leader-share", "share", "leaders-share":
+		return MinutesAppOpLeaderShare
+	case "leader-singings", "singings-attended", "attended":
+		return MinutesAppOpLeaderSingings
+	case "buddies", "buddy", "connections", "neighbors", "leader-buddies":
+		return MinutesAppOpBuddies
+	case "strangers", "enemies", "never-neighbors", "leader-strangers":
+		return MinutesAppOpStrangers
 	case "song", "tune", "hymn", "songs":
 		return MinutesAppOpSongs
 	case "singing", "singings", "allday", "convention":
 		return MinutesAppOpSingings
-	case "buddies", "buddy", "connections", "neighbors":
-		return MinutesAppOpBuddies
-	case "strangers", "enemies", "never-neighbors":
-		return MinutesAppOpStrangers
 	case "exit", "return", "abort":
 		return MinutesAppOpExit
 	case "retry", "again", "restart", "repeat":
@@ -74,12 +84,8 @@ func NewMinutesAppOperation(arg string) MinutesAppOperation {
 		return MinutesAppOpConnectedness
 	case "popular-for-years", "popular-in-years":
 		return MinutesAppOpPopularInYears
-	case "leader-footsteps", "footsteps", "giants", "singing-idols":
-		return MinutesAppOpLeaderFootsteps
 	case "top-leaders", "leaderboard":
 		return MinutesAppOpTopLeaders
-	case "leader-share", "share", "leaders-share":
-		return MinutesAppOpLeaderShare
 	default:
 		return MinutesAppOpInvalid
 	}
@@ -98,14 +104,18 @@ func (mao MinutesAppOperation) isValidOp() bool {
 func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 	// response maps the subcommand (key) to the usage text.
 	switch mao {
-	case MinutesAppOpLeaders:
-		return irt.MakeKV("leaders", "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).")
+	case MinutesAppOpLeaderMostLed:
+		return irt.MakeKV("most-led", "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).")
+	case MinutesAppOpLeaderLeadHistory:
+		return irt.MakeKV("leader-history", "a list of all leads for a leader, with details about the song and the singing")
+	case MinutesAppOpLeaderSingings:
+		return irt.MakeKV("leader-singings", "a list of singings a leader attended, with their lead count, total leaders, and locality")
 	case MinutesAppOpSongs:
 		return irt.MakeKV("songs", "return basic information about a song, with a list of the leaders who have led the song the most.")
 	case MinutesAppOpSingings:
 		return irt.MakeKV("singings", "provide basic information about a specific singing, with a list of the leaders and the songs they led.")
 	case MinutesAppOpBuddies:
-		return irt.MakeKV("buddies", "return a list of the singers most-frequent co-attenders of of singings for one singer.")
+		return irt.MakeKV("leader-buddies", "return a list of the singers most-frequent co-attenders of of singings for one singer.")
 	case MinutesAppOpStrangers:
 		return irt.MakeKV("strangers", "return a list of singers that the specified singer has never sung with, (but most of their buddies have!)")
 	case MinutesAppOpPopularInOnesExperience:
@@ -144,7 +154,7 @@ func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 func (mao MinutesAppOperation) FuzzyDispatcher() MinutesAppOperationHandler {
 	return func(ctx context.Context, conn *db.Connection, args ...string) error {
 		switch mao {
-		case MinutesAppOpLeaders:
+		case MinutesAppOpLeaderMostLed:
 			return fzfui.LeaderAction(ctx, conn, args)
 		case MinutesAppOpSongs:
 			return fzfui.SongAction(ctx, conn, strings.Join(args, " "))
@@ -174,6 +184,10 @@ func (mao MinutesAppOperation) FuzzyDispatcher() MinutesAppOperationHandler {
 			return fzfui.TopLeadersByLeadsAction(ctx, conn, strings.Join(args, ","))
 		case MinutesAppOpLeaderShare:
 			return fzfui.LeadersShareOfLeadsAction(ctx, conn, strings.Join(args, ","))
+		case MinutesAppOpLeaderLeadHistory:
+			return fzfui.LeaderLeadHistoryAction(ctx, conn, strings.Join(args, " "))
+		case MinutesAppOpLeaderSingings:
+			return fzfui.LeaderSingingsAttendedAction(ctx, conn, strings.Join(args, " "))
 		case MinutesAppOpRetry:
 			return fuzzySelectOperation(strings.Join(args, "-")).FuzzyDispatcher().Handle(ctx, conn, args...)
 		case MinutesAppOpExit:
@@ -192,7 +206,7 @@ func (mao MinutesAppOperation) FuzzyDispatcher() MinutesAppOperationHandler {
 func (mao MinutesAppOperation) ReportDispatcher() Reporter {
 	return func(ctx context.Context, conn *db.Connection, params reportui.Params) error {
 		switch mao {
-		case MinutesAppOpLeaders:
+		case MinutesAppOpLeaderMostLed:
 			return reportui.Leader(ctx, conn, params)
 		case MinutesAppOpSongs:
 			return reportui.Songs(ctx, conn, params)
@@ -222,6 +236,10 @@ func (mao MinutesAppOperation) ReportDispatcher() Reporter {
 			return reportui.LeadershipShare(ctx, conn, params)
 		case MinutesAppOpLeaderFootsteps:
 			return reportui.LeaderFootsteps(ctx, conn, params)
+		case MinutesAppOpLeaderLeadHistory:
+			return reportui.LeaderLeadHistory(ctx, conn, params)
+		case MinutesAppOpLeaderSingings:
+			return reportui.LeaderSingings(ctx, conn, params)
 		case MinutesAppOpRetry:
 			return fuzzySelectOperation(params.Name).ReportDispatcher().Report(ctx, conn, params)
 		case MinutesAppOpExit:

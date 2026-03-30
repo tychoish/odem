@@ -81,6 +81,17 @@ type LeaderLeadCount struct {
 	RunningTotal float64 `db:"running_total"`
 }
 
+// LeaderSingingAttendance represents a singing a leader attended, with their
+// lead count for that singing and the total number of leaders present.
+type LeaderSingingAttendance struct {
+	SingingName     string   `db:"singing_name"`
+	SingingDate     DateTime `db:"singing_date"`
+	SingingState    string   `db:"singing_state"`
+	SingingCity     string   `db:"singing_city"`
+	LeaderLeadCount int      `db:"leader_lead_count"`
+	NumberOfLeaders int      `db:"number_of_leaders"`
+}
+
 // LeaderFootstep represents a song the queried singer has led, paired with
 // the most frequent other leader of that same song.
 type LeaderFootstep struct {

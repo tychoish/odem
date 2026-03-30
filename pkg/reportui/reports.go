@@ -141,7 +141,7 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	var mb mdwn.Builder
 
 	mb.H2("Singing Details")
-	mb.KV("Name", info.SingingName)
+	mb.KV("Name", strings.ReplaceAll(info.SingingName, "\\n", "; "))
 	mb.KV("Date", info.SingingDate.Time().Format(time.DateOnly))
 	mb.KV("Location", info.SingingLocation)
 	mb.KV("State", info.SingingState)
@@ -441,6 +441,69 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 		mb.KV("Year(s)", strings.Join(yearsStr, ", "))
 	}
 	mb.KV("Share of Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(v)*100))
+	mb.Line()
+
+	ec.Push(flush(wr, &mb))
+	return ec.Resolve()
+}
+
+func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	if err != nil {
+		return err
+	}
+
+	wr, err := p.getWriter(singer, "lead-history")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Lead History: %s", singer))
+	mb.NewTable(
+		mdwn.Column{Name: "Date"},
+		mdwn.Column{Name: "Singing"},
+		mdwn.Column{Name: "Song"},
+		mdwn.Column{Name: "Page"},
+		mdwn.Column{Name: "Key"},
+	).Extend(irt.Convert(erc.HandleAll(conn.LeaderLeadHistory(ctx, singer), ec.Push), func(row models.LessonInfo) []string {
+		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SongName, row.SongPageNumber, row.SongKey}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(wr, &mb))
+	return ec.Resolve()
+}
+
+func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	if err != nil {
+		return err
+	}
+
+	wr, err := p.getWriter(singer, "singings")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Singings Attended: %s", singer))
+	mb.NewTable(
+		mdwn.Column{Name: "Date"},
+		mdwn.Column{Name: "Singing"},
+		mdwn.Column{Name: "State"},
+		mdwn.Column{Name: "City"},
+		mdwn.Column{Name: "Led", RightAlign: true},
+		mdwn.Column{Name: "Leaders", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.LeaderSingingsAttended(ctx, singer, cmp.Or(p.Limit, 0)), ec.Push), func(row models.LeaderSingingAttendance) []string {
+		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SingingState, row.SingingCity, strconv.Itoa(row.LeaderLeadCount), strconv.Itoa(row.NumberOfLeaders)}
+	})).Build()
 	mb.Line()
 
 	ec.Push(flush(wr, &mb))
