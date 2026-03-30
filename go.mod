@@ -57,4 +57,6 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
+replace github.com/tychoish/cmdr => ../cmdr/
+
 tool github.com/mrjoshuak/godoc-mcp

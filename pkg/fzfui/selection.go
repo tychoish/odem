@@ -10,6 +10,8 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/fun/strut"
+	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -17,7 +19,7 @@ import (
 )
 
 func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SongDetail, error) {
-	songDetails, err  := erc.FromIteratorAll(dbconn.AllSongDetails(ctx))
+	songDetails, err := erc.FromIteratorAll(dbconn.AllSongDetails(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +34,9 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 		sdIdx[v] = i
 	}
 	preselction := []int{}
-	for  detail := range  sg {
+	for detail := range sg {
 		if sidx, ok := sdIdx[detail]; ok == true {
-			preselction = append(preselction, sidx )
+			preselction = append(preselction, sidx)
 		}
 	}
 	res, err := infra.NewFuzzySearch[models.SongDetail](songDetails).
@@ -50,33 +52,38 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 
 func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (string, error) {
 	var ec erc.Collector
-
-	names := irt.Collect(erc.HandleAll(dbconn.AllLeaderNames(ctx), ec.Push))
-	if !ec.Ok() {
-		return "", ec.Resolve()
-	}
-
-	selections := infra.NewFuzzySearch[string](names).Search(strings.Join(args, " "))
-	var idxs []int
-	namesIndexMap := map[string]int{}
-
-	for i, item := range names {
-		namesIndexMap[item] = i
-	}
-	for preSelected := range selections {
-		if idx, ok := namesIndexMap[preSelected]; ok {
-			idxs = append(idxs, idx)
+	input := strings.Join(args, " ")
+	if len(input) > 0 {
+		selections := irt.Collect(infra.NewFuzzySearch[string](erc.HandleAll(dbconn.AllLeaderNames(ctx), ec.Push)).Search(input))
+		if len(selections) == 1 {
+			return selections[0], nil
+		}
+		if !ec.Ok() {
+			return "", ec.Resolve()
 		}
 	}
 
-	leader, err := infra.NewFuzzySearch[string](names).WithSelections(idxs).FindOne()
+	leader, err := infra.NewFuzzySearch[models.Leader](
+		erc.HandleAll(dbconn.AllLeaders(ctx), ec.Push),
+	).WithToString(func(ld models.Leader) string {
+		name := *ld.Name
+		mut := strut.MakeMutable(len(name) * 3)
+		defer mut.Release()
+		mut.Concat(name, " -- ")
+		mut.PushInt(int(stw.DerefZ(ld.LessonCount)))
+		// TODO: add in first/last year lead at singings
+		return mut.String()
+	}).FindOne()
+
+	name := stw.DerefZ(leader.Name)
+	ec.When(name == "", "cannot select the empty leader")
 
 	if !ec.PushOk(err) {
 		return "", ec.Resolve()
 	}
 
 	grip.Debugln("selected leader", leader)
-	return leader, nil
+	return name, nil
 }
 
 func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SingingInfo, error) {
@@ -85,7 +92,11 @@ func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (
 	singings := irt.Collect(erc.HandleAll(dbconn.AllSingings(ctx), ec.Push))
 	singing, err := infra.NewFuzzySearch[models.SingingInfo](singings).
 		WithToString(func(info models.SingingInfo) string {
-			return fmt.Sprintf("%s -- %s (%s)", info.SingingDate.Time().Format("2006-01-02"), strings.Split(info.SingingName, "\\n")[0], info.SingingLocation)
+			return fmt.Sprintf("%s -- %s (%s)",
+				info.SingingDate.Time().Format("2006-01-02"),
+				strings.Split(info.SingingName, "\\n")[0],
+				info.SingingLocation,
+			)
 		}).
 		Prompt("leaders").
 		FindOne()

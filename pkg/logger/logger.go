@@ -6,6 +6,7 @@ import (
 
 	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/grip/send"
 )
@@ -15,10 +16,19 @@ const plain = "plain"
 func Plain(c context.Context) grip.Logger { return grip.ContextLogger(c, plain) }
 
 func Setup(ctx context.Context) context.Context {
-	senderRoot := send.MakeWriterSender(send.MakeStdError())
-	senderPlain := send.MakeWriter(senderRoot)
-	senderDefault := send.MakeWriter(senderRoot)
+	// TODO(tycho): eventually would be nice to use the WriterSender, which has a buffer of80
+	// characters, so sometimes messages get swallowed in the current implementation.
+
+	// senderRoot := send.MakeWriterSender(send.MakeStdError())
+	// senderRoot.SetPriority(level.Info)
+	// senderPlain := send.MakeWriter(senderRoot)
+	// senderDefault := send.MakeWriter(senderRoot)
+
+	senderPlain := send.MakeStdError()
+	senderPlain.SetPriority(level.Trace)
+	senderDefault := send.MakeStdError()
 	senderDefault.SetFormatter(Formatter())
+	senderDefault.SetPriority(level.Info)
 
 	grip.SetSender(senderDefault)
 

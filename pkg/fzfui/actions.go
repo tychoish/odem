@@ -21,10 +21,9 @@ func LeaderAction(ctx context.Context, conn *db.Connection, args []string) error
 	if err != nil {
 		return err
 	}
-
 	grip.Infof("songs led by: %s", singer)
 
-	return renderTopLedSongs(conn.MostLeadSongs(ctx, singer, -20))
+	return renderTopLedSongs(conn.MostLeadSongs(ctx, singer, 32))
 }
 
 func SongAction(ctx context.Context, conn *db.Connection, song string) error {
@@ -103,7 +102,7 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer str
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 32), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -124,7 +123,7 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer s
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Count"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 32), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -141,7 +140,7 @@ func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, s
 	}
 
 	grip.Infof("most common songs at singings attended by %s", singer)
-	return renderTopLedSongs(dbconn.PopularSongsInOnesExperience(ctx, singer, 25))
+	return renderTopLedSongs(dbconn.PopularSongsInOnesExperience(ctx, singer, 20))
 }
 
 func NeverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -174,7 +173,7 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, localities
 	}
 
 	grip.Infof("popular songs in a specific location %v", localities)
-	return renderTopLedSongs(dbconn.LocallyPopular(ctx, 32, localities...))
+	return renderTopLedSongs(dbconn.LocallyPopular(ctx, 20, localities...))
 }
 
 func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -184,7 +183,7 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 	}
 
 	grip.Infof("otherwise popular songs less-or-unfamilar to %s", singer)
-	return renderTopLedSongs(dbconn.TheUnfamilarHits(ctx, singer, 32))
+	return renderTopLedSongs(dbconn.TheUnfamilarHits(ctx, singer, 20))
 }
 
 func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {

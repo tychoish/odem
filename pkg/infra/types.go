@@ -38,8 +38,8 @@ func IterStruct(foo any) iter.Seq2[string, any] {
 type FuzzySearchItems[T any] struct {
 	prompt        string
 	caseSensitive bool
-	selections []int
-	prefix string
+	selections    []int
+	prefix        string
 	stw.Slice[T]
 	toString func(in T) string
 }
@@ -102,8 +102,16 @@ func (fsi *FuzzySearchItems[T]) WithToString(in func(T) string) *FuzzySearchItem
 func (FuzzySearchItems[T]) defaultString(in T) string { return fmt.Sprint(in) }
 func (FuzzySearchItems[T]) zero() (z T)               { return z }
 func (FuzzySearchItems[T]) noError(T) error           { return nil }
-func (fsi *FuzzySearchItems[T]) WithSelectedPrefix(pre string) *FuzzySearchItems[T] { fsi.prefix = pre; return fsi}
-func (fsi *FuzzySearchItems[T]) WithSelections(idxs []int) *FuzzySearchItems[T] { fsi.selections = idxs; return fsi}
+func (fsi *FuzzySearchItems[T]) WithSelectedPrefix(pre string) *FuzzySearchItems[T] {
+	fsi.prefix = pre
+	return fsi
+}
+
+func (fsi *FuzzySearchItems[T]) WithSelections(idxs []int) *FuzzySearchItems[T] {
+	fsi.selections = idxs
+	return fsi
+}
+
 func (fsi *FuzzySearchItems[T]) Find() iter.Seq2[T, error] {
 	args := []fzf.Option{
 		fzf.WithPrompt(joinstr(cmp.Or(fsi.prompt, "find (many)"), " => ")),
@@ -115,7 +123,6 @@ func (fsi *FuzzySearchItems[T]) Find() iter.Seq2[T, error] {
 	}
 
 	ff, err := fzf.New(args...)
-
 	if err != nil {
 		return irt.Two(fsi.zero(), err)
 	}

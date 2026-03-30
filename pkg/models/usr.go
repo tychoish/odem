@@ -15,6 +15,13 @@ type LeaderSongRank struct {
 	Ratio     float64 `db:"ratio"` // ratio of this song to total number of leads.
 }
 
+type LeaderBackground struct {
+	Name      string `db:"name"`
+	NumLeads  int    `db:"num_leads"`
+	FirstYear int    `db:"first_year"`
+	LastYear  int    `db:"last_year"`
+}
+
 func (lsr *LeaderSongRank) StringFields() []string {
 	return []string{lsr.NumLeads, lsr.PageNum, lsr.SongTitle, lsr.Key}
 }
@@ -77,11 +84,11 @@ type LeaderLeadCount struct {
 // LeaderFootstep represents a song the queried singer has led, paired with
 // the most frequent other leader of that same song.
 type LeaderFootstep struct {
-	LeaderName        string `db:"leader_name"`         // most frequent other leader of this song
+	LeaderName        string `db:"leader_name"` // most frequent other leader of this song
 	SongTitle         string `db:"song_title"`
 	SongPage          string `db:"song_page"`
 	SongKeys          string `db:"song_keys"`
-	SelfLeadCount     int    `db:"self_lead_count"`     // times the queried singer has led it
-	TheirLeadCount    int    `db:"their_lead_count"`    // times the most frequent other leader has led it
+	SelfLeadCount     int    `db:"self_lead_count"`      // times the queried singer has led it
+	TheirLeadCount    int    `db:"their_lead_count"`     // times the most frequent other leader has led it
 	TheirLastLeadYear int    `db:"their_last_lead_year"` // last year the top other leader led this song
 }
