@@ -37,12 +37,14 @@ func Setup(ctx context.Context) context.Context {
 	return ctx
 }
 
+const timefmt = "d=2006-01-02 MST=15:04:05.999"
+
 func Formatter() send.MessageFormatter {
 	return func(m message.Composer) (string, error) {
 		mut := strut.MakeMutable(1024)
 		defer mut.Release()
-
-		mut.Concat("[p=", m.Priority().String(), " t=", time.Now().Format(time.DateTime), "]: ", m.String())
+		dt := time.Now()
+		mut.Concat("[p=", m.Priority().String(), " ", dt.Format(timefmt), "]: ", m.String())
 
 		return mut.String(), nil
 	}
