@@ -99,37 +99,37 @@ func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] {
 	// response maps the subcommand (key) to the usage text.
 	switch mao {
 	case MinutesAppOpLeaders:
-		return irt.MakeKV("leaders", "learn more about the leaders of a song")
+		return irt.MakeKV("leaders", "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).")
 	case MinutesAppOpSongs:
-		return irt.MakeKV("songs", "learn more about a particular song and its most frequent leaders")
+		return irt.MakeKV("songs", "return basic information about a song, with a list of the leaders who have led the song the most.")
 	case MinutesAppOpSingings:
-		return irt.MakeKV("singings", "more info about a specific singing")
+		return irt.MakeKV("singings", "provide basic information about a specific singing, with a list of the leaders and the songs they led.")
 	case MinutesAppOpBuddies:
-		return irt.MakeKV("buddies", "for a singer, find who their most-frequent co-attenders are")
+		return irt.MakeKV("buddies", "return a list of the singers most-frequent co-attenders of of singings for one singer.")
 	case MinutesAppOpStrangers:
-		return irt.MakeKV("strangers", "for a singer, find out who they've never been at a singing with (but most of their buddies have!)")
+		return irt.MakeKV("strangers", "return a list of singers that the specified singer has never sung with, (but most of their buddies have!)")
 	case MinutesAppOpPopularInOnesExperience:
-		return irt.MakeKV("popular-in-ones-experience", "total ordering of the popularity of songs at the singings one singer has attended")
+		return irt.MakeKV("popular-in-ones-experience", "a list of songs ordered by number of leads of all songs sung at singings thatone singer has attended.")
 	case MinutesAppOpLocallyPopular:
-		return irt.MakeKV("popular-locally", "total ordering of the popularity of songs in a given region or locality")
+		return irt.MakeKV("popular-locally", "a list of songs ordered by number of leads at all singings in a particular region.")
 	case MinutesAppOpPopularInYears:
-		return irt.MakeKV("popular", "the most popular song for a year (or negative, without that year)")
+		return irt.MakeKV("popular", "a list of songs ordered by the number of leads at all singings in a particular year or years. Negative values remove that year's singings.")
 	case MinutesAppOpNeverSung:
-		return irt.MakeKV("never-sung", "all songs a given singer has never sung (on the record).")
+		return irt.MakeKV("never-sung", "a list of the songs that the specified singer has never **sung** at a minuted singing.")
 	case MinutesAppOpNeverLed:
-		return irt.MakeKV("never-led", "all songs a given leader has never led (on the record)")
+		return irt.MakeKV("never-led", "a list of songs that the specified singer has never **led** at a minuted singing.")
 	case MinutesAppOpRetry:
-		return irt.MakeKV("retry", "(restart) select an 'odem' application operation")
+		return irt.MakeKV("retry", "(interactive) select an operation.")
 	case MinutesAppOpUnfamilarHits:
-		return irt.MakeKV("unfamilar-hits", "otherwise popular songs which a singer has less exposure to")
+		return irt.MakeKV("unfamilar-hits", "a list of the most popular songs that a singer has sung less often")
 	case MinutesAppOpConnectedness:
-		return irt.MakeKV("connectedness", "total order of all singers by their connectedness ratio (fraction of the community they've sung with)")
+		return irt.MakeKV("connectedness", "a list of singers, ordered by their connectedness ratio, or the percentge of the community they've sung with.")
 	case MinutesAppOpLeaderFootsteps:
-		return irt.MakeKV("leader-footsteps", "for each song a singer has led, show the most frequent other leader of that song")
+		return irt.MakeKV("leader-footsteps", "a list of a leaders most frequently led songs, with that song's most frequently leader.")
 	case MinutesAppOpTopLeaders:
-		return irt.MakeKV("top-leaders", "total ordering of all leaders by the number of leads, optionally filtered by year")
+		return irt.MakeKV("top-leaders", "a list of all leaders ordered by their total number of minuted leads.")
 	case MinutesAppOpLeaderShare:
-		return irt.MakeKV("leader-share", "fraction of total leads a given singer accounts for, optionally filtered by year")
+		return irt.MakeKV("leader-share", "a list of all leaders ordered by their percentage of total leads optionally filtered by year")
 	case MinutesAppOpExit:
 		return irt.MakeKV("exit", "181")
 	case MinutesAppOpUnknown:
