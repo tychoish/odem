@@ -21,6 +21,7 @@ func main() {
 		ep.Setup(),
 		ep.Fuzzy(),
 		ep.Report(),
+		ep.MCP(),
 		ep.Version(),
 		ep.Hacking(),
 	)

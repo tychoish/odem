@@ -64,11 +64,9 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
-	logger.SetupDefault()
-
 	cmdr.Main(ctx, cmdr.MakeRootCommander().
 		SetName(name).
-		Middleware(logger.WithPlain).
+		Middleware(logger.Setup).
 		EnableCompletionCmd().
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			return cli.ShowAppHelp(cc)
