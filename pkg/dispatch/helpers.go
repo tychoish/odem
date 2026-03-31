@@ -47,8 +47,9 @@ func ReportOperationSpec(rptr Reporter) *cmdr.OperationSpec[*infra.WithInput[rep
 					Limit: cmdr.GetFlag[int](cc, "limit"),
 					Years: cmdr.GetFlag[[]int](cc, "year"),
 				},
-				ToStdout:   cmdr.GetFlag[bool](cc, "stdout"),
-				PathPrefix: cmdr.GetFlag[string](cc, "prefix"),
+				ToStdout:              cmdr.GetFlag[bool](cc, "stdout"),
+				PathPrefix:            cmdr.GetFlag[string](cc, "prefix"),
+				SuppressInteractivity: cmdr.GetFlag[bool](cc, "no-ask"),
 			}
 		},
 		rptr.Report,
