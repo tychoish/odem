@@ -11,12 +11,12 @@ import (
 	"github.com/tychoish/odem/pkg/reportui"
 )
 
-type NeverSungOutput struct {
-	Leader  string
-	Lessons []models.LeaderSongRank
+type ContextToolOutput[T any] struct {
+	Context string
+	Results []T
 }
 
-func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*NeverSungOutput, error) {
+func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*ContextToolOutput[models.LeaderSongRank], error) {
 	leader, err := reportui.SelectLeader(ctx, conn, p.Name)
 	if err != nil {
 		return nil, err
@@ -27,5 +27,8 @@ func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*Neve
 		return nil, err
 	}
 
-	return &NeverSungOutput{Lessons: lessons, Leader: p.Name}, nil
+	return &ContextToolOutput[models.LeaderSongRank]{
+		Results: lessons,
+		Context: leader.Name,
+	}, nil
 }

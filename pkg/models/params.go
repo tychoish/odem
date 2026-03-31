@@ -8,7 +8,7 @@ type Params struct {
 	// Years makes it possible to limit the scope of a query to
 	// specific years. Negative numbers exclude years from
 	// queries, positive numbers include them. When empty query
-	// all years.
+	// all years. This is always optional.
 	Years []int
 
 	// Limit the number of items returned to this number:
