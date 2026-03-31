@@ -4,13 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/reportui"
 )
-
-type RegisterMCP func(srv *mcp.Server, dbconn *db.Connection, info irt.KV[string, string])
 
 type FuzzHandler func(context.Context, *db.Connection, string) error
 

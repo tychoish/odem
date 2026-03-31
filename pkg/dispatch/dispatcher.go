@@ -57,6 +57,20 @@ func AllMinutesAppAliases() iter.Seq2[MinutesAppOperation, []string] {
 	return irt.With(AllMinutesAppOps(), getAliases)
 }
 
+func AllMinutesAppMCPHandlers() iter.Seq2[irt.KV[string, string], mcpsrv.RegistrationFunc] {
+	return func(yield func(irt.KV[string, string], mcpsrv.RegistrationFunc) bool) {
+		for op := range AllMinutesAppOps() {
+			r := op.Registry()
+			if r.MCP == nil {
+				continue
+			}
+			if !yield(r.Info(), r.MCP) {
+				return
+			}
+		}
+	}
+}
+
 func init() { aliases.populate(); aliases.addFallback() }
 
 func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }
@@ -79,7 +93,7 @@ type MinutesAppRegistration struct {
 	Aliases     []string
 	Reporter    Reporter
 	Fuzz        FuzzHandler
-	MCP         RegisterMCP
+	MCP         mcpsrv.RegistrationFunc
 	err         error
 }
 

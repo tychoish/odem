@@ -2,6 +2,7 @@ package mcpsrv
 
 import (
 	"context"
+	"iter"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tychoish/fun/fnx"
@@ -24,6 +25,8 @@ func (tool ToolOperation[IN, OUT]) Resolve(conn *db.Connection) mcp.ToolHandlerF
 	}
 }
 
+type RegistrationFunc func(srv *mcp.Server, dbconn *db.Connection, info irt.KV[string, string])
+
 func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connection, info irt.KV[string, string]) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        info.Key,
@@ -31,13 +34,17 @@ func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connecti
 	}, tool.Resolve(dbconn))
 }
 
-func New(conn *db.Connection) fnx.Worker {
+func New(conn *db.Connection, seq iter.Seq2[irt.KV[string, string], RegistrationFunc]) fnx.Worker {
 	srv := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "odem",
 			Title:   "Fasola Minutes Data",
 			Version: "v0.1.0",
 		}, nil)
+
+	for info, reg := range seq {
+		reg(srv, conn, info)
+	}
 
 	return func(ctx context.Context) error {
 		return srv.Run(ctx, &mcp.LoggingTransport{
