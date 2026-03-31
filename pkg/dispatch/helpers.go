@@ -30,11 +30,11 @@ func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {
 }
 
 func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
-	return irt.Convert(AllMinutesAppOperations(), toFzfCmdr)
+	return irt.Convert(AllMinutesAppOps(), toFzfCmdr)
 }
 
 func AllReportMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
-	return irt.Convert(AllMinutesAppOperations(), toReportCmdr)
+	return irt.Convert(AllMinutesAppOps(), toReportCmdr)
 }
 
 func ReportOperationSpec(rptr Reporter) *cmdr.OperationSpec[*infra.WithInput[reportui.Params]] {

@@ -214,7 +214,9 @@ func NeverLedAction(ctx context.Context, dbconn *db.Connection, singer string) e
 	return renderTopLedSongs(dbconn.NeverLed(ctx, singer))
 }
 
-func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, localities ...models.SingingLocality) error {
+func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string) error {
+	localities := irt.Collect(irt.Convert(strings.SplitSeq(arg, " "), models.NewSingingLocality))
+
 	if len(localities) == 0 {
 		var err error
 		localities, err = erc.FromIteratorAll(infra.NewFuzzySearch[models.SingingLocality](models.AllLocalities()).Prompt("location").Find())
@@ -314,7 +316,7 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 	var years []int
 	if yrs != "" {
 		var err error
-		years, err = erc.FromIteratorAll(irt.With2(irt.Slice(strings.Split(yrs, ",")), strconv.Atoi))
+		years, err = erc.FromIteratorAll(irt.With2(irt.Slice(strings.Split(yrs, " ")), strconv.Atoi))
 		if err != nil {
 			return err
 		}

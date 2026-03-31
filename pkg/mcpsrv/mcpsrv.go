@@ -2,15 +2,32 @@ package mcpsrv
 
 import (
 	"context"
-	"errors"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tychoish/fun/fnx"
+	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip/send"
 	"github.com/tychoish/odem/pkg/db"
-	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/logger"
 )
+
+func NewTool[A, B any](op func(context.Context, A) (B, error)) ToolOperation[A, B] { return op }
+
+type ToolOperation[IN, OUT any] func(ctx context.Context, input IN) (OUT, error)
+
+func (tool ToolOperation[IN, OUT]) Resolve() mcp.ToolHandlerFor[IN, OUT] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, in IN) (*mcp.CallToolResult, OUT, error) {
+		out, err := tool(ctx, in)
+		return nil, out, err
+	}
+}
+
+func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connection, info irt.KV[string, string]) {
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        info.Key,
+		Description: info.Value,
+	}, tool.Resolve())
+}
 
 func New(conn *db.Connection) fnx.Worker {
 	srv := mcp.NewServer(
@@ -19,20 +36,6 @@ func New(conn *db.Connection) fnx.Worker {
 			Title:   "Fasola Minutes Data",
 			Version: "v0.1.0",
 		}, nil)
-
-	for info := range dispatch.AllMinutesAppOperations() {
-		switch {
-		case info == dispatch.MinutesAppOpRetry:
-		case info == dispatch.MinutesAppOpExit:
-		case info.Ok():
-			mcp.AddTool(srv, &mcp.Tool{
-				Name:        info.GetInfo().Key,
-				Description: info.GetInfo().Value,
-			}, dispatch.NewMCPTool(func(ctx context.Context, singer string) (string, error) {
-				return "", errors.New("tool not implemented (yet!)")
-			}).Resolve())
-		}
-	}
 
 	return func(ctx context.Context) error {
 		return srv.Run(ctx, &mcp.LoggingTransport{

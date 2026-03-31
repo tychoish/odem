@@ -108,37 +108,7 @@ func myQueryAction(ctx context.Context, dbconn *db.Connection, singer string) er
 - For `KV` results or custom shapes, build a `tabby.New()` table directly (see existing examples in the file)
 - For multi-select inputs (e.g. localities): `erc.FromIteratorAll(infra.NewFuzzySearch[T](options).Find("prompt"))`
 
-## Step 6 — Register in `pkg/clidispatch/dispatcher.go`
-
-Four edits, all in `dispatch.go`:
-
-1. **`iota` block** — add before `MinutesAppOpInvalid`:
-   ```go
-   MinutesAppOpMyOp
-   MinutesAppOpInvalid
-   ```
-
-2. **`GetInfo()`** — key is the kebab-case CLI name, value is the usage string:
-   ```go
-   case MinutesAppOpMyOp:
-       return irt.MakeKV("my-op", "one-line description")
-   ```
-
-3. **`Dispatch()`**:
-   ```go
-   case MinutesAppOpMyOp:
-       return myQueryAction(ctx, conn, strings.Join(args, " "))
-   ```
-
-4. **`NewMinutesAppOperation()`** — canonical name plus aliases:
-   ```go
-   case "my-op", "my-op-alias":
-       return MinutesAppOpMyOp
-   ```
-
-`String()`, `Commander()`, and `AllMinutesAppCommanders()` all derive from `GetInfo()` — no other changes needed.
-
-## Step 7 — Add a Static Report rendering  to `pkg/reportui/reports.go`
+## Step 6 — Add a Static Report rendering  to `pkg/reportui/reports.go`
 
 ```go
 mb.H2("My New Section")
@@ -152,15 +122,35 @@ writeMyTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))        
 
 For custom types add a table helper alongside `writeSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
 
-## Step 8 - Register all functions in `pkg/clidispatch/dispatcher.go` 
+## Step 7 — Register in `pkg/dispatch/dispatcher.go`
 
-New operations must be added in the following switch statements:
+All in `dispatch.go`:
 
-- `clidispatch.MinutesAppOperation.ReportsDispatcher()` (wire up `reportui` operations)
-- `clidispatch.MinutesAppOperation.FuzzyMatcher()` (wire `fzfui` operations)
-- `clidispatch.MinutesAppOperation.GetInfo()` to describe the name of the entry point and usage text.
-- `clidispatch.NewMinutesAppOperation` add logical command aliases.
+1. **`iota` block** — add before `MinutesAppOpInvalid`:
+   ```go
+   MinutesAppOpMyOp
+   MinutesAppOpInvalid
+   ```
 
-## Step 9 — Build and verify
+2. **`Registry()`** — build a `MinutesAppRegistration` object that that in the following form:
+
+   ```go
+   MinutesAppRegistration{
+			ID:          mao,
+			Command:     "my-op",
+			Description: "description to provide context and for for help text",
+			Aliases:     []string{"alternate", "shorthand"},
+			Reporter:    reportui.[function],
+			Fuzz:        fzfui.[function],
+			MCP: mcpsrv.NewTool(func(context.Context, INPUT) (OUTPUT, error) {
+		// arbitrary input/output function, likely from reportui
+				return OUTPUT(nil), ers.Error("not implemented")
+			}).Register,
+		}
+   ```
+
+All wiring and necessary functionality is derived from this registration information.
+
+## Step 8 — Build and verify
 
 Run `go build ./...` and fix any errors. Use `go test ./... -timeout=1m` to verify that all tests pass. Confirm the operation appears in the fzf menu and returns sensible output.
