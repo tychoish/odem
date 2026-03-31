@@ -16,8 +16,8 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func LeaderAction(ctx context.Context, conn *db.Connection, args []string) error {
-	singer, err := interactivelyResolveSingerName(ctx, conn, strings.Join(args, " "))
+func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
+	singer, err := interactivelyResolveSingerName(ctx, conn, arg)
 	if err != nil {
 		return err
 	}

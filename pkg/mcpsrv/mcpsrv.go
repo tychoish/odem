@@ -28,9 +28,9 @@ func New(conn *db.Connection) fnx.Worker {
 			mcp.AddTool(srv, &mcp.Tool{
 				Name:        info.GetInfo().Key,
 				Description: info.GetInfo().Value,
-			}, func(ctx context.Context, req *mcp.CallToolRequest, singer string) (*mcp.CallToolResult, string, error) {
-				return nil, "", errors.New("tool not implemented (yet!)")
-			})
+			}, dispatch.NewMCPTool(func(ctx context.Context, singer string) (string, error) {
+				return "", errors.New("tool not implemented (yet!)")
+			}).Resolve())
 		}
 	}
 

@@ -48,7 +48,7 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 	return &res, nil
 }
 
-func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (string, error) {
+func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (string, error) {
 	var ec erc.Collector
 	profiles := erc.HandleAll(dbconn.AllLeaderProfiles(ctx), ec.Push)
 	if !ec.Ok() {
@@ -61,7 +61,6 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, args ...string) (s
 		)
 	}
 
-	input := strings.Join(args, " ")
 	if input != "" {
 		matches := irt.Collect(infra.NewFuzzySearch[models.LeaderProfile](profiles).
 			WithToString(toString).
@@ -112,7 +111,7 @@ func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, si
 		return singer, nil
 	}
 
-	singer, err := SelectLeader(ctx, conn)
+	singer, err := SelectLeader(ctx, conn, singer)
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +129,7 @@ func SelectYears(userInput string) ([]int, error) {
 	if userInput != "" {
 		years, err := erc.FromIteratorAll(
 			irt.With2(
-				irt.Slice(strings.Split(userInput, ",")),
+				irt.Slice(strings.Split(userInput, " ")),
 				strconv.Atoi,
 			),
 		)
