@@ -191,7 +191,7 @@ This is all very rough, and mostly to provide a vague idea of the kinds of thing
 
 Additional UIs:
 
-- MCP serer (why not?)
+- ~~MCP serer (why not?)~~
 
 - Telegram Bot (for remote access?) and fun.
 
