@@ -6,6 +6,7 @@ import (
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/models"
 	"github.com/tychoish/odem/pkg/reportui"
 	"github.com/urfave/cli/v3"
 )
@@ -41,10 +42,12 @@ func ReportOperationSpec(rptr Reporter) *cmdr.OperationSpec[*infra.WithInput[rep
 	return infra.DBOperationSpecWith(
 		func(cc *cli.Command) reportui.Params {
 			return reportui.Params{
-				Name:       cmdr.GetFlagOrFirstArg[string](cc, "name"),
+				Params: models.Params{
+					Name:  cmdr.GetFlagOrFirstArg[string](cc, "name"),
+					Limit: cmdr.GetFlag[int](cc, "limit"),
+					Years: cmdr.GetFlag[[]int](cc, "year"),
+				},
 				ToStdout:   cmdr.GetFlag[bool](cc, "stdout"),
-				Limit:      cmdr.GetFlag[int](cc, "limit"),
-				Years:      cmdr.GetFlag[[]int](cc, "year"),
 				PathPrefix: cmdr.GetFlag[string](cc, "prefix"),
 			}
 		},

@@ -1,12 +1,15 @@
 package reportui
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
 
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/odem/pkg/db"
+	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/models"
 )
 
@@ -18,12 +21,30 @@ func intValToStr(key string, value int) (string, string)  { return key, strconv.
 func fmtPercentKVs(k string, v float64) (string, string)  { return k, fmt.Sprintf("%.4f%%", v*100) }
 func asRows(lsr models.LeaderSongRank) []string           { return (&lsr).StringFields() }
 
+// Params is the collection of arguments for generating a
 type Params struct {
-	Name       string
-	Years      []int
+	models.Params // query parameters
+	// Prefix (directory, etc.) of the path to write a report to.
 	PathPrefix string
-	Limit      int
-	ToStdout   bool
+	// ToStdout write report to standard out.
+	ToStdout              bool // for reportUI only
+	SuppressInteractivity bool // when true do not fall back to interactive fuzzy search
+}
+
+// WithoutInteraction returns a params struct that tells the
+// implementation to avoid interaction.
+func (p Params) WithoutInteraction() Params { p.SuppressInteractivity = true; return p }
+
+func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, error) {
+	if p.SuppressInteractivity {
+		out, err := SelectLeader(ctx, conn, p.Name)
+		if err != nil {
+			return "", err
+		}
+		return out.Name, nil
+	}
+
+	return fzfui.SelectLeader(ctx, conn, p.Name)
 }
 
 // getWriter returns an io.Writer (stdout or a new file) plus a cleanup func.

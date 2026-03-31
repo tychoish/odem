@@ -26,6 +26,7 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 		WithToString(func(in models.SongDetail) string {
 			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
 		}).Search(strings.Join(args, " "))
+
 	// TODO skip this is we didnt get ny results and go back to normal
 	sdIdx := map[models.SongDetail]int{}
 	for i, v := range songDetails {

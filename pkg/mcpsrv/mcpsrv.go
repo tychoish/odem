@@ -11,13 +11,15 @@ import (
 	"github.com/tychoish/odem/pkg/logger"
 )
 
-func NewTool[A, B any](op func(context.Context, A) (B, error)) ToolOperation[A, B] { return op }
+func NewTool[A, B any](op func(context.Context, *db.Connection, A) (B, error)) ToolOperation[A, B] {
+	return op
+}
 
-type ToolOperation[IN, OUT any] func(ctx context.Context, input IN) (OUT, error)
+type ToolOperation[IN, OUT any] func(ctx context.Context, conn *db.Connection, input IN) (OUT, error)
 
-func (tool ToolOperation[IN, OUT]) Resolve() mcp.ToolHandlerFor[IN, OUT] {
+func (tool ToolOperation[IN, OUT]) Resolve(conn *db.Connection) mcp.ToolHandlerFor[IN, OUT] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in IN) (*mcp.CallToolResult, OUT, error) {
-		out, err := tool(ctx, in)
+		out, err := tool(ctx, conn, in)
 		return nil, out, err
 	}
 }
@@ -26,7 +28,7 @@ func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connecti
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        info.Key,
 		Description: info.Value,
-	}, tool.Resolve())
+	}, tool.Resolve(dbconn))
 }
 
 func New(conn *db.Connection) fnx.Worker {

@@ -14,6 +14,7 @@ import (
 	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
+	"github.com/tychoish/odem/pkg/models"
 	"github.com/tychoish/odem/pkg/reportui"
 )
 
@@ -118,7 +119,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"leader-most-led", "leader-most-frequent", "most-led", "often-led"},
 			Reporter:    reportui.Leader,
 			Fuzz:        fzfui.LeaderAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -130,7 +131,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"leaders", "leader", "lead-history", "leader-history", "all-leads"},
 			Reporter:    reportui.LeaderLeadHistory,
 			Fuzz:        fzfui.LeaderLeadHistoryAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -142,7 +143,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"leader-singings", "singings-attended", "attended"},
 			Reporter:    reportui.LeaderSingings,
 			Fuzz:        fzfui.LeaderSingingsAttendedAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -154,7 +155,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"song", "tune", "hymn", "songs"},
 			Reporter:    reportui.Songs,
 			Fuzz:        fzfui.SongAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -166,7 +167,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"singing", "singings", "allday", "convention"},
 			Reporter:    reportui.Singings,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingingAction),
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -178,7 +179,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"buddies", "buddy", "connections", "neighbors", "leader-buddies"},
 			Reporter:    reportui.Buddies,
 			Fuzz:        fzfui.SingingBuddiesAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -190,7 +191,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"strangers", "enemies", "never-neighbors", "leader-strangers"},
 			Reporter:    reportui.Strangers,
 			Fuzz:        fzfui.SingingStrangersAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -202,7 +203,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"prevalent", "popular-in-ones-experience"},
 			Reporter:    reportui.PopularityAsExperienced,
 			Fuzz:        fzfui.PopularInOnesExperienceAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -214,7 +215,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"locally-popular", "localpop", "locally"},
 			Reporter:    reportui.LocallyPopular,
 			Fuzz:        fzfui.LocallyPopularAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -226,7 +227,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"popular-for-years", "popular-in-years"},
 			Reporter:    reportui.PopularityInYears,
 			Fuzz:        fzfui.PopularInYearsAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -238,9 +239,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"never-sung", "unknown"},
 			Reporter:    reportui.NeverSung,
 			Fuzz:        fzfui.NeverSungAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
-				return "", ers.Error("not implemented")
-			}).Register,
+			MCP:         mcpsrv.NewTool(mcpsrv.NeverSung).Register,
 		}
 	case MinutesAppOpNeverLed:
 		return MinutesAppRegistration{
@@ -250,7 +249,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"never-led", "neverled", "unled"},
 			Reporter:    reportui.NeverLed,
 			Fuzz:        fzfui.NeverLedAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -264,9 +263,9 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 				return fuzzySelectOperation(params.Name).ReportDispatcher().Report(ctx, conn, params)
 			},
 			Fuzz: func(ctx context.Context, conn *db.Connection, args string) error {
-				return fuzzySelectOperation(strings.Join(args, "-")).FuzzyDispatcher().Handle(ctx, conn)
+				return fuzzySelectOperation(args).FuzzyDispatcher().Handle(ctx, conn)
 			},
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -278,7 +277,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"unfamilar-hits", "unsung-hits", "unexpectedly-rare"},
 			Reporter:    reportui.UnfamilarHits,
 			Fuzz:        fzfui.UnfamilarHitsAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -290,7 +289,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"connectedness", "connected", "network"},
 			Reporter:    reportui.Connectedness,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingersByConnectednessAction),
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -302,7 +301,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"leader-footsteps", "footsteps", "giants", "singing-idols"},
 			Reporter:    reportui.LeaderFootsteps,
 			Fuzz:        fzfui.LeaderFootstepsAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -314,7 +313,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"top-leaders", "leaderboard"},
 			Reporter:    reportui.TopLeader,
 			Fuzz:        fzfui.TopLeadersByLeadsAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}
@@ -326,7 +325,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Aliases:     []string{"leader-share", "share", "leaders-share"},
 			Reporter:    reportui.LeadershipShare,
 			Fuzz:        fzfui.LeadersShareOfLeadsAction,
-			MCP: mcpsrv.NewTool(func(context.Context, reportui.Params) (string, error) {
+			MCP: mcpsrv.NewTool(func(context.Context, *db.Connection, models.Params) (string, error) {
 				return "", ers.Error("not implemented")
 			}).Register,
 		}

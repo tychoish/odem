@@ -20,16 +20,16 @@ import (
 const defaultN = 25
 
 func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, in.Name)
+	singer, err := in.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
-
 	w, err := in.getWriter(singer)
 	if err != nil {
 		return err
 	}
 	defer func() { err = erc.Join(w.Close()) }()
+
 	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder
@@ -166,7 +166,7 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func Strangers(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func Strangers(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func LocallyPopular(ctx context.Context, conn *db.Connection, p Params) (err err
 }
 
 func NeverSung(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,7 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -479,7 +479,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p Params) (err 
 }
 
 func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err err
 }
 
 func LeaderFootsteps(ctx context.Context, conn *db.Connection, p Params) error {
-	singer, err := fzfui.SelectLeader(ctx, conn, p.Name)
+	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {
 		return err
 	}
