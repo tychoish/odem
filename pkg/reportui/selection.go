@@ -3,6 +3,7 @@ package reportui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
@@ -32,7 +33,7 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (*mo
 		Search(input))
 
 	if len(matches) == 0 {
-		return nil, ers.Error("not found")
+		return nil, ers.Error("leader not found")
 	}
 
 	grip.Debug(message.NewKV().
@@ -40,5 +41,50 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (*mo
 		KV("leader", matches[0].Name).
 		KV("matches", len(matches)))
 
+	return &matches[0], nil
+}
+
+func SelectSinging(ctx context.Context, conn *db.Connection, name string) (*models.SingingInfo, error) {
+	var ec erc.Collector
+	singings := irt.Collect(erc.HandleAll(conn.AllSingings(ctx), ec.Push))
+	if !ec.Ok() {
+		return nil, ec.Resolve()
+	}
+
+	matches := irt.Collect(infra.NewFuzzySearch[models.SingingInfo](singings).
+		WithToString(func(info models.SingingInfo) string {
+			return fmt.Sprintf("%s -- %s (%s)",
+				info.SingingDate.Time().Format("2006-01-02"),
+				strings.ReplaceAll(info.SingingName, "\\n", "; "),
+				info.SingingLocation,
+			)
+		}).Search(name))
+
+	if len(matches) == 0 {
+		return nil, ers.Error("singing not found")
+	}
+
+	grip.Debug(message.NewKV().
+		KV("outcome", "resolved leader").
+		KV("singing", matches[0].SingingName).
+		KV("matches", len(matches)))
+
+	return &matches[0], nil
+}
+
+func SelectSong(ctx context.Context, conn *db.Connection, name string) (*models.SongDetail, error) {
+	songs, err := erc.FromIteratorAll(conn.AllSongDetails(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	matches := irt.Collect(infra.NewFuzzySearch[models.SongDetail](songs).
+		WithToString(func(s models.SongDetail) string {
+			return fmt.Sprintf("pg %s -- %s", s.PageNum, s.SongTitle)
+		}).Search(name))
+
+	if len(matches) == 0 {
+		return nil, ers.Error("song not found")
+	}
 	return &matches[0], nil
 }
