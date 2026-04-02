@@ -233,6 +233,20 @@ LIMIT ?;`
 	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
+func (conn *Connection) LeaderFavoriteKey(ctx context.Context, leader string, limit int) iter.Seq2[irt.KV[string, int], error] {
+	const query = `
+SELECT bsj.keys AS key, COUNT(*) AS value
+FROM song_leader_joins AS slj
+JOIN leaders AS l ON l.id = slj.leader_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+JOIN book_song_joins AS bsj ON slj.song_id = bsj.song_id AND bsj.book_id = 2
+WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
+GROUP BY bsj.keys
+ORDER BY value DESC
+LIMIT ?;`
+	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 20))
+}
+
 func (conn *Connection) AllLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[irt.KV[string, float64], error] {
 	const query = `
 SELECT

@@ -24,7 +24,7 @@ func Docs() *cmdr.Commander {
 }
 
 func printDocs(path string) fnx.Worker {
-	return func(ctx context.Context (err error) {
+	return func(ctx context.Context) (err error) {
 		var ec erc.Collector
 		defer func() { err = ec.Resolve() }()
 		defer ec.Recover()

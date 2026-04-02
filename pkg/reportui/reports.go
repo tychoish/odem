@@ -48,6 +48,12 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Most Led Songs")
 	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 24), ec.Push))
+	mb.H2("Favorite Keys")
+	mb.KVTable(
+		irt.MakeKV("Count", "Key"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderFavoriteKey(ctx, singer, 100), ec.Push)), intValToStr),
+	)
+	mb.Line()
 
 	mb.H2("Songs in Your Experience")
 	mb.Paragraph("Most frequently led songs at singings ", singer, " attended.")
@@ -62,7 +68,8 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Singing Strangers")
 	mb.Paragraph("People that ", singer, " has never sung with who share many connections.")
-	mb.KVTable(irt.MakeKV("Name", "Mutual Connections"),
+	mb.KVTable(
+		irt.MakeKV("Name", "Mutual Connections"),
 		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer, 24), ec.Push)), intValToStr),
 	)
 	mb.Line()
@@ -81,8 +88,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing ", singer, " attended, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.
-		Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -348,6 +354,32 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
 	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", singer))
 	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	singer, err := p.SelectLeader(ctx, conn)
+	if err != nil {
+		return err
+	}
+
+	w, err := p.getWriter(singer, "favorite-key")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Leads by Key: %s", singer))
+	mb.KVTable(
+		irt.MakeKV("Key", "Leads"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderFavoriteKey(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push)), intValToStr),
+	)
+	mb.Line()
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()

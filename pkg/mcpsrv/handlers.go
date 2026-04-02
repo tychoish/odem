@@ -233,6 +233,23 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) (*
 	}, nil
 }
 
+func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+	leader, err := reportui.SelectLeader(ctx, conn, p.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := erc.FromIteratorUntil(conn.LeaderFavoriteKey(ctx, leader.Name, cmp.Or(p.Limit, 20)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, irt.KV[string, int]]{
+		Results: results,
+		Context: leader.Name,
+	}, nil
+}
+
 func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, float64]], error) {
 	results, err := erc.FromIteratorUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)))
 	if err != nil {

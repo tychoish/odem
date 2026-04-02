@@ -239,6 +239,27 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 	return renderTopLedSongs(dbconn.TheUnfamilarHits(ctx, singer, 20))
 }
 
+func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+
+	var ec erc.Collector
+	grip.Infof("leads per key for %q", singer)
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Key", "Leads"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderFavoriteKey(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
+			return k, strconv.Itoa(v)
+		}),
+	)
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
+	}
+	return nil
+}
+
 func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
 	var ec erc.Collector
 	grip.Info("singers ranked by connectedness ratio")

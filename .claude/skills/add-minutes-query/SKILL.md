@@ -1,8 +1,10 @@
 ---
 name: add-minutes-query
 description: |
-  Add a new query of the minutes data to the `odem` system. Given a description or name of the operation, implement, test, and integrate it. Expose the query in the fuzzy CLI (pkg/fzfui) for interactive use.
+  Add a new query of the minutes data to the `odem` system. Given a description or name of the operation, implement, test, and integrate it.
 ---
+
+You will generate a query to satisfy the request and then conect the query with various interfaces a fuzzy CLI (pkg/fzfui) for interactive use, a static report renderer (pkg/reportui), and an MCP tool handler (pkg/mcpsrv). Once everything is implemented you will register the operations in the dispatcher (pkg/dispatch), test it thoroughly.
 
 ## Step 1 — Understand the schema
 
@@ -122,6 +124,29 @@ writeMyTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))        
 
 For custom types add a table helper alongside `writeSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
 
+## Step 6b — Add an MCP handler to `pkg/mcpsrv/handlers.go`
+
+Follow the pattern of existing handlers. Each handler takes `(ctx context.Context, conn *db.Connection, p models.Params)` and returns `(*ContextualSequence[C, T], error)` where `C` is the context type (usually `string` for a leader name) and `T` is the result row type.
+
+```go
+func MyQuery(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, T], error) {
+    leader, err := reportui.SelectLeader(ctx, conn, p.Name)
+    if err != nil {
+        return nil, err
+    }
+    results, err := erc.FromIteratorUntil(conn.MyQuery(ctx, leader.Name, cmp.Or(p.Limit, 20)))
+    if err != nil {
+        return nil, err
+    }
+    return &ContextualSequence[string, T]{
+        Results: results,
+        Context: leader.Name,
+    }, nil
+}
+```
+
+Use `irt.KV[string, int]` for key-value count results, `models.LeaderSongRank` for song rank results, or a custom model as needed.
+
 ## Step 7 — Register in `pkg/dispatch/dispatcher.go`
 
 All in `dispatch.go`:
@@ -132,21 +157,18 @@ All in `dispatch.go`:
    MinutesAppOpInvalid
    ```
 
-2. **`Registry()`** — build a `MinutesAppRegistration` object that that in the following form:
+2. **`Registry()`** — build a `MinutesAppRegistration` with `Reporter`, `Fuzz`, and `MCP` all wired:
 
    ```go
    MinutesAppRegistration{
-			ID:          mao,
-			Command:     "my-op",
-			Description: "description to provide context and for for help text",
-			Aliases:     []string{"alternate", "shorthand"},
-			Reporter:    reportui.[function],
-			Fuzz:        fzfui.[function],
-			MCP: mcpsrv.NewTool(func(context.Context, INPUT) (OUTPUT, error) {
-		// arbitrary input/output function, likely from reportui
-				return OUTPUT(nil), ers.Error("not implemented")
-			}).Register,
-		}
+       ID:          mao,
+       Command:     "my-op",
+       Description: "description to provide context and for help text",
+       Aliases:     []string{"alternate", "shorthand"},
+       Reporter:    reportui.MyQuery,
+       Fuzz:        fzfui.MyQueryAction,
+       MCP:         mcpsrv.NewTool(mcpsrv.MyQuery).Register,
+   }
    ```
 
 All wiring and necessary functionality is derived from this registration information.

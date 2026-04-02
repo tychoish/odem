@@ -43,6 +43,7 @@ const (
 	MinutesAppOpLeaderShare
 	MinutesAppOpLeaderLeadHistory
 	MinutesAppOpLeaderSingings
+	MinutesAppOpLeaderFavoriteKey
 	MinutesAppOpInvalid
 	MinutesAppOpExit = 181
 )
@@ -296,6 +297,16 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.TopLeader,
 			Fuzz:        fzfui.TopLeadersByLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
+		}
+	case MinutesAppOpLeaderFavoriteKey:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "leader-favorite-key",
+			Description: "a list of musical keys ordered by the number of leads a given leader has given in each key",
+			Aliases:     []string{"favorite-key", "leader-key", "keys-led"},
+			Reporter:    reportui.LeaderFavoriteKey,
+			Fuzz:        fzfui.LeaderFavoriteKeyAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFavoriteKey).Register,
 		}
 	case MinutesAppOpLeaderShare:
 		return MinutesAppRegistration{

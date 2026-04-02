@@ -398,6 +398,26 @@ func TestTopLeadersByLeadsWithYear(t *testing.T) {
 	}
 }
 
+func TestLeaderFavoriteKey(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for kv, err := range conn.LeaderFavoriteKey(ctx, testLeader, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kv.Key == "" {
+			t.Errorf("LeaderFavoriteKey(%q): expected non-empty key", testLeader)
+		}
+		if kv.Value <= 0 {
+			t.Errorf("LeaderFavoriteKey(%q): expected positive count for key %q, got %d", testLeader, kv.Key, kv.Value)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("LeaderFavoriteKey(%q): expected at least one result", testLeader)
+	}
+}
+
 func TestAllLeaderConnectedness(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
