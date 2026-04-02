@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
+	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/jasper/util"
+	"github.com/urfave/cli/v3"
 )
 
 type Configuration struct {
@@ -32,11 +34,25 @@ type Configuration struct {
 	} `bson:"services" json:"services" yaml:"services"`
 }
 
-func ReadConfiguration() (*Configuration, error) {
+func AttachConfiguration(c *cmdr.Commander) {
+	c.Flags(cmdr.FlagBuilder("~/.odem.yaml").
+		SetName("--conf").
+		SetUsage("Set the path to override the default config file path").
+		Flag(),
+	).With(cmdr.SpecBuilder(func(ctx context.Context, cc *cli.Command) (*Configuration, error) {
+		conf, err := ReadConfiguration(util.TryExpandHomedir(cmdr.GetFlag[string](cc, "conf")))
+		if err != nil {
+			return nil, err
+		}
+		return conf, err
+	}).SetMiddleware(WithConfiguration).Add)
+}
+
+func ReadConfiguration(paths ...string) (*Configuration, error) {
 	pwd := erc.Must(os.Getwd())
 	home := util.GetHomedir()
 	var ec erc.Collector
-	for path := range irt.Args(
+	for path := range irt.Chain(irt.Slice(paths), irt.Args(
 		filepath.Join(pwd, ".odem.yml"),
 		filepath.Join(pwd, ".odem.yaml"),
 		filepath.Join(pwd, ".odem.json"),
@@ -46,7 +62,7 @@ func ReadConfiguration() (*Configuration, error) {
 		filepath.Join(home, ".config", "odem", "conf.yml"),
 		filepath.Join(home, ".config", "odem", "conf.yaml"),
 		filepath.Join(home, ".config", "odem", "conf.json"),
-	) {
+	)) {
 		if util.FileExists(path) {
 			f, err := os.Open(path)
 			if err != nil {
