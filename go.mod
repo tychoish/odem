@@ -10,6 +10,7 @@ require (
 	github.com/tychoish/dbx v0.8.0
 	github.com/tychoish/fun v0.14.8
 	github.com/tychoish/grip v0.4.9
+	github.com/tychoish/jasper v0.1.5
 	github.com/urfave/cli/v3 v3.6.1
 	modernc.org/sqlite v1.47.0
 )
