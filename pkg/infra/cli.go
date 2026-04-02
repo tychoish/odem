@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/tychoish/cmdr"
+	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
@@ -68,9 +69,21 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		SetName(name).
 		Middleware(logger.Setup).
 		EnableCompletionCmd().
-		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			return cli.ShowAppHelp(cc)
-		}).
+		With(HelpAction).
 		Subcommanders(cmdrs...),
 	)
+}
+
+func HelpAction(cmd *cmdr.Commander) {
+	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error {
+		return cli.ShowAppHelp(cc)
+	})
+}
+
+func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
+	return func(cmd *cmdr.Commander) {
+		cmd.SetAction(func(ctx context.Context, cc *cli.Command) error {
+			return op(ctx)
+		})
+	}
 }

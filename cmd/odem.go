@@ -23,6 +23,7 @@ func main() {
 		ep.Report(),
 		ep.MCP(),
 		ep.Version(),
+		ep.Docs(),
 		ep.Hacking(),
 	)
 }
