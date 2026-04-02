@@ -124,7 +124,7 @@ writeMyTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))        
 
 For custom types add a table helper alongside `writeSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
 
-## Step 6b — Add an MCP handler to `pkg/mcpsrv/handlers.go`
+## Step 7 — Add an MCP handler to `pkg/mcpsrv/handlers.go`
 
 Follow the pattern of existing handlers. Each handler takes `(ctx context.Context, conn *db.Connection, p models.Params)` and returns `(*ContextualSequence[C, T], error)` where `C` is the context type (usually `string` for a leader name) and `T` is the result row type.
 
@@ -147,7 +147,7 @@ func MyQuery(ctx context.Context, conn *db.Connection, p models.Params) (*Contex
 
 Use `irt.KV[string, int]` for key-value count results, `models.LeaderSongRank` for song rank results, or a custom model as needed.
 
-## Step 7 — Register in `pkg/dispatch/dispatcher.go`
+## Step 8 — Register in `pkg/dispatch/dispatcher.go`
 
 All in `dispatch.go`:
 
@@ -173,6 +173,6 @@ All in `dispatch.go`:
 
 All wiring and necessary functionality is derived from this registration information.
 
-## Step 8 — Build and verify
+## Step 9 — Build and verify
 
 Run `go build ./...` and fix any errors. Use `go test ./... -timeout=1m` to verify that all tests pass. Confirm the operation appears in the fzf menu and returns sensible output.
