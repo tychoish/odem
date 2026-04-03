@@ -30,7 +30,7 @@ type Configuration struct {
 			Name    string   `bson:"name" json:"name" yaml:"name"`
 			Leaders []string `bson:"leaders" json:"leaders" yaml:"leaders"`
 		} `bson:"batches" json:"batches" yaml:"batches"`
-	}
+	} `bson:"reports" json:"reports" yaml:"reports"`
 	Services struct {
 		Address string `bson:"addr" json:"addr" yaml:"addr"`
 		Port    int    `bson:"port" json:"port" yaml:"port"`

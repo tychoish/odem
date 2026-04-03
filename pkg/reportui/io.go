@@ -2,16 +2,20 @@ package reportui
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 )
 
-func getFile(args ...string) (*os.File, error) {
-	mut := strut.MakeMutable(sumLens(args) + 3)
+func getFile(dir string, args ...string) (*os.File, error) {
+	mut := strut.MakeMutable(len(dir) + sumLens(args) + 3)
 	defer mut.Release()
-
+	mut.PushString(dir)
+	if len(dir) > 1 && !mut.HasSuffix([]byte{filepath.Separator}) {
+		mut.Write([]byte{filepath.Separator})
+	}
 	mut.JoinStrings(args, "-")
 	mut.ReplaceAllString(" ", "-")
 	mut.ReplaceAllString("'", "-")

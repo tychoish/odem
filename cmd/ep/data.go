@@ -2,17 +2,20 @@ package ep
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 
 	"github.com/tychoish/cmdr"
+	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/grip"
+	"github.com/tychoish/fun/wpa"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
+	"github.com/tychoish/odem/pkg/reportui"
 )
 
 func Fuzzy() *cmdr.Commander {
@@ -41,14 +44,12 @@ func Report() *cmdr.Commander {
 			SetUsage("render all configured reports").
 			With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 				conf := odem.GetConfiguration(ctx)
-
+				path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
+				var ec erc.Collector
 				for batch := range slices.Values(conf.Reports.Batches) {
-					path := filepath.Join(conf.Reports.BasePath, batch.Name)
-					for leader := range slices.Values(batch.Leaders) {
-						grip.Infoln(path, "->", leader)
-					}
+					ec.Push(wpa.RunWithPool(reportui.LeaderJobs(conn, path, batch.Leaders), wpa.WorkerGroupConfNumWorkers(2)).Run(ctx))
 				}
-				return nil
+				return ec.Resolve()
 			})),
 		)
 }

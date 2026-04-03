@@ -4,11 +4,13 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"iter"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/odem/pkg/db"
@@ -18,6 +20,18 @@ import (
 )
 
 const defaultN = 25
+
+func LeaderJobs(conn *db.Connection, basePath string, leaders []string) iter.Seq[fnx.Worker] {
+	return irt.Convert(irt.Slice(leaders), func(leader string) fnx.Worker {
+		return func(ctx context.Context) error {
+			return Leader(ctx, conn, Params{
+				SuppressInteractivity: true,
+				PathPrefix:            basePath,
+				Params:                models.Params{Name: leader},
+			})
+		}
+	})
+}
 
 func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	singer, err := in.SelectLeader(ctx, conn)

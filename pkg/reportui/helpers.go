@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/models"
@@ -56,7 +58,13 @@ func (params Params) getWriter(tags ...string) (io.WriteCloser, error) {
 	if len(tags) == 0 {
 		return nil, ers.New("must specify a file name for the report")
 	}
-	f, err := getFile(tags...)
+	if len(params.PathPrefix) != 0 && !util.FileExists(params.PathPrefix) {
+		if err := os.MkdirAll(params.PathPrefix, 0o755); err != nil {
+			return nil, err
+		}
+	}
+
+	f, err := getFile(params.PathPrefix, tags...)
 	if err != nil {
 		return nil, err
 	}
