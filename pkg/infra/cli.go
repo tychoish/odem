@@ -15,19 +15,21 @@ import (
 
 type WithInput[T any] struct {
 	DB   *db.Connection
-	Conf odem.Configuration
+	Conf *odem.Configuration
 	Args T
 }
 
 // DBOperationSpec builds a cmdr.OperationSpec[WithInput[string]] whose
 // constructor connects to the database and captures the first positional
 // CLI argument, then calls action(ctx, conn, query) as its operation.
-func DBOperationSpec[T cmdr.FlagTypes](action func(context.Context, *db.Connection, T) error) *cmdr.OperationSpec[*WithInput[T]] {
-	return MakeDBOperationSpec("name", action)
+func DBOperationSpec[T cmdr.FlagTypes](action func(context.Context, *db.Connection, T) error) func(*cmdr.Commander) {
+	return func(cc *cmdr.Commander) { cc.With(MakeDBOperationSpec("name", action)) }
 }
 
-func SimpleDBOperationSpec(action func(context.Context, *db.Connection) error) *cmdr.OperationSpec[*WithInput[string]] {
-	return MakeDBOperationSpec("name", func(ctx context.Context, db *db.Connection, _ string) error { return action(ctx, db) })
+func SimpleDBOperationSpec(action func(context.Context, *db.Connection) error) func(*cmdr.Commander) {
+	return func(cc *cmdr.Commander) {
+		cc.With(MakeDBOperationSpec("name", func(ctx context.Context, db *db.Connection, _ string) error { return action(ctx, db) }))
+	}
 }
 
 // DBOperationSpecWith builds a cmdr.OperationSpec that connects to the database
@@ -36,29 +38,33 @@ func SimpleDBOperationSpec(action func(context.Context, *db.Connection) error) *
 func DBOperationSpecWith[T any](
 	extract func(*cli.Command) T,
 	action func(context.Context, *db.Connection, T) error,
-) *cmdr.OperationSpec[*WithInput[T]] {
-	return cmdr.SpecBuilder(
-		func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
-			conn, err := db.Connect(ctx)
-			if err != nil {
-				return nil, err
-			}
-			return &WithInput[T]{DB: conn, Args: extract(cc)}, nil
-		},
-	).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) })
+) func(*cmdr.Commander) {
+	return func(cc *cmdr.Commander) {
+		cc.With(odem.AttachConfiguration).With(cmdr.SpecBuilder(
+			func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
+				conn, err := db.Connect(ctx)
+				if err != nil {
+					return nil, err
+				}
+				return &WithInput[T]{Conf: odem.GetConfiguration(ctx), DB: conn, Args: extract(cc)}, nil
+			},
+		).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) }).Add)
+	}
 }
 
-func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.Context, *db.Connection, T) error) *cmdr.OperationSpec[*WithInput[T]] {
-	return cmdr.SpecBuilder(
-		func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
-			conn, err := db.Connect(ctx)
-			if err != nil {
-				return nil, err
-			}
+func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.Context, *db.Connection, T) error) func(cc *cmdr.Commander) {
+	return func(cc *cmdr.Commander) {
+		cc.With(odem.AttachConfiguration).With(cmdr.SpecBuilder(
+			func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
+				conn, err := db.Connect(ctx)
+				if err != nil {
+					return nil, err
+				}
 
-			return &WithInput[T]{DB: conn, Args: cmdr.GetFlagOrFirstArg[T](cc, argName)}, nil
-		},
-	).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) })
+				return &WithInput[T]{DB: conn, Args: cmdr.GetFlagOrFirstArg[T](cc, argName)}, nil
+			},
+		).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) }).Add)
+	}
 }
 
 func MainCLI(name string, cmdrs ...*cmdr.Commander) {
@@ -75,15 +81,11 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 }
 
 func HelpAction(cmd *cmdr.Commander) {
-	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error {
-		return cli.ShowAppHelp(cc)
-	})
+	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return cli.ShowAppHelp(cc) })
 }
 
 func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
 	return func(cmd *cmdr.Commander) {
-		cmd.SetAction(func(ctx context.Context, cc *cli.Command) error {
-			return op(ctx)
-		})
+		cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return op(ctx) })
 	}
 }

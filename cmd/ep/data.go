@@ -2,9 +2,12 @@ package ep
 
 import (
 	"context"
+	"path/filepath"
+	"slices"
 
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/grip"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/dispatch"
@@ -17,7 +20,7 @@ func Fuzzy() *cmdr.Commander {
 		SetName("fuzzy").
 		Aliases("fzf").
 		SetUsage("fuzzy cli UI to minutes data").
-		With(infra.DBOperationSpec(dispatch.MinutesAppOpRetry.FuzzyDispatcher().Op).Add).
+		With(infra.DBOperationSpec(dispatch.MinutesAppOpRetry.FuzzyDispatcher().Op)).
 		Subcommanders(irt.Collect(dispatch.AllFuzzyMinutesAppCmdrs())...)
 }
 
@@ -30,8 +33,24 @@ func Report() *cmdr.Commander {
 			SetName("stdout", "o").
 			SetUsage("write report to stdout instead of a file").
 			Flag()).
-		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher()).Add).
-		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...)
+		With(odem.AttachConfiguration).
+		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher())).
+		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...).
+		Subcommanders(cmdr.MakeCommander().
+			SetName("batch").
+			SetUsage("render all configured reports").
+			With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+				conf := odem.GetConfiguration(ctx)
+
+				for batch := range slices.Values(conf.Reports.Batches) {
+					path := filepath.Join(conf.Reports.BasePath, batch.Name)
+					for leader := range slices.Values(batch.Leaders) {
+						grip.Infoln(path, "->", leader)
+					}
+				}
+				return nil
+			})),
+		)
 }
 
 func MCP() *cmdr.Commander {
@@ -44,5 +63,5 @@ func MCP() *cmdr.Commander {
 		With(odem.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
-		}).Add)
+		}))
 }

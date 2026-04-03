@@ -22,12 +22,12 @@ func idxorz[T any, S ~[]T](s S, idx int) (z T) {
 
 func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	info := mao.GetInfo()
-	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(infra.DBOperationSpec(mao.FuzzyDispatcher().Op).Add)
+	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(infra.DBOperationSpec(mao.FuzzyDispatcher().Op))
 }
 
 func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	i := mao.GetInfo()
-	return cmdr.MakeCommander().SetName(i.Key).SetUsage(i.Value).With(ReportOperationSpec(mao.ReportDispatcher()).Add)
+	return cmdr.MakeCommander().SetName(i.Key).SetUsage(i.Value).With(ReportOperationSpec(mao.ReportDispatcher()))
 }
 
 func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
@@ -38,20 +38,22 @@ func AllReportMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
 	return irt.Convert(AllMinutesAppOps(), toReportCmdr)
 }
 
-func ReportOperationSpec(rptr Reporter) *cmdr.OperationSpec[*infra.WithInput[reportui.Params]] {
-	return infra.DBOperationSpecWith(
-		func(cc *cli.Command) reportui.Params {
-			return reportui.Params{
-				Params: models.Params{
-					Name:  cmdr.GetFlagOrFirstArg[string](cc, "name"),
-					Limit: cmdr.GetFlag[int](cc, "limit"),
-					Years: cmdr.GetFlag[[]int](cc, "year"),
-				},
-				ToStdout:              cmdr.GetFlag[bool](cc, "stdout"),
-				PathPrefix:            cmdr.GetFlag[string](cc, "prefix"),
-				SuppressInteractivity: cmdr.GetFlag[bool](cc, "no-ask"),
-			}
-		},
-		rptr.Report,
-	)
+func ReportOperationSpec(rptr Reporter) func(*cmdr.Commander) {
+	return func(cc *cmdr.Commander) {
+		cc.With(infra.DBOperationSpecWith(
+			func(cc *cli.Command) reportui.Params {
+				return reportui.Params{
+					Params: models.Params{
+						Name:  cmdr.GetFlagOrFirstArg[string](cc, "name"),
+						Limit: cmdr.GetFlag[int](cc, "limit"),
+						Years: cmdr.GetFlag[[]int](cc, "year"),
+					},
+					ToStdout:              cmdr.GetFlag[bool](cc, "stdout"),
+					PathPrefix:            cmdr.GetFlag[string](cc, "prefix"),
+					SuppressInteractivity: cmdr.GetFlag[bool](cc, "no-ask"),
+				}
+			},
+			rptr.Report,
+		))
+	}
 }
