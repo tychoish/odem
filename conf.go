@@ -35,6 +35,15 @@ type Configuration struct {
 		Address string `bson:"addr" json:"addr" yaml:"addr"`
 		Port    int    `bson:"port" json:"port" yaml:"port"`
 	} `bson:"services" json:"services" yaml:"services"`
+	Build struct {
+		Path    string `bson:"path" json:"path" yaml:"path"`
+		Targets []struct {
+			GOOS               string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
+			GOARCH             string `bson:"GOARCH" json:"GOARCH" yaml:"GOARCH"`
+			DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
+		} `bson:"targets" json:"targets" yaml:"targets"`
+		Version string `bson:"version" json:"version" yaml:"version"`
+	}
 	Runtime struct {
 		RemoteMCP bool
 	} `bson:"-" json:"-" yaml:"-"`

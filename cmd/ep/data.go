@@ -18,6 +18,19 @@ import (
 	"github.com/tychoish/odem/pkg/reportui"
 )
 
+func MCP() *cmdr.Commander {
+	return cmdr.MakeCommander().
+		SetName("mcp").
+		SetUsage("run an MCP server (stdio) that provides access to Sacred Harp Minutes Data and analysis.").
+		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
+		Flags(cmdr.FlagBuilder("127.0.0.1").SetName("addr").SetUsage("address/interface to listen for requests").Flag()).
+		Flags(cmdr.FlagBuilder(1844).SetName("port").SetUsage("set the port to run the http service on").Flag()).
+		With(odem.AttachConfiguration).
+		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
+		}))
+}
+
 func Fuzzy() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("fuzzy").
@@ -44,24 +57,14 @@ func Report() *cmdr.Commander {
 			With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 				conf := odem.GetConfiguration(ctx)
 				path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
+
 				var ec erc.Collector
+
+				// There's only one batch right now, and there's no benefit to splitting it up rn.
 				for batch := range slices.Values(conf.Reports.Batches) {
 					ec.Push(wpa.RunWithPool(reportui.LeaderJobs(conn, path, batch.Leaders), wpa.WorkerGroupConfNumWorkers(2)).Run(ctx))
 				}
 				return ec.Resolve()
 			})),
 		)
-}
-
-func MCP() *cmdr.Commander {
-	return cmdr.MakeCommander().
-		SetName("mcp").
-		SetUsage("run an MCP server (stdio) that provides access to Sacred Harp Minutes Data and analysis.").
-		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
-		Flags(cmdr.FlagBuilder("127.0.0.1").SetName("addr").SetUsage("address/interface to listen for requests").Flag()).
-		Flags(cmdr.FlagBuilder(1844).SetName("port").SetUsage("set the port to run the http service on").Flag()).
-		With(odem.AttachConfiguration).
-		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
-			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
-		}))
 }

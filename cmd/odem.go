@@ -25,5 +25,6 @@ func main() {
 		ep.Version(),
 		ep.Docs(),
 		ep.Hacking(),
+		ep.Release(),
 	)
 }
