@@ -4,11 +4,14 @@ package ep
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
+	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
+	"github.com/tychoish/odem/pkg/infra"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,8 +52,13 @@ func Hacking() *cmdr.Commander {
 		SetName("hacking").
 		Aliases("hack").
 		SetUsage("hacking and testing").
+		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
+		With(odem.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Info("🤖 🎶")
+			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
+				grip.Infoln(k, "->", fmt.Sprintf("%+v", v))
+			}
 			return nil
 		})
 }

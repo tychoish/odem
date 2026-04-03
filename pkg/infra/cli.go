@@ -70,7 +70,6 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		Middleware(logger.Setup).
 		EnableCompletionCmd().
 		With(HelpAction).
-		With(odem.AttachConfiguration).
 		Subcommanders(cmdrs...),
 	)
 }

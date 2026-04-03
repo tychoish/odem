@@ -2,12 +2,18 @@ package mcpsrv
 
 import (
 	"context"
+	"fmt"
 	"iter"
+	"net/http"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/fun/srv"
+	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/send"
+	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
 )
@@ -34,8 +40,8 @@ func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connecti
 	}, tool.Resolve(dbconn))
 }
 
-func New(conn *db.Connection, seq iter.Seq2[irt.KV[string, string], RegistrationFunc]) fnx.Worker {
-	srv := mcp.NewServer(
+func New(conf *odem.Configuration, conn *db.Connection, seq iter.Seq2[irt.KV[string, string], RegistrationFunc]) fnx.Worker {
+	server := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "odem",
 			Title:   "Fasola Minutes Data",
@@ -43,11 +49,24 @@ func New(conn *db.Connection, seq iter.Seq2[irt.KV[string, string], Registration
 		}, nil)
 
 	for info, reg := range seq {
-		reg(srv, conn, info)
+		reg(server, conn, info)
+	}
+
+	if conf.Runtime.RemoteMCP {
+		grip.Info("creating http service...")
+		return srv.HTTP("odem-mcp",
+			time.Minute,
+			&http.Server{
+				Addr: fmt.Sprintf("%s:%d", conf.Services.Address, conf.Services.Port),
+				Handler: mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
+					return server
+				}, nil),
+			}).Worker()
 	}
 
 	return func(ctx context.Context) error {
-		return srv.Run(ctx, &mcp.LoggingTransport{
+		grip.Info("starting stdio service...")
+		return server.Run(ctx, &mcp.LoggingTransport{
 			Writer:    send.MakeWriterSender(logger.Plain(ctx).Sender()),
 			Transport: &mcp.StdioTransport{},
 		})

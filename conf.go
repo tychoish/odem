@@ -1,8 +1,10 @@
 package odem
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/jasper/util"
 	"github.com/urfave/cli/v3"
@@ -32,19 +35,41 @@ type Configuration struct {
 		Address string `bson:"addr" json:"addr" yaml:"addr"`
 		Port    int    `bson:"port" json:"port" yaml:"port"`
 	} `bson:"services" json:"services" yaml:"services"`
+	Runtime struct {
+		RemoteMCP bool
+	} `bson:"-" json:"-" yaml:"-"`
 }
 
 func AttachConfiguration(c *cmdr.Commander) {
-	c.Flags(cmdr.FlagBuilder("~/.odem.yaml").
-		SetName("--conf").
-		SetUsage("Set the path to override the default config file path").
-		Flag(),
+	c.Flags(
+		cmdr.FlagBuilder("info").
+			SetName("level").
+			SetUsage("specify logging threshold: emergency|alert|critical|error|warning|notice|info|debug").
+			SetValidate(func(val string) error {
+				priority := level.FromString(val)
+				if priority == level.Invalid {
+					return fmt.Errorf("%q is not a valid logging level", val)
+				}
+				return nil
+			}).Flag(),
+		cmdr.FlagBuilder("~/.odem.yaml").
+			SetName("--conf").
+			SetUsage("Set the path to override the default config file path").
+			Flag(),
 	).With(cmdr.SpecBuilder(func(ctx context.Context, cc *cli.Command) (*Configuration, error) {
 		conf, err := ReadConfiguration(util.TryExpandHomedir(cmdr.GetFlag[string](cc, "conf")))
 		if err != nil {
 			return nil, err
 		}
-		return conf, err
+
+		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
+		conf.Settings.Level = cmp.Or(conf.Settings.Level, level.FromString(cmdr.GetFlag[string](cc, "level")), level.Info)
+		conf.Reports.BasePath = cmp.Or(conf.Reports.BasePath, filepath.Join(erc.Must(os.Getwd()), "build"))
+		conf.Services.Port = cmp.Or(conf.Services.Port, 1844)
+		conf.Services.Address = cmp.Or(conf.Services.Address, "127.0.0.1")
+
+		grip.Sender().SetPriority(conf.Settings.Level)
+		return conf, nil
 	}).SetMiddleware(WithConfiguration).Add)
 }
 
@@ -52,34 +77,37 @@ func ReadConfiguration(paths ...string) (*Configuration, error) {
 	pwd := erc.Must(os.Getwd())
 	home := util.GetHomedir()
 	var ec erc.Collector
-	for path := range irt.Chain(irt.Slice(paths), irt.Args(
-		filepath.Join(pwd, ".odem.yml"),
-		filepath.Join(pwd, ".odem.yaml"),
-		filepath.Join(pwd, ".odem.json"),
-		filepath.Join(home, ".odem.yml"),
-		filepath.Join(home, ".odem.yaml"),
-		filepath.Join(home, ".odem.json"),
-		filepath.Join(home, ".config", "odem", "conf.yml"),
-		filepath.Join(home, ".config", "odem", "conf.yaml"),
-		filepath.Join(home, ".config", "odem", "conf.json"),
-	)) {
-		if util.FileExists(path) {
-			f, err := os.Open(path)
-			if err != nil {
-				return nil, err
-			}
-			defer f.Close()
 
-			newDecoder := newDecoderForFile(path)
-			dec := newDecoder(f)
-
-			var conf Configuration
-			if err := dec.Decode(&conf); err != nil {
-				ec.Wrap(err, path)
-				continue
-			}
-			return &conf, nil
+	for path := range irt.Keep(irt.Chain(irt.Args(
+		irt.Slice(paths),
+		irt.Args(filepath.Join(pwd, ".odem.yml"),
+			filepath.Join(pwd, ".odem.yaml"),
+			filepath.Join(pwd, ".odem.json"),
+			filepath.Join(home, ".odem.yml"),
+			filepath.Join(home, ".odem.yaml"),
+			filepath.Join(home, ".odem.json"),
+			filepath.Join(home, ".config", "odem", "conf.yml"),
+			filepath.Join(home, ".config", "odem", "conf.yaml"),
+			filepath.Join(home, ".config", "odem", "conf.json")),
+	)), util.FileExists) {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
 		}
+		defer f.Close()
+
+		newDecoder := newDecoderForFile(path)
+		dec := newDecoder(f)
+
+		var conf Configuration
+		if err := dec.Decode(&conf); err != nil {
+			ec.Wrap(err, path)
+			continue
+		}
+		return &conf, nil
+	}
+	if ec.Ok() {
+		return &Configuration{}, nil
 	}
 
 	return nil, ec.Resolve()
