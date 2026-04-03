@@ -63,10 +63,10 @@ func AttachConfiguration(c *cmdr.Commander) {
 		}
 
 		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
-		conf.Settings.Level = cmp.Or(conf.Settings.Level, level.FromString(cmdr.GetFlag[string](cc, "level")), level.Info)
+		conf.Settings.Level = cmp.Or(level.FromString(cmdr.GetFlag[string](cc, "level")), conf.Settings.Level, level.Info)
 		conf.Reports.BasePath = cmp.Or(conf.Reports.BasePath, filepath.Join(erc.Must(os.Getwd()), "build"))
-		conf.Services.Port = cmp.Or(conf.Services.Port, 1844)
-		conf.Services.Address = cmp.Or(conf.Services.Address, "127.0.0.1")
+		conf.Services.Port = cmp.Or(cmdr.GetFlag[int](cc, "port"), conf.Services.Port, 1844)
+		conf.Services.Address = cmp.Or(cmdr.GetFlag[string](cc, "addr"), conf.Services.Address, "127.0.0.1")
 
 		grip.Sender().SetPriority(conf.Settings.Level)
 		return conf, nil

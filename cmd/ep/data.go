@@ -38,7 +38,10 @@ func MCP() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("mcp").
 		SetUsage("run an MCP server (stdio) that provides access to Sacred Harp Minutes Data and analysis.").
-		Flags(cmdr.FlagBuilder(false).SetName("--http").SetUsage("call to start use the http service").Flag()).
+		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
+		Flags(cmdr.FlagBuilder("127.0.0.1").SetName("addr").SetUsage("address/interface to listen for requests").Flag()).
+		Flags(cmdr.FlagBuilder(1844).SetName("port").SetUsage("set the port to run the http service on").Flag()).
+		With(odem.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
 		}).Add)
