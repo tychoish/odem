@@ -36,7 +36,6 @@ func Report() *cmdr.Commander {
 			SetName("stdout", "o").
 			SetUsage("write report to stdout instead of a file").
 			Flag()).
-		With(odem.AttachConfiguration).
 		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher())).
 		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...).
 		Subcommanders(cmdr.MakeCommander().

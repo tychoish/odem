@@ -61,7 +61,7 @@ func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.C
 					return nil, err
 				}
 
-				return &WithInput[T]{DB: conn, Args: cmdr.GetFlagOrFirstArg[T](cc, argName)}, nil
+				return &WithInput[T]{Conf: odem.GetConfiguration(ctx), DB: conn, Args: cmdr.GetFlagOrFirstArg[T](cc, argName)}, nil
 			},
 		).SetAction(func(ctx context.Context, in *WithInput[T]) error { return action(ctx, in.DB, in.Args) }).Add)
 	}

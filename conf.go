@@ -53,7 +53,7 @@ func AttachConfiguration(c *cmdr.Commander) {
 				return nil
 			}).Flag(),
 		cmdr.FlagBuilder("~/.odem.yaml").
-			SetName("--conf").
+			SetName("conf").
 			SetUsage("Set the path to override the default config file path").
 			Flag(),
 	).With(cmdr.SpecBuilder(func(ctx context.Context, cc *cli.Command) (*Configuration, error) {
