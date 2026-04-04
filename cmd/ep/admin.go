@@ -66,8 +66,13 @@ func Hacking() *cmdr.Commander {
 		SetName("hacking").
 		Aliases("hack").
 		SetUsage("hacking and testing").
-		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
-		With(odem.AttachConfiguration).
+		Flags(
+			cmdr.FlagBuilder(false).
+				SetName("http").
+				SetUsage("call to start use the http service").
+				Flag(),
+		).
+		With(infra.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Infoln("🤖 🎶", release.GetVersion())
 			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
@@ -89,15 +94,12 @@ func Release() *cmdr.Commander {
 			SetUsage("build artifacts for odem relaese ; must run inside of the odem git repository").
 			Flags(cmdr.FlagBuilder(false).
 				SetName("dry-run", "n").
-				SetUsage("disables all (most?) write operations as").
+				SetUsage("disables all (most?) write operations for some (admin) operations").
 				Flag()).
-			With(odem.AttachConfiguration).
+			With(infra.AttachConfiguration).
 			SetAction(func(ctx context.Context, cc *cli.Command) error {
-				conf := odem.GetConfiguration(ctx)
-				conf.Runtime.DryRun = cmdr.GetFlag[bool](cc, "dry-run")
-
 				versionString := release.GitDescribe(ctx)
-				grip.Infoln("🤖 🎶", versionString)
+				grip.Infoln("🤖 🎶", "odem", versionString)
 				ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
 
 				var ec erc.Collector
@@ -105,6 +107,7 @@ func Release() *cmdr.Commander {
 
 				var jobs dt.List[fnx.Worker]
 
+				conf := odem.GetConfiguration(ctx)
 				for build := range irt.Slice(conf.Build.Targets) {
 					binaryPath := filepath.Join(conf.Build.Path, versionString, joindot(build.GOOS, build.GOARCH))
 					if !conf.Runtime.DryRun {
@@ -146,7 +149,7 @@ func Release() *cmdr.Commander {
 							filepath.Join(binaryPath, joindot(archiveName, ".zip")),
 							filepath.Join(binaryPath, binaryName))
 					} else {
-						cmd.AppendArgs("tar", "czf",
+						cmd.AppendArgs("tar", "czvf",
 							filepath.Join(binaryPath, joindot(archiveName, ".tar.gz")),
 							"-C", binaryPath, binaryName)
 					}
@@ -163,11 +166,22 @@ func Release() *cmdr.Commander {
 
 				return ec.Resolve()
 			}),
+			cmdr.MakeCommander().
+				SetName("upload").
+				SetUsage("upload built artifacts for the given release tag to GitHub").
+				Flags(cmdr.FlagBuilder("").
+					SetName("tag").
+					SetUsage("git tag / version string to upload (e.g. v1.2.3)").
+					SetRequired(true).
+					Flag()).
+				With(infra.AttachConfiguration).
+				SetAction(func(ctx context.Context, cc *cli.Command) error {
+					return release.UploadArtifacts(ctx, cmdr.GetFlag[string](cc, "tag")).Run(ctx)
+				}),
 		)
 }
 
 func joindot(s ...string) string { return strings.Join(s, ".") }
-func joinspc(s ...string) string { return strings.Join(s, " ") }
 
 func mkdirdashp(path string) error {
 	if util.FileExists(path) {

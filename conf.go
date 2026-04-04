@@ -1,23 +1,17 @@
 package odem
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/goccy/go-yaml"
-	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/jasper/util"
-	"github.com/urfave/cli/v3"
 )
 
 type Configuration struct {
@@ -49,50 +43,6 @@ type Configuration struct {
 		DryRun    bool
 		RemoteMCP bool
 	} `bson:"-" json:"-" yaml:"-"`
-}
-
-func AttachConfiguration(c *cmdr.Commander) {
-	c.Flags(
-		cmdr.FlagBuilder("info").
-			SetName("level").
-			SetUsage("specify logging threshold: emergency|alert|critical|error|warning|notice|info|debug").
-			SetValidate(func(val string) error {
-				priority := level.FromString(val)
-				if priority == level.Invalid {
-					return fmt.Errorf("%q is not a valid logging level", val)
-				}
-				return nil
-			}).Flag(),
-		cmdr.FlagBuilder("~/.odem.yaml").
-			SetName("conf").
-			SetUsage("Set the path to override the default config file path").
-			Flag(),
-	).With(cmdr.SpecBuilder(func(ctx context.Context, cc *cli.Command) (*Configuration, error) {
-		conf, err := ReadConfiguration(util.TryExpandHomedir(cmdr.GetFlag[string](cc, "conf")))
-		if err != nil {
-			return nil, err
-		}
-
-		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
-		conf.Settings.Level = cmp.Or(level.FromString(cmdr.GetFlag[string](cc, "level")), conf.Settings.Level, level.Info)
-		conf.Reports.BasePath = cmp.Or(conf.Reports.BasePath, filepath.Join(erc.Must(os.Getwd()), "build"))
-		conf.Services.Port = cmp.Or(cmdr.GetFlag[int](cc, "port"), conf.Services.Port, 1844)
-		conf.Services.Address = cmp.Or(cmdr.GetFlag[string](cc, "addr"), conf.Services.Address, "127.0.0.1")
-		conf.Build.Path = cmp.Or(conf.Build.Path, "build")
-
-		if len(conf.Build.Targets) == 0 {
-			conf.Build.Targets = append(conf.Build.Targets, struct {
-				GOOS   string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
-				GOARCH string `bson:"GOARCH" json:"GOARCH" yaml:"GOARCH"`
-			}{
-				GOOS:   runtime.GOOS,
-				GOARCH: runtime.GOARCH,
-			})
-		}
-
-		grip.Sender().SetPriority(conf.Settings.Level)
-		return conf, nil
-	}).SetMiddleware(WithConfiguration).Add)
 }
 
 func ReadConfiguration(paths ...string) (_ *Configuration, err error) {
