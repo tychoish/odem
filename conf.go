@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/goccy/go-yaml"
 	"github.com/tychoish/cmdr"
@@ -38,11 +39,11 @@ type Configuration struct {
 	Build struct {
 		Path    string `bson:"path" json:"path" yaml:"path"`
 		Targets []struct {
-			GOOS               string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
-			GOARCH             string `bson:"GOARCH" json:"GOARCH" yaml:"GOARCH"`
-			DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
+			GOOS   string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
+			GOARCH string `bson:"GOARCH" json:"GOARCH" yaml:"GOARCH"`
 		} `bson:"targets" json:"targets" yaml:"targets"`
-		Version string `bson:"version" json:"version" yaml:"version"`
+		Version            string `bson:"version" json:"version" yaml:"version"`
+		DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
 	}
 	Runtime struct {
 		RemoteMCP bool
@@ -76,6 +77,17 @@ func AttachConfiguration(c *cmdr.Commander) {
 		conf.Reports.BasePath = cmp.Or(conf.Reports.BasePath, filepath.Join(erc.Must(os.Getwd()), "build"))
 		conf.Services.Port = cmp.Or(cmdr.GetFlag[int](cc, "port"), conf.Services.Port, 1844)
 		conf.Services.Address = cmp.Or(cmdr.GetFlag[string](cc, "addr"), conf.Services.Address, "127.0.0.1")
+		conf.Build.Path = cmp.Or(conf.Build.Path, "build")
+
+		if len(conf.Build.Targets) == 0 {
+			conf.Build.Targets = append(conf.Build.Targets, struct {
+				GOOS   string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
+				GOARCH string `bson:"GOARCH" json:"GOARCH" yaml:"GOARCH"`
+			}{
+				GOOS:   runtime.GOOS,
+				GOARCH: runtime.GOARCH,
+			})
+		}
 
 		grip.Sender().SetPriority(conf.Settings.Level)
 		return conf, nil
