@@ -138,6 +138,19 @@ func Release() *cmdr.Commander {
 							"-o", filepath.Join(zpath, binaryName))
 					}
 
+					cmd.Sh(fmt.Sprintf("cd %q && sha256sum %s > %s.sha256", binaryPath, binaryName, binaryName))
+
+					archiveName := fmt.Sprintf("odem-%s-%s-%s", versionString, build.GOOS, build.GOARCH)
+					if build.GOOS == "windows" {
+						cmd.AppendArgs("zip", "-j",
+							filepath.Join(binaryPath, joindot(archiveName, ".zip")),
+							filepath.Join(binaryPath, binaryName))
+					} else {
+						cmd.AppendArgs("tar", "czf",
+							filepath.Join(binaryPath, joindot(archiveName, ".tar.gz")),
+							"-C", binaryPath, binaryName)
+					}
+
 					if conf.Runtime.DryRun {
 						grip.Info(cmd.String())
 						continue
@@ -154,6 +167,7 @@ func Release() *cmdr.Commander {
 }
 
 func joindot(s ...string) string { return strings.Join(s, ".") }
+func joinspc(s ...string) string { return strings.Join(s, " ") }
 
 func mkdirdashp(path string) error {
 	if util.FileExists(path) {
