@@ -34,7 +34,7 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 	}
 	preselction := []int{}
 	for detail := range sg {
-		if sidx, ok := sdIdx[detail]; ok == true {
+		if sidx, ok := sdIdx[detail]; ok {
 			preselction = append(preselction, sidx)
 		}
 	}

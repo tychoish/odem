@@ -95,10 +95,11 @@ func AttachConfiguration(c *cmdr.Commander) {
 	}).SetMiddleware(WithConfiguration).Add)
 }
 
-func ReadConfiguration(paths ...string) (*Configuration, error) {
+func ReadConfiguration(paths ...string) (_ *Configuration, err error) {
 	pwd := erc.Must(os.Getwd())
 	home := util.GetHomedir()
 	var ec erc.Collector
+	defer func() { err = ec.Resolve() }()
 
 	for path := range irt.Keep(irt.Chain(irt.Args(
 		irt.Slice(paths),
@@ -116,7 +117,7 @@ func ReadConfiguration(paths ...string) (*Configuration, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer ec.Check(f.Close)
 
 		newDecoder := newDecoderForFile(path)
 		dec := newDecoder(f)

@@ -13,12 +13,6 @@ import (
 
 func isOk[T interface{ Ok() bool }](in T) bool { return in.Ok() }
 func toOp(in int) MinutesAppOperation          { return MinutesAppOperation(in) }
-func idxorz[T any, S ~[]T](s S, idx int) (z T) {
-	if len(s) > idx {
-		return s[idx]
-	}
-	return z
-}
 
 func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	info := mao.GetInfo()

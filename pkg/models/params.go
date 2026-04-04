@@ -14,5 +14,5 @@ type Params struct {
 	// Limit the number of items returned to this number:
 	// typically the handlers will restrict this to somewhere
 	// between 16 and 64 depending, but it can be overridden.
-	Limit int `json:"years,omitempty" jsonschema:"optional;limit the number of results returned in some cases"`
+	Limit int `json:"limit,omitempty" jsonschema:"optional;limit the number of results returned in some cases"`
 }

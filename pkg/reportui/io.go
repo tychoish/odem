@@ -14,7 +14,7 @@ func getFile(dir string, args ...string) (*os.File, error) {
 	defer mut.Release()
 	mut.PushString(dir)
 	if len(dir) > 1 && !mut.HasSuffix([]byte{filepath.Separator}) {
-		mut.Write([]byte{filepath.Separator})
+		mut.PushBytes([]byte{filepath.Separator})
 	}
 	mut.JoinStrings(args, "-")
 	mut.ReplaceAllString(" ", "-")

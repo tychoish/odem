@@ -30,7 +30,9 @@ func Reset() error {
 	return os.RemoveAll(dbPath)
 }
 
-func Init() error {
+func Init() (err error) {
+	var ec erc.Collector
+	defer func() { ec.Push(err); err = ec.Resolve() }()
 	dbPath := getDBpath()
 	// if the database exists, in /tmp we can just use it as a timesaving measure.
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
@@ -45,7 +47,7 @@ func Init() error {
 			if err != nil {
 				return err
 			}
-			defer db.Close()
+			defer ec.Check(db.Close)
 
 			setupSql, err := packaged.ReadFile("views.sql")
 			if err != nil {
@@ -65,7 +67,7 @@ func Init() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer ec.Check(f.Close)
 
 	target, err := os.Create(dbPath)
 	if err != nil {
@@ -83,10 +85,9 @@ func Init() error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer ec.Check(db.Close)
 
 	grip.Info("applying odem specific modifications")
-	var ec erc.Collector
 	for file := range irt.Args("setup.sql", "views.sql") {
 		grip.Infoln("reading", file)
 		setupSql, err := packaged.ReadFile(file)
@@ -99,7 +100,7 @@ func Init() error {
 	}
 
 	grip.Info("database initialized")
-	return ec.Resolve()
+	return nil
 }
 
 func odemBinaryMtime() time.Time {

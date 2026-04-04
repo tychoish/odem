@@ -15,7 +15,6 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func atoi(in string) (n int)                              { n, _ = strconv.Atoi(in); return }
 func itoa(in int) string                                  { return strconv.Itoa(in) }
 func sumLens(s []string) (l int)                          { irt.ForEach(irt.Slice(s), func(s string) { l += len(s) }); return }
 func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
