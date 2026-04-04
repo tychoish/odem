@@ -5,26 +5,15 @@ package ep
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
+	"github.com/masterminds/semver"
 	"github.com/tychoish/cmdr"
-	"github.com/tychoish/fun/dt"
-	"github.com/tychoish/fun/erc"
-	"github.com/tychoish/fun/fnx"
-	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/wpa"
+	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
-	"github.com/tychoish/jasper"
-	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
-	"github.com/tychoish/odem/pkg/logger"
 	"github.com/tychoish/odem/pkg/release"
 	"github.com/urfave/cli/v3"
 )
@@ -82,90 +71,21 @@ func Hacking() *cmdr.Commander {
 		})
 }
 
-const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
-
 func Release() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("release").
 		SetUsage("build and release automation").
 		With(infra.HelpAction).
-		Subcommanders(cmdr.MakeCommander().
-			SetName("build").
-			SetUsage("build artifacts for odem relaese ; must run inside of the odem git repository").
-			Flags(cmdr.FlagBuilder(false).
-				SetName("dry-run", "n").
-				SetUsage("disables all (most?) write operations for some (admin) operations").
-				Flag()).
-			With(infra.AttachConfiguration).
-			SetAction(func(ctx context.Context, cc *cli.Command) error {
-				versionString := release.GitDescribe(ctx)
-				grip.Infoln("🤖 🎶", "odem", versionString)
-				ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
-
-				var ec erc.Collector
-				jpm := jasper.Context(ctx)
-
-				var jobs dt.List[fnx.Worker]
-
-				conf := odem.GetConfiguration(ctx)
-				for build := range irt.Slice(conf.Build.Targets) {
-					binaryPath := filepath.Join(conf.Build.Path, versionString, joindot(build.GOOS, build.GOARCH))
-					if !conf.Runtime.DryRun {
-						ec.Push(mkdirdashp(binaryPath))
-					}
-
-					var binaryName string
-					if build.GOOS == "windows" {
-						binaryName = "odem.exe"
-					} else {
-						binaryName = "odem"
-					}
-
-					cmd := jpm.CreateCommand(ctx).
-						ID(binaryPath).
-						AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
-						AddEnv("GOOS", build.GOOS).
-						AddEnv("GOARCH", build.GOARCH).
-						RedirectOutputToError(true).
-						SetOutputSender(level.Debug, logger.Plain(ctx).Sender()).
-						SetErrorSender(level.Error, logger.Plain(ctx).Sender())
-
-					if !conf.Build.DisableCompression && build.GOOS != "darwin" {
-						zpath := joindot(binaryPath, "lzma")
-						if !conf.Runtime.DryRun {
-							ec.Push(mkdirdashp(zpath))
-						}
-
-						cmd.AppendArgs("upx", "-q", "--lzma",
-							filepath.Join(binaryPath, binaryName),
-							"-o", filepath.Join(zpath, binaryName))
-					}
-
-					cmd.Sh(fmt.Sprintf("cd %q && sha256sum %s > %s.sha256", binaryPath, binaryName, binaryName))
-
-					archiveName := fmt.Sprintf("odem-%s-%s-%s", versionString, build.GOOS, build.GOARCH)
-					if build.GOOS == "windows" {
-						cmd.AppendArgs("zip", "-j",
-							filepath.Join(binaryPath, joindot(archiveName, ".zip")),
-							filepath.Join(binaryPath, binaryName))
-					} else {
-						cmd.AppendArgs("tar", "czvf",
-							filepath.Join(binaryPath, joindot(archiveName, ".tar.gz")),
-							"-C", binaryPath, binaryName)
-					}
-
-					if conf.Runtime.DryRun {
-						grip.Info(cmd.String())
-						continue
-					}
-
-					jobs.PushBack(cmd.Worker())
-				}
-
-				ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
-
-				return ec.Resolve()
-			}),
+		Subcommanders(
+			cmdr.MakeCommander().
+				SetName("build").
+				SetUsage("build artifacts for odem release; must run inside of the odem git repository").
+				Flags(cmdr.FlagBuilder(false).
+					SetName("dry-run", "n").
+					SetUsage("disables all (most?) write operations for some (admin) operations").
+					Flag()).
+				With(infra.AttachConfiguration).
+				With(infra.WorkerAction(release.BuildArtifacts)),
 			cmdr.MakeCommander().
 				SetName("upload").
 				SetUsage("upload built artifacts for the given release tag to GitHub").
@@ -173,20 +93,14 @@ func Release() *cmdr.Commander {
 					SetName("tag").
 					SetUsage("git tag / version string to upload (e.g. v1.2.3)").
 					SetRequired(true).
+					SetValidate(func(tag string) error {
+						_, err := semver.NewVersion(tag)
+						return ers.Wrapf(err, "could not parse version from %q", tag)
+					}).
 					Flag()).
 				With(infra.AttachConfiguration).
-				SetAction(func(ctx context.Context, cc *cli.Command) error {
-					return release.UploadArtifacts(ctx, cmdr.GetFlag[string](cc, "tag")).Run(ctx)
-				}),
+				With(infra.Operation(func(ctx context.Context, conf *odem.Configuration) error {
+					return release.UploadArtifacts(ctx, conf)
+				})),
 		)
-}
-
-func joindot(s ...string) string { return strings.Join(s, ".") }
-
-func mkdirdashp(path string) error {
-	if util.FileExists(path) {
-		return nil
-	}
-	grip.Infof("making directory %q", path)
-	return os.MkdirAll(path, 0o766)
 }

@@ -12,12 +12,10 @@ import (
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
-	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/jasper"
 	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/infra"
 )
 
 var (
@@ -40,12 +38,10 @@ func GitDescribe(ctx context.Context) string {
 // UploadArtifacts uploads all .zip, .tar.gz, and .sha256 files found in the
 // build directory for the given tag to the matching GitHub release using
 // `gh release upload`.
-func UploadArtifacts(ctx context.Context, tag string) fnx.Worker {
-	conf := odem.GetConfiguration(ctx)
-
-	buildDir := filepath.Join(conf.Build.Path, tag)
+func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
+	buildDir := filepath.Join(conf.Build.Path, conf.Build.Tag)
 	if !util.FileExists(buildDir) {
-		return infra.ErrWorker(fmt.Errorf("build directory %q does not exist", buildDir))
+		return fmt.Errorf("build directory %q does not exist", buildDir)
 	}
 
 	var artifacts []string
@@ -59,15 +55,16 @@ func UploadArtifacts(ctx context.Context, tag string) fnx.Worker {
 		}
 		return nil
 	}); err != nil {
-		return infra.ErrWorker(err)
+		return err
 	}
 
 	if len(artifacts) == 0 {
-		grip.Infof("no artifacts found in %q", buildDir)
-		return infra.ErrWorker(nil)
+		grip.Warningf("no artifacts found in %q", buildDir)
+		return nil
 	}
 
-	grip.Infof("uploading %d artifacts for %s", len(artifacts), tag)
-	args := append([]string{"gh", "release", "upload", tag, "--clobber"}, artifacts...)
-	return jasper.Context(ctx).CreateCommand(ctx).AppendArgs(args...).Worker()
+	grip.Infof("uploading %d artifacts for %s", len(artifacts), conf.Build.Tag)
+	return jasper.Context(ctx).CreateCommand(ctx).Add(
+		append([]string{"gh", "release", "upload", conf.Build.Tag, "--clobber"}, artifacts...),
+	).Run(ctx)
 }

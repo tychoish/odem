@@ -56,6 +56,7 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 		conf.Services.Port = cmp.Or(cmdr.GetFlag[int](cc, "port"), conf.Services.Port, 1844)
 		conf.Services.Address = cmp.Or(cmdr.GetFlag[string](cc, "addr"), conf.Services.Address, "127.0.0.1")
 		conf.Build.Path = cmp.Or(conf.Build.Path, "build")
+		conf.Build.Tag = cmdr.GetFlag[string](cc, "tag")
 
 		if len(conf.Build.Targets) == 0 {
 			conf.Build.Targets = append(conf.Build.Targets, struct {

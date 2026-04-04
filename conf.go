@@ -31,6 +31,7 @@ type Configuration struct {
 		Port    int    `bson:"port" json:"port" yaml:"port"`
 	} `bson:"services" json:"services" yaml:"services"`
 	Build struct {
+		Tag     string `bson:"-" json:"-" yaml:"-"`
 		Path    string `bson:"path" json:"path" yaml:"path"`
 		Targets []struct {
 			GOOS   string `bson:"GOOS" json:"GOOS" yaml:"GOOS"`
