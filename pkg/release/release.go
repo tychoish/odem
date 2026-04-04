@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/masterminds/semver"
+	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/grip"
@@ -21,15 +23,24 @@ import (
 var (
 	version   string
 	buildTime string
+	Version   adt.Once[*semver.Version]
+	BuildTime adt.Once[time.Time]
 )
 
-func GetVersion() string      { return version }
-func GetBuildTime() time.Time { return erc.Must(time.Parse(time.RFC3339, buildTime)) }
-func GitDescribe(ctx context.Context) string {
+func init() {
+	Version.Set(func() *semver.Version {
+		return erc.Must(semver.NewVersion(cmp.Or(version, GitDescribe())))
+	})
+	BuildTime.Set(func() time.Time {
+		return erc.Must(time.Parse(time.DateTime, cmp.Or(buildTime, "1986-05-19 00:00:00")))
+	})
+}
+
+func GitDescribe() string {
 	b := new(bytes.Buffer)
 	buf := util.NewLocalBuffer(b)
 
-	err := jasper.Context(ctx).CreateCommand(ctx).AppendArgs("git", "describe").SetOutputWriter(buf).Run(ctx)
+	err := jasper.NewCommand().AppendArgs("git", "describe").SetOutputWriter(buf).Run(context.TODO())
 	grip.Warning(ers.Wrap(err, "git describe for release versioning"))
 
 	return cmp.Or(string(bytes.TrimSpace(b.Bytes())), "<UNKNOWN>")

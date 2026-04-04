@@ -29,7 +29,7 @@ const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.versi
 func BuildArtifacts(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 
-	versionString := GitDescribe(ctx)
+	versionString := Version.Resolve().String()
 	grip.Infoln("🤖 🎶", "odem", versionString)
 	ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
 

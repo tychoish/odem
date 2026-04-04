@@ -6,9 +6,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/masterminds/semver"
 	"github.com/tychoish/cmdr"
-	"github.com/tychoish/fun/ers"
+	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem"
@@ -25,8 +24,10 @@ func Version() *cmdr.Commander {
 		SetUsage("returns the version and build information of the binary").
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Log(grip.Sender().Priority(), message.Fields{
-				"name":    cc.Name,
-				"version": cc.Version,
+				"name":       cc.Name,
+				"version":    cc.Version,
+				"release":    release.Version.Resolve().String(),
+				"build_time": release.BuildTime.Resolve(),
 			})
 
 			return nil
@@ -37,16 +38,12 @@ func Setup() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("setup").
 		SetUsage("initialize the cached/local database").
-		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			return db.Init()
-		}).
+		With(infra.WorkerAction(fnx.MakeWorker(db.Init))).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("reset").
 				SetUsage("remove the cached/local database").
-				SetAction(func(ctx context.Context, cc *cli.Command) error {
-					return db.Reset()
-				}),
+				With(infra.WorkerAction(fnx.MakeWorker(db.Reset))),
 		)
 }
 
@@ -55,15 +52,13 @@ func Hacking() *cmdr.Commander {
 		SetName("hacking").
 		Aliases("hack").
 		SetUsage("hacking and testing").
-		Flags(
-			cmdr.FlagBuilder(false).
-				SetName("http").
-				SetUsage("call to start use the http service").
-				Flag(),
-		).
+		Flags(cmdr.FlagBuilder(false).
+			SetName("http").
+			SetUsage("call to start use the http service").
+			Flag()).
 		With(infra.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			grip.Infoln("🤖 🎶", release.GetVersion())
+			grip.Infoln("🤖 🎶", release.Version.Resolve())
 			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
 				grip.Infoln(k, "->", fmt.Sprintf("%+v", v))
 			}
@@ -93,14 +88,9 @@ func Release() *cmdr.Commander {
 					SetName("tag").
 					SetUsage("git tag / version string to upload (e.g. v1.2.3)").
 					SetRequired(true).
-					SetValidate(func(tag string) error {
-						_, err := semver.NewVersion(tag)
-						return ers.Wrapf(err, "could not parse version from %q", tag)
-					}).
+					SetValidate(release.ValidateVersion).
 					Flag()).
 				With(infra.AttachConfiguration).
-				With(infra.Operation(func(ctx context.Context, conf *odem.Configuration) error {
-					return release.UploadArtifacts(ctx, conf)
-				})),
+				With(infra.Operation(release.UploadArtifacts)),
 		)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
+	"github.com/tychoish/odem/pkg/release"
 	"github.com/urfave/cli/v3"
 )
 
@@ -76,6 +77,7 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 
 	cmdr.Main(ctx, cmdr.MakeRootCommander().
 		SetName(name).
+		SetAppOptions(cmdr.AppOptions{Name: name, Usage: "🚩 🌞 🔲 stats application", Version: release.Version.Resolve().String()}).
 		Middleware(logger.Setup).
 		Middleware(JasperSetup).
 		EnableCompletionCmd().
