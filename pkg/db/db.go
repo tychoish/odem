@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/tychoish/dbx"
+	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/models"
 
 	"github.com/tychoish/fun/fnx"
@@ -22,8 +23,11 @@ type Connection struct {
 }
 
 func Connect(ctx context.Context) (*Connection, error) {
-	if err := Init(); err != nil {
-		return nil, err
+	conf := odem.GetConfiguration(ctx)
+	if conf == nil || !conf.Settings.ManualReloadDB {
+		if err := Init(); err != nil {
+			return nil, err
+		}
 	}
 
 	db, err := sql.Open("sqlite", getDBpath())

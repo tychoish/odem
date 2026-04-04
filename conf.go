@@ -22,8 +22,8 @@ import (
 
 type Configuration struct {
 	Settings struct {
-		Level    level.Priority `bson:"log_level" json:"log_level" yaml:"log_level"`
-		ReloadDB string         `bson:"reload_db" json:"reload_db" yaml:"reload_db"`
+		Level          level.Priority `bson:"log_level" json:"log_level" yaml:"log_level"`
+		ManualReloadDB bool           `bson:"manual_reload_db" json:"manual_reload_db" yaml:"manual_reload_db"`
 	} `bson:"settings" json:"settings" yaml:"settings"`
 	Reports struct {
 		BasePath string `bson:"base_path" json:"base_path" yaml:"base_path"`

@@ -80,6 +80,7 @@ LEFT JOIN minutes_location_joins AS mlg ON minutes.id = mgl.minutes_id
 LEFT JOIN singings ON mlg.singing_id = singings.id
 LEFT JOIN locations ON mlg.location_id = locations.id;
 
+DROP VIEW IF EXISTS singing_lessons;
 CREATE VIEW IF NOT EXISTS singing_lessons AS
 SELECT
 	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
@@ -94,7 +95,7 @@ JOIN minutes AS m ON slj.minutes_id = m.id
 JOIN leaders AS l ON slj.leader_id = l.id
 LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 JOIN songs AS s ON slj.song_id = s.id
-JOIN book_song_joins AS bsj ON bsj.song_id = s.id AND bsj.book_id = 2;
+JOIN (SELECT song_id, MIN(page_num) AS page_num, MIN(keys) AS keys FROM book_song_joins WHERE book_id = 2 GROUP BY song_id) AS bsj ON bsj.song_id = s.id;
 
 CREATE VIEW IF NOT EXISTS singing_info AS
 SELECT

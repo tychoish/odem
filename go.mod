@@ -6,7 +6,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/koki-develop/go-fzf v0.15.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
-	github.com/tychoish/cmdr v0.5.4
+	github.com/tychoish/cmdr v0.5.5
 	github.com/tychoish/dbx v0.8.0
 	github.com/tychoish/fun v0.14.8
 	github.com/tychoish/grip v0.4.9
