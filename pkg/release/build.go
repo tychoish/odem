@@ -44,9 +44,9 @@ func BuildArtifacts(ctx context.Context) error {
 
 		var binaryName string
 		if build.GOOS == "windows" {
-			binaryName = "odem.exe"
+			binaryName = joindot(Name, "exe")
 		} else {
-			binaryName = "odem"
+			binaryName = Name
 		}
 
 		cmd := jpm.CreateCommand(ctx).

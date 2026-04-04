@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/tychoish/odem/cmd/ep"
 	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/release"
 	_ "modernc.org/sqlite"
 )
 
@@ -17,7 +18,7 @@ TODO implement larger plans and
 */
 
 func main() {
-	infra.MainCLI("odem",
+	infra.MainCLI(release.Name,
 		ep.Setup(),
 		ep.Fuzzy(),
 		ep.Report(),

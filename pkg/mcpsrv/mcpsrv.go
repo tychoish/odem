@@ -16,6 +16,7 @@ import (
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
+	"github.com/tychoish/odem/pkg/release"
 )
 
 func NewTool[A, B any](op func(context.Context, *db.Connection, A) (B, error)) ToolOperation[A, B] {
@@ -43,7 +44,7 @@ func (tool ToolOperation[IN, OUT]) Register(srv *mcp.Server, dbconn *db.Connecti
 func New(conf *odem.Configuration, conn *db.Connection, seq iter.Seq2[irt.KV[string, string], RegistrationFunc]) fnx.Worker {
 	server := mcp.NewServer(
 		&mcp.Implementation{
-			Name:    "odem",
+			Name:    release.Name,
 			Title:   "Fasola Minutes Data",
 			Version: "v0.1.0",
 		}, nil)

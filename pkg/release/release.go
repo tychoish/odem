@@ -17,11 +17,15 @@ import (
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/jasper"
 	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
+	"github.com/tychoish/odem/pkg/logger"
 )
+
+const Name = "odem"
 
 var (
 	version   string
@@ -49,6 +53,13 @@ func GitDescribe() string {
 // build directory for the given tag to the matching GitHub release using
 // `gh release upload`.
 func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
+	var releaseID string
+	if strings.HasPrefix(conf.Build.Tag, joindash(Name, "")) {
+		releaseID = conf.Build.Tag[len(Name)+1:]
+	} else {
+		releaseID = conf.Build.Tag
+	}
+
 	buildDir := filepath.Join(conf.Build.Path, conf.Build.Tag)
 	if !util.FileExists(buildDir) {
 		return fmt.Errorf("build directory %q does not exist", buildDir)
@@ -70,7 +81,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		return err
 	}
 	if zw := filepath.Join(buildDir, "windows-amd64.lzma", "odem.exe"); util.FileExists(zw) {
-		artifacts.Add(joinstr(zw, "#odem.exe for windows-amd64 with upx+lzma"))
+		artifacts.Add(joinstr(zw, "#odem for windows-amd64 with upx+lzma"))
 	}
 	if zw := filepath.Join(buildDir, "linux-amd64.lzma", "odem.exe"); util.FileExists(zw) {
 		artifacts.Add(joinstr(zw, "#odem for linux-amd64 with upx+lzma"))
@@ -81,11 +92,17 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		return nil
 	}
 
-	grip.Infof("uploading %d artifacts for %s", artifacts.Len(), conf.Build.Tag)
+	args := irt.Collect(irt.Chain(irt.Args(irt.Args("gh", "release", "upload", releaseID, "--clobber"), artifacts.Iterator())))
 
-	args := irt.Collect(irt.Chain(irt.Args(irt.Args("gh", "release", "upload", conf.Build.Tag, "--clobber"), artifacts.Iterator())))
+	grip.Info(message.NewKV().
+		KV("op", "upload artifacts").
+		KV("release", releaseID).
+		KV("tag", conf.Build.Tag).
+		KV("num", artifacts.Len()).
+		KV("args", args))
 
-	grip.Debug(message.NewKV().KV("op", "upload artifacts").KV("args", args))
-
-	return jasper.Context(ctx).CreateCommand(ctx).Add(args).Run(ctx)
+	return jasper.Context(ctx).CreateCommand(ctx).
+		Add(args).
+		SetCombinedSender(level.Info, logger.Plain(ctx).Sender()).
+		Run(ctx)
 }

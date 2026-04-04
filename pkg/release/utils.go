@@ -11,6 +11,10 @@ import (
 )
 
 func ValidateVersion(tag string) error {
+	if strings.HasPrefix(tag, joindash(Name, "")) {
+		tag = tag[len(Name)+1:]
+	}
+
 	return ers.Wrapf(ignorevalue(semver.NewVersion(tag)), "could not parse version from %q", tag)
 }
 
