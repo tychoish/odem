@@ -7,7 +7,9 @@ import (
 	"slices"
 
 	"github.com/tychoish/cmdr"
+	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/wpa"
 	"github.com/tychoish/odem"
@@ -59,11 +61,15 @@ func Report() *cmdr.Commander {
 				path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
 
 				var ec erc.Collector
+				var jobs dt.List[fnx.Worker]
 
 				// There's only one batch right now, and there's no benefit to splitting it up rn.
 				for batch := range slices.Values(conf.Reports.Batches) {
-					ec.Push(wpa.RunWithPool(reportui.LeaderJobs(conn, path, batch.Leaders), wpa.WorkerGroupConfNumWorkers(2)).Run(ctx))
+					jobs.Extend(reportui.LeaderJobs(conn, filepath.Join(batch.Name, path), batch.Leaders))
 				}
+
+				ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
+
 				return ec.Resolve()
 			})),
 		)
