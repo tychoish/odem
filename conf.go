@@ -44,8 +44,9 @@ type Configuration struct {
 		} `bson:"targets" json:"targets" yaml:"targets"`
 		Version            string `bson:"version" json:"version" yaml:"version"`
 		DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
-	}
+	} `bson:"build" json:"build" yaml:"build"`
 	Runtime struct {
+		DryRun    bool
 		RemoteMCP bool
 	} `bson:"-" json:"-" yaml:"-"`
 }

@@ -77,72 +77,80 @@ func Hacking() *cmdr.Commander {
 		})
 }
 
-const wpaName = "odem.wpa"
+const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
 
 func Release() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("release").
-		SetUsage("build artifacts for odem relases; must run inside of the odem git repositry").
-		Flags(cmdr.FlagBuilder(false).SetName("dry-run", "n").SetUsage("disables all (most?) imput").Flag()).
-		With(odem.AttachConfiguration).
-		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			versionString := release.GitDescribe(ctx)
-			grip.Infoln("🤖 🎶", versionString)
-			conf := odem.GetConfiguration(ctx)
-			const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
-			ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
-			var ec erc.Collector
-			dryRun := cmdr.GetFlag[bool](cc, "dry-run")
-			jpm := jasper.Context(ctx)
-			grip.Sender().SetPriority(level.Trace)
+		SetUsage("build and release automation").
+		With(infra.HelpAction).
+		Subcommanders(cmdr.MakeCommander().
+			SetName("build").
+			SetUsage("build artifacts for odem relaese ; must run inside of the odem git repository").
+			Flags(cmdr.FlagBuilder(false).
+				SetName("dry-run", "n").
+				SetUsage("disables all (most?) write operations as").
+				Flag()).
+			With(odem.AttachConfiguration).
+			SetAction(func(ctx context.Context, cc *cli.Command) error {
+				conf := odem.GetConfiguration(ctx)
+				conf.Runtime.DryRun = cmdr.GetFlag[bool](cc, "dry-run")
 
-			var jobs dt.List[fnx.Worker]
+				versionString := release.GitDescribe(ctx)
+				grip.Infoln("🤖 🎶", versionString)
+				ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
 
-			for build := range irt.Slice(conf.Build.Targets) {
-				binaryPath := filepath.Join(conf.Build.Path, versionString, joindot(build.GOOS, build.GOARCH))
-				if !dryRun {
-					ec.Push(mkdirdashp(binaryPath))
-				}
+				var ec erc.Collector
+				jpm := jasper.Context(ctx)
 
-				var binaryName string
-				if build.GOOS == "windows" {
-					binaryName = "odem.exe"
-				} else {
-					binaryName = "odem"
-				}
+				var jobs dt.List[fnx.Worker]
 
-				cmd := jpm.CreateCommand(ctx).
-					ID(binaryPath).
-					AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
-					AddEnv("GOOS", build.GOOS).
-					AddEnv("GOARCH", build.GOARCH).
-					RedirectOutputToError(true).
-					SetOutputSender(level.Debug, logger.Plain(ctx).Sender()).
-					SetErrorSender(level.Error, logger.Plain(ctx).Sender())
-
-				if !conf.Build.DisableCompression && build.GOOS != "darwin" {
-					zpath := joindot(binaryPath, "lzma")
-					if !dryRun {
-						ec.Push(mkdirdashp(zpath))
+				for build := range irt.Slice(conf.Build.Targets) {
+					binaryPath := filepath.Join(conf.Build.Path, versionString, joindot(build.GOOS, build.GOARCH))
+					if !conf.Runtime.DryRun {
+						ec.Push(mkdirdashp(binaryPath))
 					}
 
-					cmd.AppendArgs("upx", "-q", "--lzma",
-						filepath.Join(binaryPath, binaryName),
-						"-o", filepath.Join(zpath, binaryName))
+					var binaryName string
+					if build.GOOS == "windows" {
+						binaryName = "odem.exe"
+					} else {
+						binaryName = "odem"
+					}
+
+					cmd := jpm.CreateCommand(ctx).
+						ID(binaryPath).
+						AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
+						AddEnv("GOOS", build.GOOS).
+						AddEnv("GOARCH", build.GOARCH).
+						RedirectOutputToError(true).
+						SetOutputSender(level.Debug, logger.Plain(ctx).Sender()).
+						SetErrorSender(level.Error, logger.Plain(ctx).Sender())
+
+					if !conf.Build.DisableCompression && build.GOOS != "darwin" {
+						zpath := joindot(binaryPath, "lzma")
+						if !conf.Runtime.DryRun {
+							ec.Push(mkdirdashp(zpath))
+						}
+
+						cmd.AppendArgs("upx", "-q", "--lzma",
+							filepath.Join(binaryPath, binaryName),
+							"-o", filepath.Join(zpath, binaryName))
+					}
+
+					if conf.Runtime.DryRun {
+						grip.Info(cmd.String())
+						continue
+					}
+
+					jobs.PushBack(cmd.Worker())
 				}
 
-				if dryRun {
-					grip.Info(cmd.String())
-					continue
-				}
+				ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
 
-				jobs.PushBack(cmd.Worker())
-			}
-
-			ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
-
-			return ec.Resolve()
-		})
+				return ec.Resolve()
+			}),
+		)
 }
 
 func joindot(s ...string) string { return strings.Join(s, ".") }
