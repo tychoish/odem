@@ -68,7 +68,7 @@ func BuildArtifacts(ctx context.Context) error {
 				ec.Push(mkdirdashp(zpath))
 			}
 			zbin := filepath.Join(zpath, binaryName)
-			f build.GOOS == "darwin" {
+			if build.GOOS == "darwin" {
 				cmd.AppendArgs("upx", "--force-macos", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
 			} else {
 				cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
