@@ -572,24 +572,14 @@ func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err e
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Debut Leaders: %d", year))
-	mb.KV("Year", strconv.Itoa(year))
-	mb.Line()
-
-	mb.NewTable(
-		mdwn.Column{Name: "Name"},
-		mdwn.Column{Name: "Leads", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
-		return []string{row.Leader, row.NumLeads}
-	})).Build()
-	mb.Line()
+	writeLeaderCountTable(&mb, "Leads", erc.HandleAll(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
 }
 
 func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	years := p.Years
-	yearsStrs := irt.Collect(irt.Convert(irt.Slice(years), itoa))
+	yearsStrs := irt.Collect(irt.Convert(irt.Slice(p.Years), itoa))
 
 	w, err := p.getWriter(append([]string{"report", "songs-by-key"}, yearsStrs...)...)
 	if err != nil {
@@ -601,7 +591,7 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) 
 	var mb mdwn.Builder
 
 	heading := "Songs by Key (All Time)"
-	if len(years) > 0 {
+	if len(p.Years) > 0 {
 		heading = fmt.Sprintf("Songs by Key (%s)", strings.Join(yearsStrs, ", "))
 	}
 	mb.H2(heading)
@@ -610,7 +600,7 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) 
 		mdwn.Column{Name: "Key"},
 		mdwn.Column{Name: "Count", RightAlign: true},
 		mdwn.Column{Name: "Percentage", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.SongsByKey(ctx, years...), ec.Push), func(row models.LeaderSongRank) []string {
+	).Extend(irt.Convert(erc.HandleAll(conn.SongsByKey(ctx, p.Years...), ec.Push), func(row models.LeaderSongRank) []string {
 		return []string{row.Key, row.NumLeads, fmt.Sprintf("%.1f%%", row.Ratio*100)}
 	})).Build()
 	mb.Line()
@@ -630,13 +620,7 @@ func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p Params) (er
 	var mb mdwn.Builder
 
 	mb.H2("Leaders by Top-20 Leads")
-	mb.NewTable(
-		mdwn.Column{Name: "Name"},
-		mdwn.Column{Name: "Top-20 Leads", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
-		return []string{row.Leader, row.NumLeads}
-	})).Build()
-	mb.Line()
+	writeLeaderCountTable(&mb, "Top-20 Leads", erc.HandleAll(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -681,13 +665,7 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p Params) (err error
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Leaders in Key: %s", key))
-	mb.NewTable(
-		mdwn.Column{Name: "Name"},
-		mdwn.Column{Name: "Count", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.LeadersByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
-		return []string{row.Leader, row.NumLeads}
-	})).Build()
-	mb.Line()
+	writeLeaderCountTable(&mb, "Count", erc.HandleAll(conn.LeadersByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()

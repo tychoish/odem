@@ -20,6 +20,17 @@ func writeSongTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderSongRank]) {
 	mb.Line()
 }
 
+func writeLeaderCountTable(mb *mdwn.Builder, countColName string, seq iter.Seq[models.LeaderSongRank]) {
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: countColName, RightAlign: true},
+	).Extend(irt.Convert(seq, func(row models.LeaderSongRank) []string {
+		return []string{row.Leader, row.NumLeads}
+	})).Build()
+
+	mb.Line()
+}
+
 func writeLeaderFootstepTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderFootstep]) {
 	mb.NewTable(
 		mdwn.Column{Name: "Song"},
