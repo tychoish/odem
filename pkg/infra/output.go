@@ -19,9 +19,18 @@ type (
 )
 
 func NewYAML[T any](in T) YAML[T] { return YAML[T]{inner: in} }
-func NewJSON[T any](in T) JSON[T] { return JSON[T]{inner: in} }
 func (j YAML[T]) String() string  { return string(erc.Must(yaml.Marshal(j.inner))) }
-func (j JSON[T]) String() string  { return string(erc.Must(json.Marshal(j.inner))) }
+func (j YAML[T]) Format(f fmt.State, verb rune) {
+	erc.Invariant(yaml.NewEncoder(f,
+		yaml.Indent(2),
+		yaml.IndentSequence(true),
+		yaml.UseLiteralStyleIfMultiline(true),
+	).Encode(j.inner))
+}
+
+func NewJSON[T any](in T) JSON[T]               { return JSON[T]{inner: in} }
+func (j JSON[T]) String() string                { return string(erc.Must(json.Marshal(j.inner))) }
+func (j JSON[T]) Format(f fmt.State, verb rune) { erc.Invariant(json.NewEncoder(f).Encode(j.inner)) }
 
 func WriteTabbedKVs[T any](wr io.Writer, seq iter.Seq2[string, T]) error {
 	tw := tabwriter.NewWriter(wr, 2, 4, 2, ' ', 0)

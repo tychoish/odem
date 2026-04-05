@@ -39,6 +39,10 @@ func init() {
 	BuildTime.Set(func() time.Time { return erc.Must(time.Parse(time.DateTime, cmp.Or(buildTime, "1986-05-19 00:00:00"))) })
 }
 
+func IsPrerelease(version string) bool {
+	return erc.Must(semver.NewVersion(version)).Prerelease() != ""
+}
+
 func GitDescribe() string {
 	b := new(bytes.Buffer)
 	buf := util.NewLocalBuffer(b)
@@ -76,7 +80,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		case strings.Contains(name, "386"):
 			break
 		case strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz"):
-			artifacts.Add(joinstr(path, "#archive: " ))
+			artifacts.Add(joinstr(path, "#archive: "))
 		case strings.HasSuffix(name, ".sha256"):
 			artifacts.Add(joinstr(path, "#checksum (sha256): ", name))
 		}
