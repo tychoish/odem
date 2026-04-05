@@ -33,7 +33,6 @@ const (
 	MinutesAppOpPopularInOnesExperience
 	MinutesAppOpPopularInYears
 	MinutesAppOpLocallyPopular
-	MinutesAppOpRetry
 	MinutesAppOpNeverSung
 	MinutesAppOpNeverLed
 	MinutesAppOpUnfamilarHits
@@ -45,6 +44,7 @@ const (
 	MinutesAppOpLeaderSingings
 	MinutesAppOpLeaderFavoriteKey
 	MinutesAppOpInvalid
+	MinutesAppOpRetry
 	MinutesAppOpExit = 181
 )
 
