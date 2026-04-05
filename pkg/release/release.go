@@ -73,21 +73,29 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 
 		name := d.Name()
 		switch {
+		case strings.Contains(name, "386"):
+			break
 		case strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz"):
-			artifacts.Add(path)
+			artifacts.Add(joinstr(path, "#archive: " ))
 		case strings.HasSuffix(name, ".sha256"):
-			artifacts.Add(joinstr(path, "#sha256 checksum for ", name))
+			artifacts.Add(joinstr(path, "#checksum (sha256): ", name))
 		}
 
 		return nil
 	}); err != nil {
 		return err
 	}
-	if zw := filepath.Join(buildDir, "windows-amd64.lzma", "odem.exe"); util.FileExists(zw) {
-		artifacts.Add(joinstr(zw, "#odem for windows-amd64 with upx+lzma"))
+	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); util.FileExists(zw) {
+		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
-	if zw := filepath.Join(buildDir, "linux-amd64.lzma", "odem.exe"); util.FileExists(zw) {
-		artifacts.Add(joinstr(zw, "#odem for linux-amd64 with upx+lzma"))
+	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); util.FileExists(zw) {
+		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
+	}
+	if zw := filepath.Join(buildDir, joinstr(Name, "32")); util.FileExists(zw) {
+		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) linux-32bit: ", zw))
+	}
+	if zw := filepath.Join(buildDir, joindot(Name, ".app")); util.FileExists(zw) {
+		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) macOS : ", zw))
 	}
 
 	if artifacts.Len() == 0 {

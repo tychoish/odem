@@ -33,7 +33,7 @@ func BuildArtifacts(ctx context.Context) error {
 	jpm := jasper.Context(ctx)
 	var jobs dt.List[fnx.Worker]
 
-	namePart := fmt.Sprintf("odem-v%s", versionString)
+	namePart := fmt.Sprintf("%s-v%s", Name, versionString)
 	versionBuildPath := filepath.Join(conf.Build.Path, namePart)
 	grip.Sender().SetPriority(level.Debug)
 
@@ -44,7 +44,7 @@ func BuildArtifacts(ctx context.Context) error {
 			ec.Push(mkdirdashp(binaryPath))
 		}
 
-		artifactName := fmt.Sprintf("odem-%s-%s-%s", versionString, build.GOOS, build.GOARCH)
+		artifactName := fmt.Sprintf("%s-%s-%s-%s", Name, versionString, build.GOOS, build.GOARCH)
 		var binaryName string
 		if build.GOOS == "windows" {
 			binaryName = joindot(Name, "exe")
@@ -63,21 +63,37 @@ func BuildArtifacts(ctx context.Context) error {
 
 		cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
 
-		if !conf.Build.DisableCompression && build.GOOS != "darwin" {
+		if !conf.Build.DisableCompression {
 			zpath := joindot(binaryPath, "lzma")
 			if !conf.Runtime.DryRun {
 				ec.Push(mkdirdashp(zpath))
 			}
 			zbin := filepath.Join(zpath, binaryName)
-			cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+			if build.GOOS == "darwin" {
+				cmd.AppendArgs("upx", "--force-macos", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+			} else {
+				cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+			}
 			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.lzma.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
-		}
+			if build.GOARCH == "386" {
+				bin32 := filepath.Join(versionBuildPath, joinstr(Name, "32"))
+				cmd.AppendArgs("cp", zbin, bin32)
+				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", bin32, filepath.Join(versionBuildPath, bin32)))
+			}
 
-		if build.GOOS == "windows" {
+		}
+		switch {
+		case build.GOOS == "windows":
 			zipball := filepath.Join(versionBuildPath, joindot(artifactName, "zip"))
 			cmd.AppendArgs("zip", "-j", zipball, filepath.Join(binaryPath, binaryName))
 			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball))
-		} else {
+		case build.GOOS == "darwin" && build.GOARCH == "arm64":
+			binapp := filepath.Join(versionBuildPath, joindot(Name, "app"))
+			cmd.AppendArgs("cp", filepath.Join(binaryPath, binaryName), binapp)
+			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", binapp, filepath.Join(versionBuildPath, binapp)))
+
+			fallthrough
+		default:
 			tarball := filepath.Join(versionBuildPath, joindot(artifactName, "tar.gz"))
 			cmd.AppendArgs("tar", "czvf", tarball, "-C", binaryPath, binaryName)
 			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", tarball, tarball))
