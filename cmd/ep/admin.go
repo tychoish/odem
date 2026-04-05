@@ -71,7 +71,7 @@ func Release() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("release").
 		SetUsage("build and release automation").
-		With(infra.HelpAction).
+		With(infra.CommandHelpAction).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("tag").

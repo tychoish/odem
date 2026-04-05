@@ -16,7 +16,7 @@ func Docs() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("docs").
 		SetUsage("access to 'odem' package documentation").
-		With(infra.HelpAction).
+		With(infra.RootHelpAction).
 		Subcommanders(
 			cmdr.MakeCommander().SetName("readme").Aliases("README").With(infra.WorkerAction(printDocs("README.md"))),
 			cmdr.MakeCommander().SetName("licenses").Aliases("LICENSES").With(infra.WorkerAction(printDocs("LICENSE"))),

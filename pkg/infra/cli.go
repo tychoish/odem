@@ -81,7 +81,7 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		Middleware(logger.Setup).
 		Middleware(JasperSetup).
 		EnableCompletionCmd().
-		With(HelpAction).
+		With(RootHelpAction).
 		Subcommanders(cmdrs...),
 	)
 }
@@ -92,8 +92,12 @@ func JasperSetup(ctx context.Context) context.Context {
 	return jasper.WithManager(ctx, jpm)
 }
 
-func HelpAction(cmd *cmdr.Commander) {
-	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return cli.ShowAppHelp(cc) })
+func RootHelpAction(cmd *cmdr.Commander) {
+	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return cli.DefaultShowRootCommandHelp(cc) })
+}
+
+func CommandHelpAction(cmd *cmdr.Commander) {
+	cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return cli.DefaultShowSubcommandHelp(cc) })
 }
 
 func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
