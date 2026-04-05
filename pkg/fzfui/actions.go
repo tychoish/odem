@@ -373,7 +373,7 @@ func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg stri
 	}
 
 	grip.Infof("debut leaders in %d", year)
-	return renderTopLedSongs(dbconn.NewLeadersByYear(ctx, year, 40))
+	return renderLeaderCounts(dbconn.NewLeadersByYear(ctx, year, 40))
 }
 
 func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
@@ -402,7 +402,7 @@ func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) er
 
 func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ string) error {
 	grip.Info("singers ordered by number of top-20 leads")
-	return renderTopLedSongs(dbconn.LeadersByTop20Leads(ctx, 40))
+	return renderLeaderCounts(dbconn.LeadersByTop20Leads(ctx, 40))
 }
 
 func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, singer string) error {
@@ -440,7 +440,7 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 	}
 
 	grip.Infof("leaders by number of leads in key %q", key)
-	return renderTopLedSongs(dbconn.LeadersByKey(ctx, key, 40))
+	return renderLeaderCounts(dbconn.LeadersByKey(ctx, key, 40))
 }
 
 func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {

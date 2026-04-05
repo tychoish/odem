@@ -30,6 +30,22 @@ func renderTopLeaders(seq iter.Seq2[models.LeaderOfSongInfo, error]) error {
 	return ec.Resolve()
 }
 
+func renderLeaderCounts(seq iter.Seq2[models.LeaderSongRank, error]) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(seq, ec.Push), func(s models.LeaderSongRank) []string {
+		return []string{s.Leader, s.NumLeads}
+	})).Build()
+	if ec.Ok() {
+		_, err := mb.WriteTo(os.Stdout)
+		ec.Push(err)
+	}
+	return ec.Resolve()
+}
+
 func renderTopLedSongs(seq iter.Seq2[models.LeaderSongRank, error]) error {
 	var ec erc.Collector
 	var mb mdwn.Builder
