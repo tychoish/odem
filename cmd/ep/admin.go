@@ -10,6 +10,7 @@ import (
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
+	"github.com/tychoish/jasper"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -72,6 +73,19 @@ func Release() *cmdr.Commander {
 		SetUsage("build and release automation").
 		With(infra.HelpAction).
 		Subcommanders(
+			cmdr.MakeCommander().
+				SetName("tag").
+				SetUsage("shortcut create release tag").
+				Flags(cmdr.FlagBuilder("v0.0.0").
+					SetName("tag").
+					SetRequired(true).
+					SetUsage("name of new tag, should start with a V").Flag()).
+				SetAction(func(ctx context.Context, cc *cli.Command) error {
+					return jasper.Context(ctx).
+						CreateCommand(ctx).
+						AppendArgs("git", "tag", "--annotate", "--edit", cmdr.GetFlag[string](cc, "tag")).
+						Run(ctx)
+				}),
 			cmdr.MakeCommander().
 				SetName("build").
 				SetUsage("build artifacts for odem release; must run inside of the odem git repository").
