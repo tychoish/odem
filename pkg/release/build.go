@@ -35,20 +35,23 @@ func BuildArtifacts(ctx context.Context) error {
 
 	namePart := fmt.Sprintf("odem-v%s", versionString)
 	versionBuildPath := filepath.Join(conf.Build.Path, namePart)
+	grip.Sender().SetPriority(level.Debug)
 
 	for build := range irt.Slice(conf.Build.Targets) {
-		binaryPath := filepath.Join(versionBuildPath, joindash(build.GOOS, build.GOARCH))
+		buildName := joindash(build.GOOS, build.GOARCH)
+		binaryPath := filepath.Join(versionBuildPath, buildName)
 		if !conf.Runtime.DryRun {
 			ec.Push(mkdirdashp(binaryPath))
 		}
 
+		artifactName := fmt.Sprintf("odem-%s-%s-%s", versionString, build.GOOS, build.GOARCH)
 		var binaryName string
 		if build.GOOS == "windows" {
 			binaryName = joindot(Name, "exe")
 		} else {
 			binaryName = Name
 		}
-
+		grip.Debugln(ldFlag)
 		cmd := jpm.CreateCommand(ctx).
 			ID(binaryPath).
 			AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
@@ -58,28 +61,26 @@ func BuildArtifacts(ctx context.Context) error {
 			SetOutputSender(level.Debug, logger.Plain(ctx).Sender()).
 			SetErrorSender(level.Error, logger.Plain(ctx).Sender())
 
-		cmd.Sh(fmt.Sprintf("pushd %q; sha256sum %s > %s.sha256; popd", binaryPath, binaryName, binaryName))
+		cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
 
 		if !conf.Build.DisableCompression && build.GOOS != "darwin" {
 			zpath := joindot(binaryPath, "lzma")
 			if !conf.Runtime.DryRun {
 				ec.Push(mkdirdashp(zpath))
 			}
-			cmd.AppendArgs("upx", "-q", "--lzma",
-				filepath.Join(binaryPath, binaryName),
-				"-o", filepath.Join(zpath, binaryName))
-			cmd.Sh(fmt.Sprintf("pushd %q; sha256sum %s > %s.sha256; popd", zpath, binaryName, binaryName))
+			zbin := filepath.Join(zpath, binaryName)
+			cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.lzma.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
 		}
 
-		archiveName := fmt.Sprintf("odem-%s-%s-%s", versionString, build.GOOS, build.GOARCH)
 		if build.GOOS == "windows" {
-			cmd.AppendArgs("zip", "-j",
-				filepath.Join(versionBuildPath, joindot(archiveName, "zip")),
-				filepath.Join(binaryPath, binaryName))
+			zipball := filepath.Join(versionBuildPath, joindot(artifactName, "zip"))
+			cmd.AppendArgs("zip", "-j", zipball, filepath.Join(binaryPath, binaryName))
+			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball))
 		} else {
-			cmd.AppendArgs("tar", "czvf",
-				filepath.Join(versionBuildPath, joindot(archiveName, "tar.gz")),
-				"-C", binaryPath, binaryName)
+			tarball := filepath.Join(versionBuildPath, joindot(artifactName, "tar.gz"))
+			cmd.AppendArgs("tar", "czvf", tarball, "-C", binaryPath, binaryName)
+			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", tarball, tarball))
 		}
 
 		if conf.Runtime.DryRun {

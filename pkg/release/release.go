@@ -72,8 +72,11 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		}
 
 		name := d.Name()
-		if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz") || strings.HasSuffix(name, ".sha256") {
+		switch {
+		case strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz"):
 			artifacts.Add(path)
+		case strings.HasSuffix(name, ".sha256"):
+			artifacts.Add(joinstr(path, "#sha256 checksum for ", name))
 		}
 
 		return nil
