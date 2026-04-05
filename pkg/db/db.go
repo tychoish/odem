@@ -608,7 +608,7 @@ LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL
   AND m.Year = ?
   AND l.id NOT IN (
-      SELECT DISTINCT slj2.leader_id
+      SELECT slj2.leader_id
       FROM song_leader_joins AS slj2
       JOIN minutes AS m2 ON m2.id = slj2.minutes_id
       WHERE m2.Year < ?
@@ -628,9 +628,7 @@ JOIN minutes AS m ON m.id = slj.minutes_id
 JOIN book_song_joins AS bsj ON bsj.song_id = slj.song_id AND bsj.book_id = 2
 WHERE bsj.keys != ''`)
 	if len(years) > 0 {
-		yearsInt := make([]int, len(years))
-		copy(yearsInt, years)
-		qb.With(` AND m.Year IN (%+?)`, yearsInt)
+		qb.With(` AND m.Year IN (%+?)`, years)
 	}
 	qb.WithSQL(` GROUP BY bsj.keys ORDER BY count DESC`)
 	query, args := qb.Build()
@@ -639,13 +637,13 @@ WHERE bsj.keys != ''`)
 
 func (conn *Connection) LeadersByTop20Leads(ctx context.Context, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
-SELECT COALESCE(lna.name, l.name, '') AS name,
+SELECT CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
        l.top20_count AS count
 FROM leaders AS l
 LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL AND l.top20_count > 0
-ORDER BY l.top20_count DESC
+ORDER BY count DESC
 LIMIT ?`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, cmp.Or(limit, 40))
 }
@@ -675,7 +673,7 @@ func (conn *Connection) PopularSongsByKey(ctx context.Context, key string, limit
 SELECT
     bsj.page_num AS song_page,
     s.title AS song_title,
-    COUNT(slj.id) AS count,
+    COUNT(DISTINCT slj.id) AS count,
     bsj.keys AS song_keys
 FROM book_song_joins AS bsj
 JOIN songs AS s ON s.id = bsj.song_id
