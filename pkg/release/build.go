@@ -35,7 +35,6 @@ func BuildArtifacts(ctx context.Context) error {
 
 	namePart := fmt.Sprintf("%s-v%s", Name, versionString)
 	versionBuildPath := filepath.Join(conf.Build.Path, namePart)
-	grip.Sender().SetPriority(level.Debug)
 
 	for build := range irt.Slice(conf.Build.Targets) {
 		buildName := joindash(build.GOOS, build.GOARCH)
@@ -69,7 +68,7 @@ func BuildArtifacts(ctx context.Context) error {
 				ec.Push(mkdirdashp(zpath))
 			}
 			zbin := filepath.Join(zpath, binaryName)
-			if build.GOOS == "darwin" {
+			f build.GOOS == "darwin" {
 				cmd.AppendArgs("upx", "--force-macos", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
 			} else {
 				cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
@@ -78,7 +77,14 @@ func BuildArtifacts(ctx context.Context) error {
 			if build.GOARCH == "386" {
 				bin32 := filepath.Join(versionBuildPath, joinstr(Name, "32"))
 				cmd.AppendArgs("cp", zbin, bin32)
-				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", bin32, filepath.Join(versionBuildPath, bin32)))
+				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", bin32, bin32))
+			}
+
+			if build.GOOS == "darwin" && build.GOARCH == "arm64" {
+				binapp := filepath.Join(versionBuildPath, joindot(Name, "app"))
+				cmd.AppendArgs("cp", filepath.Join(binaryPath, binaryName), binapp)
+				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", binapp, binapp))
+
 			}
 
 		}
@@ -87,12 +93,6 @@ func BuildArtifacts(ctx context.Context) error {
 			zipball := filepath.Join(versionBuildPath, joindot(artifactName, "zip"))
 			cmd.AppendArgs("zip", "-j", zipball, filepath.Join(binaryPath, binaryName))
 			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball))
-		case build.GOOS == "darwin" && build.GOARCH == "arm64":
-			binapp := filepath.Join(versionBuildPath, joindot(Name, "app"))
-			cmd.AppendArgs("cp", filepath.Join(binaryPath, binaryName), binapp)
-			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", binapp, filepath.Join(versionBuildPath, binapp)))
-
-			fallthrough
 		default:
 			tarball := filepath.Join(versionBuildPath, joindot(artifactName, "tar.gz"))
 			cmd.AppendArgs("tar", "czvf", tarball, "-C", binaryPath, binaryName)
