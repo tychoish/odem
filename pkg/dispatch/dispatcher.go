@@ -43,6 +43,12 @@ const (
 	MinutesAppOpLeaderLeadHistory
 	MinutesAppOpLeaderSingings
 	MinutesAppOpLeaderFavoriteKey
+	MinutesAppOpNewLeadersByYear
+	MinutesAppOpSongsByKey
+	MinutesAppOpTop20Leaders
+	MinutesAppOpLeaderSingingsPerYear
+	MinutesAppOpLeadersByKey
+	MinutesAppOpPopularSongsByKey
 	MinutesAppOpInvalid
 	MinutesAppOpRetry
 	MinutesAppOpExit = 181
@@ -308,6 +314,26 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeaderFavoriteKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFavoriteKey).Register,
 		}
+	case MinutesAppOpNewLeadersByYear:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "new-leaders",
+			Description: "leaders making their debut in a given year, by lead count",
+			Aliases:     []string{"new-leaders", "debuts", "first-timers"},
+			Reporter:    reportui.NewLeadersByYear,
+			Fuzz:        fzfui.NewLeadersByYearAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.NewLeadersByYear).Register,
+		}
+	case MinutesAppOpSongsByKey:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "songs-by-key",
+			Description: "frequency of song keys in the minutes, with percentage of total",
+			Aliases:     []string{"songs-by-key", "keys", "key-stats"},
+			Reporter:    reportui.SongsByKey,
+			Fuzz:        fzfui.SongsByKeyAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.SongsByKey).Register,
+		}
 	case MinutesAppOpLeaderShare:
 		return MinutesAppRegistration{
 			ID:          mao,
@@ -317,6 +343,46 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeadershipShare,
 			Fuzz:        fzfui.LeadersShareOfLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderShare).Register,
+		}
+	case MinutesAppOpTop20Leaders:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "top20-leaders",
+			Description: "leaders ordered by number of top-20 leads",
+			Aliases:     []string{"top20-leaders", "top20", "top-twenty"},
+			Reporter:    reportui.LeadersByTop20Leads,
+			Fuzz:        fzfui.LeadersByTop20LeadsAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByTop20Leads).Register,
+		}
+	case MinutesAppOpLeaderSingingsPerYear:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "singings-per-year",
+			Description: "number of singings a leader attended per year",
+			Aliases:     []string{"singings-per-year", "yearly-singings", "annual-singings"},
+			Reporter:    reportui.LeaderSingingsPerYear,
+			Fuzz:        fzfui.LeaderSingingsPerYearAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.LeaderSingingsPerYear).Register,
+		}
+	case MinutesAppOpLeadersByKey:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "leaders-in-key",
+			Description: "leaders ordered by number of leads in a given key",
+			Aliases:     []string{"leaders-in-key", "key-leaders", "leads-in-key"},
+			Reporter:    reportui.LeadersByKey,
+			Fuzz:        fzfui.LeadersByKeyAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByKey).Register,
+		}
+	case MinutesAppOpPopularSongsByKey:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "songs-in-key",
+			Description: "most frequently led songs in a given key",
+			Aliases:     []string{"popular-in-key", "key-songs", "songs-in-key"},
+			Reporter:    reportui.PopularSongsByKey,
+			Fuzz:        fzfui.PopularSongsByKeyAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.PopularSongsByKey).Register,
 		}
 	case MinutesAppOpExit:
 		return MinutesAppRegistration{

@@ -595,6 +595,117 @@ ORDER BY count DESC`)
 	return dbx.Query[models.LeaderLeadCount](ctx, conn.db.QueryContext, query, args...)
 }
 
+func (conn *Connection) NewLeadersByYear(ctx context.Context, year int, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+    CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
+    COUNT(slj.id) AS count
+FROM leaders AS l
+JOIN song_leader_joins AS slj ON slj.leader_id = l.id
+JOIN minutes AS m ON m.id = slj.minutes_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
+  AND m.Year = ?
+  AND l.id NOT IN (
+      SELECT DISTINCT slj2.leader_id
+      FROM song_leader_joins AS slj2
+      JOIN minutes AS m2 ON m2.id = slj2.minutes_id
+      WHERE m2.Year < ?
+  )
+GROUP BY l.id
+ORDER BY count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, year, year, cmp.Or(limit, 40))
+}
+
+func (conn *Connection) SongsByKey(ctx context.Context, years ...int) iter.Seq2[models.LeaderSongRank, error] {
+	var qb dbx.Builder
+	qb.WithSQL(`SELECT bsj.keys AS song_keys, COUNT(*) AS count,
+    CAST(COUNT(*) AS REAL) / SUM(COUNT(*)) OVER () AS ratio
+FROM song_leader_joins AS slj
+JOIN minutes AS m ON m.id = slj.minutes_id
+JOIN book_song_joins AS bsj ON bsj.song_id = slj.song_id AND bsj.book_id = 2
+WHERE bsj.keys != ''`)
+	if len(years) > 0 {
+		yearsInt := make([]int, len(years))
+		copy(yearsInt, years)
+		qb.With(` AND m.Year IN (%+?)`, yearsInt)
+	}
+	qb.WithSQL(` GROUP BY bsj.keys ORDER BY count DESC`)
+	query, args := qb.Build()
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, args...)
+}
+
+func (conn *Connection) LeadersByTop20Leads(ctx context.Context, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT COALESCE(lna.name, l.name, '') AS name,
+       l.top20_count AS count
+FROM leaders AS l
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL AND l.top20_count > 0
+ORDER BY l.top20_count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, cmp.Or(limit, 40))
+}
+
+func (conn *Connection) LeaderSingingsPerYear(ctx context.Context, name string) iter.Seq2[irt.KV[string, int], error] {
+	const query = `
+SELECT CAST(m.Year AS TEXT) AS key, COUNT(DISTINCT slj.minutes_id) AS value
+FROM song_leader_joins AS slj
+JOIN minutes AS m ON slj.minutes_id = m.id
+JOIN leaders AS l ON slj.leader_id = l.id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
+AND CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
+GROUP BY m.Year
+ORDER BY m.Year ASC`
+	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name)
+}
+
+func (conn *Connection) AllKeys(ctx context.Context) iter.Seq2[string, error] {
+	const query = `SELECT DISTINCT keys FROM book_song_joins WHERE book_id = 2 AND keys != '' ORDER BY keys;`
+	return dbx.Query[string](ctx, conn.db.QueryContext, query)
+}
+
+func (conn *Connection) PopularSongsByKey(ctx context.Context, key string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    COUNT(slj.id) AS count,
+    bsj.keys AS song_keys
+FROM book_song_joins AS bsj
+JOIN songs AS s ON s.id = bsj.song_id
+JOIN song_leader_joins AS slj ON slj.song_id = bsj.song_id
+WHERE bsj.book_id = 2
+  AND bsj.keys = ?
+GROUP BY bsj.song_id
+ORDER BY count DESC
+LIMIT ?;`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, key, cmp.Or(limit, 40))
+}
+
+func (conn *Connection) LeadersByKey(ctx context.Context, key string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT
+	CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
+	COUNT(slj.id) AS count
+FROM song_leader_joins AS slj
+JOIN leaders AS l ON l.id = slj.leader_id
+JOIN book_song_joins AS bsj ON bsj.song_id = slj.song_id AND bsj.book_id = 2
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
+  AND bsj.keys = ?
+GROUP BY l.id
+ORDER BY count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, key, cmp.Or(limit, 40))
+}
+
 func (conn *Connection) NeverSung(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT

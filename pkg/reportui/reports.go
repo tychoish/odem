@@ -556,6 +556,162 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err err
 	return ec.Resolve()
 }
 
+func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	year := time.Now().Year()
+	if len(p.Years) > 0 && p.Years[0] != 0 {
+		year = p.Years[0]
+	}
+
+	w, err := p.getWriter("report", "new-leaders", strconv.Itoa(year))
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Debut Leaders: %d", year))
+	mb.KV("Year", strconv.Itoa(year))
+	mb.Line()
+
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Leads", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
+		return []string{row.Leader, row.NumLeads}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	years := p.Years
+	yearsStrs := irt.Collect(irt.Convert(irt.Slice(years), itoa))
+
+	w, err := p.getWriter(append([]string{"report", "songs-by-key"}, yearsStrs...)...)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	heading := "Songs by Key (All Time)"
+	if len(years) > 0 {
+		heading = fmt.Sprintf("Songs by Key (%s)", strings.Join(yearsStrs, ", "))
+	}
+	mb.H2(heading)
+
+	mb.NewTable(
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+		mdwn.Column{Name: "Percentage", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.SongsByKey(ctx, years...), ec.Push), func(row models.LeaderSongRank) []string {
+		return []string{row.Key, row.NumLeads, fmt.Sprintf("%.1f%%", row.Ratio*100)}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "top20-leaders")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2("Leaders by Top-20 Leads")
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Top-20 Leads", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
+		return []string{row.Leader, row.NumLeads}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	singer, err := p.SelectLeader(ctx, conn)
+	if err != nil {
+		return err
+	}
+
+	w, err := p.getWriter(singer, "singings-per-year")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Singings Per Year: %s", singer))
+	mb.KVTable(
+		irt.MakeKV("Year", "Singings"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderSingingsPerYear(ctx, singer), ec.Push)), intValToStr),
+	)
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func LeadersByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	key := p.Name
+
+	w, err := p.getWriter("report", "leaders-in-key", key)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Leaders in Key: %s", key))
+	mb.NewTable(
+		mdwn.Column{Name: "Name"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(conn.LeadersByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LeaderSongRank) []string {
+		return []string{row.Leader, row.NumLeads}
+	})).Build()
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func PopularSongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	key := p.Name
+
+	w, err := p.getWriter("report", "songs-in-key", key)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Popular Songs in Key: %s", key))
+	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
 func LeaderFootsteps(ctx context.Context, conn *db.Connection, p Params) error {
 	singer, err := p.SelectLeader(ctx, conn)
 	if err != nil {

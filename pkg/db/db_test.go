@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -415,6 +416,176 @@ func TestLeaderFavoriteKey(t *testing.T) {
 	}
 	if count == 0 {
 		t.Errorf("LeaderFavoriteKey(%q): expected at least one result", testLeader)
+	}
+}
+
+func TestNewLeadersByYear(t *testing.T) {
+	conn, ctx := testConn(t)
+	for _, year := range []int{2010, 2023} {
+		count := 0
+		for row, err := range conn.NewLeadersByYear(ctx, year, 10) {
+			if err != nil {
+				t.Fatalf("NewLeadersByYear(%d): %v", year, err)
+			}
+			if row.Leader == "" {
+				t.Errorf("NewLeadersByYear(%d): expected non-empty leader name", year)
+			}
+			count++
+		}
+		if count == 0 {
+			t.Errorf("NewLeadersByYear(%d): expected at least one result", year)
+		}
+	}
+}
+
+func TestSongsByKey(t *testing.T) {
+	conn, ctx := testConn(t)
+
+	t.Run("AllTime", func(t *testing.T) {
+		var rows []models.LeaderSongRank
+		for row, err := range conn.SongsByKey(ctx) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows = append(rows, row)
+		}
+		if len(rows) == 0 {
+			t.Fatal("SongsByKey: expected at least one result")
+		}
+		var sum float64
+		for _, r := range rows {
+			if r.Ratio <= 0 || r.Ratio > 1 {
+				t.Errorf("SongsByKey: ratio out of (0,1] for key %q: %v", r.Key, r.Ratio)
+			}
+			sum += r.Ratio
+		}
+		if sum < 0.999 || sum > 1.001 {
+			t.Errorf("SongsByKey: ratios sum to %v, expected ~1.0", sum)
+		}
+	})
+
+	t.Run("Year2023", func(t *testing.T) {
+		var rows []models.LeaderSongRank
+		for row, err := range conn.SongsByKey(ctx, 2023) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows = append(rows, row)
+		}
+		if len(rows) == 0 {
+			t.Fatal("SongsByKey(2023): expected at least one result")
+		}
+		var sum float64
+		for _, r := range rows {
+			if r.Ratio <= 0 || r.Ratio > 1 {
+				t.Errorf("SongsByKey(2023): ratio out of (0,1] for key %q: %v", r.Key, r.Ratio)
+			}
+			sum += r.Ratio
+		}
+		if sum < 0.999 || sum > 1.001 {
+			t.Errorf("SongsByKey(2023): ratios sum to %v, expected ~1.0", sum)
+		}
+	})
+}
+
+func TestLeadersByTop20Leads(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for row, err := range conn.LeadersByTop20Leads(ctx, 20) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.NumLeads == "" || row.NumLeads == "0" {
+			t.Errorf("LeadersByTop20Leads: expected count > 0, got %q for %q", row.NumLeads, row.Leader)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("LeadersByTop20Leads: expected at least one result")
+	}
+}
+
+func TestLeaderSingingsPerYear(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for kv, err := range conn.LeaderSingingsPerYear(ctx, testLeader) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kv.Key == "" {
+			t.Errorf("LeaderSingingsPerYear(%q): expected non-empty year key", testLeader)
+		}
+		if kv.Value <= 0 {
+			t.Errorf("LeaderSingingsPerYear(%q): expected positive count for year %q, got %d", testLeader, kv.Key, kv.Value)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("LeaderSingingsPerYear(%q): expected at least one result", testLeader)
+	}
+}
+
+func TestLeadersByKey(t *testing.T) {
+	conn, ctx := testConn(t)
+	const testKey = "A Major"
+	count := 0
+	for row, err := range conn.LeadersByKey(ctx, testKey, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.Leader == "" {
+			t.Errorf("LeadersByKey(%q): expected non-empty leader name", testKey)
+		}
+		c, err2 := strconv.Atoi(row.NumLeads)
+		if err2 != nil || c <= 0 {
+			t.Errorf("LeadersByKey(%q): expected positive count, got %q", testKey, row.NumLeads)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("LeadersByKey(%q): expected at least one result", testKey)
+	}
+}
+
+func TestAllKeys(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for key, err := range conn.AllKeys(ctx) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if key == "" {
+			t.Error("AllKeys: expected non-empty key")
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("AllKeys: expected at least one result")
+	}
+}
+
+func TestPopularSongsByKey(t *testing.T) {
+	conn, ctx := testConn(t)
+	const testKey = "A Major"
+	count := 0
+	for row, err := range conn.PopularSongsByKey(ctx, testKey, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.PageNum == "" {
+			t.Errorf("PopularSongsByKey(%q): expected non-empty page num", testKey)
+		}
+		if row.SongTitle == "" {
+			t.Errorf("PopularSongsByKey(%q): expected non-empty song title", testKey)
+		}
+		c, err2 := strconv.Atoi(row.NumLeads)
+		if err2 != nil || c <= 0 {
+			t.Errorf("PopularSongsByKey(%q): expected positive count, got %q", testKey, row.NumLeads)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("PopularSongsByKey(%q): expected at least one result", testKey)
 	}
 }
 

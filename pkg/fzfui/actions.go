@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -363,6 +364,100 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 		return ec.Resolve()
 	}
 	return nil
+}
+
+func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg string) error {
+	year, err := strconv.Atoi(strings.TrimSpace(arg))
+	if err != nil || year == 0 {
+		year = time.Now().Year()
+	}
+
+	grip.Infof("debut leaders in %d", year)
+	return renderTopLedSongs(dbconn.NewLeadersByYear(ctx, year, 40))
+}
+
+func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
+	years, err := SelectYears(yrs)
+	if err != nil {
+		return err
+	}
+
+	grip.Infof("lessons by key in year(s) %v", years)
+
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.NewTable(
+		mdwn.Column{Name: "Key"},
+		mdwn.Column{Name: "Count", RightAlign: true},
+		mdwn.Column{Name: "Percentage", RightAlign: true},
+	).Extend(irt.Convert(erc.HandleAll(dbconn.SongsByKey(ctx, years...), ec.Push), func(row models.LeaderSongRank) []string {
+		return []string{row.Key, row.NumLeads, fmt.Sprintf("%.1f%%", row.Ratio*100)}
+	})).Build()
+
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
+	}
+	return nil
+}
+
+func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ string) error {
+	grip.Info("singers ordered by number of top-20 leads")
+	return renderTopLedSongs(dbconn.LeadersByTop20Leads(ctx, 40))
+}
+
+func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	if err != nil {
+		return err
+	}
+
+	var ec erc.Collector
+	grip.Infof("singings per year for %q", singer)
+	var mb mdwn.Builder
+	mb.KVTable(
+		irt.MakeKV("Year", "Singings"),
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderSingingsPerYear(ctx, singer), ec.Push)), func(k string, v int) (string, string) {
+			return k, strconv.Itoa(v)
+		}),
+	)
+	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
+		return ec.Resolve()
+	}
+	return nil
+}
+
+func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
+	if key == "" {
+		var err error
+		keys, kerr := erc.FromIteratorAll(dbconn.AllKeys(ctx))
+		if kerr != nil {
+			return kerr
+		}
+		key, err = infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
+		if err != nil {
+			return err
+		}
+	}
+
+	grip.Infof("leaders by number of leads in key %q", key)
+	return renderTopLedSongs(dbconn.LeadersByKey(ctx, key, 40))
+}
+
+func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
+	if key == "" {
+		var err error
+		keys, kerr := erc.FromIteratorAll(dbconn.AllKeys(ctx))
+		if kerr != nil {
+			return kerr
+		}
+		key, err = infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
+		if err != nil {
+			return err
+		}
+	}
+
+	grip.Infof("popular songs in key %q", key)
+	return renderTopLedSongs(dbconn.PopularSongsByKey(ctx, key, 40))
 }
 
 func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {

@@ -3,7 +3,9 @@ package mcpsrv
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -261,6 +263,23 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*
 	}, nil
 }
 
+func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+	leader, err := reportui.SelectLeader(ctx, conn, p.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := erc.FromIteratorUntil(conn.LeaderSingingsPerYear(ctx, leader.Name))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, irt.KV[string, int]]{
+		Results: results,
+		Context: leader.Name,
+	}, nil
+}
+
 func LeaderFootsteps(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderFootstep], error) {
 	leader, err := reportui.SelectLeader(ctx, conn, p.Name)
 	if err != nil {
@@ -285,6 +304,85 @@ func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) (*Con
 	}
 
 	return &ContextualSequence[string, models.LeaderLeadCount]{
+		Results: results,
+	}, nil
+}
+
+func NewLeadersByYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[int, models.LeaderSongRank], error) {
+	year := 0
+	if len(p.Years) > 0 {
+		year = p.Years[0]
+	}
+	if year == 0 {
+		year = cmp.Or(year, time.Now().Year())
+	}
+
+	results, err := erc.FromIteratorUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[int, models.LeaderSongRank]{
+		Context: year,
+		Results: results,
+	}, nil
+}
+
+func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
+	results, err := erc.FromIteratorUntil(conn.SongsByKey(ctx, p.Years...))
+	if err != nil {
+		return nil, err
+	}
+
+	label := "all time"
+	if len(p.Years) > 0 {
+		var sb strings.Builder
+		for i, y := range p.Years {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			fmt.Fprintf(&sb, "%d", y)
+		}
+		label = sb.String()
+	}
+
+	return &ContextualSequence[string, models.LeaderSongRank]{
+		Context: label,
+		Results: results,
+	}, nil
+}
+
+func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
+	results, err := erc.FromIteratorUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderSongRank]{
+		Results: results,
+	}, nil
+}
+
+func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
+	results, err := erc.FromIteratorUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderSongRank]{
+		Context: p.Name,
+		Results: results,
+	}, nil
+}
+
+func PopularSongsByKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
+	results, err := erc.FromIteratorUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderSongRank]{
+		Context: p.Name,
 		Results: results,
 	}, nil
 }
