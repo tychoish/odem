@@ -2,8 +2,6 @@ package reportui
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
@@ -22,14 +20,8 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (*mo
 		return nil, ec.Resolve()
 	}
 
-	toString := func(l models.LeaderProfile) string {
-		return fmt.Sprintf("%s (%d-%d) -- %d lesson(s) [%d unique] at %d singing(s)",
-			l.Name, l.FirstYear, l.LastYear, l.LessonCount, l.UniqueLessonCount, l.SingingCount,
-		)
-	}
-
 	matches := irt.Collect(infra.NewFuzzySearch[models.LeaderProfile](profiles).
-		WithToString(toString).
+		WithToString(models.MenuFormat).
 		Search(input))
 
 	if len(matches) == 0 {
@@ -52,13 +44,8 @@ func SelectSinging(ctx context.Context, conn *db.Connection, name string) (*mode
 	}
 
 	matches := irt.Collect(infra.NewFuzzySearch[models.SingingInfo](singings).
-		WithToString(func(info models.SingingInfo) string {
-			return fmt.Sprintf("%s -- %s (%s)",
-				info.SingingDate.Time().Format("2006-01-02"),
-				strings.ReplaceAll(info.SingingName, "\\n", "; "),
-				info.SingingLocation,
-			)
-		}).Search(name))
+		WithToString(models.MenuFormat).
+		Search(name))
 
 	if len(matches) == 0 {
 		return nil, ers.Error("singing not found")
@@ -79,9 +66,7 @@ func SelectSong(ctx context.Context, conn *db.Connection, name string) (*models.
 	}
 
 	matches := irt.Collect(infra.NewFuzzySearch[models.SongDetail](songs).
-		WithToString(func(s models.SongDetail) string {
-			return fmt.Sprintf("pg %s -- %s", s.PageNum, s.SongTitle)
-		}).Search(name))
+		WithToString(models.MenuFormat).Search(name))
 
 	if len(matches) == 0 {
 		return nil, ers.Error("song not found")

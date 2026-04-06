@@ -2,10 +2,13 @@ package reportui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
@@ -47,6 +50,64 @@ func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, 
 	}
 
 	return fzfui.SelectLeader(ctx, conn, p.Name)
+}
+
+func (p Params) SelectSong(ctx context.Context, conn *db.Connection) (*models.SongDetail, error) {
+	if p.SuppressInteractivity {
+		out, err := SelectSong(ctx, conn, p.Name)
+		if err != nil {
+			return nil, err
+		}
+		return out, nil
+	}
+
+	return fzfui.SelectSong(ctx, conn, p.Name)
+}
+
+func (p Params) SelectSiging(ctx context.Context, conn *db.Connection) (*models.SingingInfo, error) {
+	if p.SuppressInteractivity {
+		out, err := SelectSinging(ctx, conn, p.Name)
+		if err != nil {
+			return nil, err
+		}
+		return out, nil
+	}
+
+	return fzfui.SelectSinging(ctx, conn, p.Name)
+}
+
+func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, error) {
+	if p.SuppressInteractivity {
+		if len(p.Params.Years) > 0 {
+			return p.Params.Years, nil
+		}
+
+		return []int{time.Now().Year() - 1}, nil
+	}
+
+	return fzfui.SelectYears(p.Name)
+}
+
+func (p Params) SelectLocality(ctx context.Context, conn *db.Connection) ([]string, error) {
+	if len(p.Name) > 0 {
+		return strings.Split(p.Name, ","), nil
+	}
+	if p.SuppressInteractivity {
+		return nil, errors.New("headless locality selection not implemented")
+	}
+
+	return nil, ers.New("not implemented")
+}
+
+func (p Params) SelectKey(ctx context.Context, conn *db.Connection) (string, error) {
+	if p.SuppressInteractivity {
+		if len(p.Name) > 0 {
+			return p.Name, nil
+		}
+		return "", errors.New("headless key selection not implemented")
+	}
+
+	return fzfui.SelectKey(ctx, conn, p.Name)
 }
 
 // getWriter returns an io.Writer (stdout or a new file) plus a cleanup func.

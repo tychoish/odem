@@ -17,6 +17,10 @@ import (
 )
 
 func (b *bot) discoverNext() stateFn {
+	if b.state.entry.Requires == nil {
+		return b.renderResults()
+	}
+
 	for requirement := range b.state.entry.Requires.Iterator() {
 		if !b.state.has.Check(requirement) {
 			return b.selectFor(requirement)
@@ -67,8 +71,9 @@ func (b *bot) renderResults() stateFn {
 
 	buf.PushString("```")
 	grip.Error(b.state.entry.Reporter.Report(b.ctx, b.db, reportui.Params{
-		Params:   b.state.params,
-		ToWriter: buf,
+		Params:                b.state.params,
+		ToWriter:              buf,
+		SuppressInteractivity: true,
 	}))
 	buf.PushString("```")
 

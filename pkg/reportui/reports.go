@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
+	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/mdwn"
@@ -421,7 +424,7 @@ func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
 }
 
 func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	years, err := fzfui.SelectYears(p.Name) // TODO change upstream function to take integers and separate out parings
+	years, err := p.SelectYears(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -464,7 +467,7 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 	if err != nil {
 		return err
 	}
-	years, err := fzfui.SelectYears("") // TODO change upstream function to take integers and separate out parings
+	years, err := p.SelectYears(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -557,10 +560,17 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err err
 }
 
 func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	year := time.Now().Year()
-	if len(p.Years) > 0 && p.Years[0] != 0 {
-		year = p.Years[0]
+	years, err := p.SelectYears(ctx, conn)
+	switch {
+	case err != nil:
+		return err
+	case len(years) <= 0:
+		return ers.New("not found")
+	case len(years) > 1:
+		grip.Warning(message.NewKV().KV("op", "got more than ").KV("size", len(years)))
 	}
+
+	year := years[0]
 
 	w, err := p.getWriter("report", "new-leaders", strconv.Itoa(year))
 	if err != nil {
@@ -579,7 +589,15 @@ func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err e
 }
 
 func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	yearsStrs := irt.Collect(irt.Convert(irt.Slice(p.Years), itoa))
+	years, err := p.SelectYears(ctx, conn)
+	switch {
+	case err != nil:
+		return err
+	case len(years) <= 0:
+		return ers.New("not found")
+	}
+
+	yearsStrs := irt.Collect(irt.Convert(irt.Slice(years), itoa))
 
 	w, err := p.getWriter(append([]string{"report", "songs-by-key"}, yearsStrs...)...)
 	if err != nil {
@@ -653,7 +671,10 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p Params) (
 }
 
 func LeadersByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	key := p.Name
+	key, err := p.SelectKey(ctx, conn)
+	if err != nil {
+		return err
+	}
 
 	w, err := p.getWriter("report", "leaders-in-key", key)
 	if err != nil {
@@ -672,7 +693,10 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p Params) (err error
 }
 
 func PopularSongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	key := p.Name
+	key, err := p.SelectKey(ctx, conn)
+	if err != nil {
+		return err
+	}
 
 	w, err := p.getWriter("report", "songs-in-key", key)
 	if err != nil {

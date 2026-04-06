@@ -15,6 +15,13 @@ import (
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/models"
 )
+/*
+TODO:
+- [ ] figure how why there's double posting
+- [ ] suppress interactivity throughout the codebase
+- [ ] build specific telegram bot rendering. (new package, probably)
+*/
+
 
 type Service struct {
 	signal <-chan struct{}
@@ -92,6 +99,7 @@ func (b *bot) resetState() stateFn {
 	b.state.entry = nil
 	b.state.op = nil
 	b.state.inProgress = false
+	b.state.has = &dt.Set[dispatch.MinutesAppQueryType]{}
 	b.state.params = models.Params{
 		Limit: 10,
 		Years: []int{2025, 2026},

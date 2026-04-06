@@ -2,7 +2,6 @@ package fzfui
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -23,9 +22,8 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 	}
 
 	sg := infra.NewFuzzySearch[models.SongDetail](songDetails).
-		WithToString(func(in models.SongDetail) string {
-			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
-		}).Search(strings.Join(args, " "))
+		WithToString(models.MenuFormat).
+		Search(strings.Join(args, " "))
 
 	sdIdx := map[models.SongDetail]int{}
 	for i, v := range songDetails {
@@ -37,10 +35,10 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 			preselction = append(preselction, sidx)
 		}
 	}
+
 	fs := infra.NewFuzzySearch[models.SongDetail](songDetails).
-		WithToString(func(in models.SongDetail) string {
-			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
-		})
+		WithToString(models.MenuFormat)
+
 	if len(preselction) > 0 {
 		fs = fs.WithSelections(preselction)
 	}
@@ -58,15 +56,9 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (str
 		return "", ec.Resolve()
 	}
 
-	toString := func(l models.LeaderProfile) string {
-		return fmt.Sprintf("%s (%d-%d) -- %d lesson(s) [%d unique] at %d singing(s)",
-			l.Name, l.FirstYear, l.LastYear, l.LessonCount, l.UniqueLessonCount, l.SingingCount,
-		)
-	}
-
 	if input != "" {
 		matches := irt.Collect(infra.NewFuzzySearch[models.LeaderProfile](profiles).
-			WithToString(toString).
+			WithToString(models.MenuFormat).
 			Search(input))
 		if len(matches) == 1 {
 			grip.Debugln("resolved leader", matches[0].Name)
@@ -75,7 +67,7 @@ func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (str
 	}
 
 	leader, err := infra.NewFuzzySearch[models.LeaderProfile](profiles).
-		WithToString(toString).
+		WithToString(models.MenuFormat).
 		FindOne()
 	if err != nil {
 		return "", err
@@ -90,13 +82,7 @@ func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (
 
 	singings := irt.Collect(erc.HandleAll(dbconn.AllSingings(ctx), ec.Push))
 	singing, err := infra.NewFuzzySearch[models.SingingInfo](singings).
-		WithToString(func(info models.SingingInfo) string {
-			return fmt.Sprintf("%s -- %s (%s)",
-				info.SingingDate.Time().Format("2006-01-02"),
-				strings.ReplaceAll(info.SingingName, "\\n", "; "),
-				info.SingingLocation,
-			)
-		}).
+		WithToString(models.MenuFormat).
 		Prompt("leaders").
 		FindOne()
 
