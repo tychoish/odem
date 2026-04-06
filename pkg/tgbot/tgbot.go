@@ -2,20 +2,18 @@ package tgbot
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
+	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/models"
-	"github.com/tychoish/odem/pkg/reportui"
 )
 
 type Service struct {
@@ -55,6 +53,7 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 		ctx:    srv.ctx,
 		conf:   srv.conf,
 	}
+	b.resetState()
 
 	resp, err := b.SetMyCommands(&etron.CommandOptions{
 		LanguageCode: "en",
@@ -81,6 +80,7 @@ type bot struct {
 	db    *db.Connection
 	conf  *odem.Configuration
 	state struct {
+		has    *dt.Set[dispatch.MinutesAppQueryType]
 		entry  *dispatch.MinutesAppRegistration
 		op     *dispatch.MinutesAppOperation
 		params models.Params
@@ -90,7 +90,10 @@ type bot struct {
 func (b *bot) resetState() stateFn {
 	b.state.entry = nil
 	b.state.op = nil
-	b.state.params = models.Params{}
+	b.state.params = models.Params{
+		Limit: 10,
+		Years: []int{2025, 2026},
+	}
 	return b.handleMessage
 }
 
@@ -115,8 +118,9 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 		case isOrContainsCmd(u.Message, "quit"):
 			panic("quit")
 		case isOrContainsCmd(u.Message, "help"):
-			b.sendKeyboard()
-			return b.handleMessage // TODO split into its own handler
+			b.selectOperation()
+			// TODO print some kind of help text
+			return b.handleMessage
 		case isOrContainsCmd(u.Message, "reset"):
 			b.sendMarkdown("resetting query...")
 			return b.resetState()
@@ -128,20 +132,7 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 			return b.resetState()
 		}
 	case u.CallbackQuery != nil:
-		grip.Debug(message.NewKV().KV("type", "callback").KV("body", u.CallbackQuery.Message.Text))
-		reg := dispatch.NewMinutesAppOperation(u.CallbackQuery.Data).Registry()
-
-		buf := strut.MakeMutable(1024)
-		defer buf.Release()
-
-		buf.PushString("```")
-		grip.Error(reg.Reporter.Report(b.ctx, b.db, reportui.Params{
-			Params:   models.Params{Name: "Henry Johnson", Limit: 10, Years: []int{2025, 2026}},
-			ToWriter: buf,
-		}))
-		buf.PushString("```")
-
-		b.handleSendMessage(b.SendMessage(buf.String(), b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
+		return b.handleKeyboardResponse(u.CallbackQuery.Data)
 	default:
 		mut := toJson(u)
 		defer mut.Release()
@@ -152,23 +143,6 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 
 func (b *bot) sendMarkdown(msg string) {
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
-}
-
-func (b *bot) sendKeyboard() {
-	btn := irt.Collect(
-		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
-			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
-				reg := mao.Registry().Info()
-				return etron.InlineKeyboardButton{Text: reg.Key, CallbackData: reg.Key}
-			},
-		),
-	)
-
-	b.handleSendMessage(b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
-		ReplyMarkup: etron.InlineKeyboardMarkup{
-			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
-		},
-	}))
 }
 
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {
