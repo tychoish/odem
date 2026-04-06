@@ -7,7 +7,6 @@ import (
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/ers"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem"
@@ -15,13 +14,13 @@ import (
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/models"
 )
+
 /*
 TODO:
-- [ ] figure how why there's double posting
-- [ ] suppress interactivity throughout the codebase
+- [x] figure how why there's double posting
+- [x] suppress interactivity throughout the codebase
 - [ ] build specific telegram bot rendering. (new package, probably)
 */
-
 
 type Service struct {
 	signal <-chan struct{}
@@ -61,18 +60,7 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 		conf:   srv.conf,
 	}
 	b.resetState()
-
-	resp, err := b.SetMyCommands(&etron.CommandOptions{
-		LanguageCode: "en",
-		Scope: etron.BotCommandScope{
-			Type:   etron.BCSTDefault,
-			ChatID: b.chatID,
-			// UserID: 0,
-		},
-	}, irt.Collect(getBotCommands())...)
-
-	grip.Error(err)
-	grip.Info(resp)
+	b.setOperationSelectorButtons()
 
 	return b
 }
@@ -119,7 +107,7 @@ func (b *bot) Update(update *etron.Update) {
 func (b *bot) handleMessage(u *etron.Update) stateFn {
 	switch {
 	case u.Message != nil:
-		return b.handleArbitraryMessage(u.Message, b.sendKeyboard)
+		return b.handleArbitraryMessage(u.Message, b.selectOperationKeyboard)
 	case u.CallbackQuery != nil:
 		return b.handleKeyboardResponse(u.CallbackQuery.Data)
 	default:
@@ -140,9 +128,8 @@ func (b *bot) handleArbitraryMessage(msg *etron.Message, fallback func() stateFn
 	case isOrContainsCmd(msg, "quit"):
 		panic("quit")
 	case isOrContainsCmd(msg, "help"):
-		b.selectOperation()
-		// TODO print some kind of help text
-		return b.sendKeyboard()
+		// TODO print help text
+		return b.selectOperationKeyboard()
 	case isOrContainsCmd(msg, "reset"):
 		b.sendMarkdown("resetting query...")
 		return b.resetState()

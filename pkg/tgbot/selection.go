@@ -13,7 +13,7 @@ import (
 func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 	switch requirement {
 	case dispatch.MinutesAppQueryTypeOperation:
-		return b.selectOperation()
+		return b.selectOperationKeyboard()
 	case dispatch.MinutesAppQueryTypeLeader:
 		return b.selectSinger()
 	case dispatch.MinutesAppQueryTypeSong:
@@ -28,17 +28,17 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 		return b.selectLocality()
 	case dispatch.MinutesAppQueryTypeInvalid:
 		b.sendMarkdown(fmt.Sprintf("invalid option: `%s`: %s", requirement, requirement.Validate()))
-		return b.selectOperation()
+		return b.selectOperationKeyboard()
 	case dispatch.MinutesAppQueryTypeUnknown:
 		b.sendMarkdown("unknown operation")
-		return b.selectOperation()
+		return b.selectOperationKeyboard()
 	default:
 		b.sendMarkdown(fmt.Sprintf("invalid option: `%s`: %s", requirement, requirement.Validate()))
-		return b.selectOperation()
+		return b.selectOperationKeyboard()
 	}
 }
 
-func (b *bot) selectOperation() stateFn {
+func (b *bot) selectOperationKeyboard() stateFn {
 	btn := irt.Collect(
 		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
 			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
@@ -54,7 +54,21 @@ func (b *bot) selectOperation() stateFn {
 		},
 	}))
 
-	return b.wrapInputAsHandler(b.handleKeyboardResponse, b.selectOperation)
+	return b.wrapInputAsHandler(b.handleKeyboardResponse, b.selectOperationKeyboard)
+}
+
+func (b *bot) setOperationSelectorButtons() {
+	resp, err := b.SetMyCommands(&etron.CommandOptions{
+		LanguageCode: "en",
+		Scope: etron.BotCommandScope{
+			Type:   etron.BCSTDefault,
+			ChatID: b.chatID,
+			// UserID: 0,
+		},
+	}, irt.Collect(getBotCommands())...)
+
+	grip.Error(err)
+	grip.Info(resp)
 }
 
 func (b *bot) selectSinger() stateFn {
