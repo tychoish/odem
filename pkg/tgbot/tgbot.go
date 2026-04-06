@@ -86,21 +86,26 @@ func getBotCommands() iter.Seq[etron.BotCommand] {
 type stateFn func(*etron.Update) stateFn
 
 type bot struct {
-	chatID int64
-	state  stateFn // current state; replaced after every update
+	chatID       int64
+	stateMachine stateFn // current state; replaced after every update
 	etron.API
-	ctx  context.Context
-	db   *db.Connection
-	conf *odem.Configuration
+	ctx   context.Context
+	db    *db.Connection
+	conf  *odem.Configuration
+	state struct {
+		entry  *dispatch.MinutesAppRegistration
+		op     *dispatch.MinutesAppOperation
+		params models.Params
+	}
 }
 
 func (b *bot) Update(update *etron.Update) {
 	// Execute the current state and store whatever it returns as the next one.
 	// A single assignment is all the state-machine machinery needed.
-	if b.state != nil {
-		b.state = b.state(update)
+	if b.stateMachine != nil {
+		b.stateMachine = b.stateMachine(update)
 	}
-	b.state = b.handleMessage(update)
+	b.stateMachine = b.handleMessage(update)
 }
 
 func (b *bot) handleMessage(u *etron.Update) stateFn {
@@ -119,7 +124,6 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 		}
 	case u.CallbackQuery != nil:
 		grip.Debug(message.NewKV().KV("type", "callback").KV("body", u.CallbackQuery.Message.Text))
-
 		reg := dispatch.NewMinutesAppOperation(u.CallbackQuery.Data).Registry()
 
 		buf := strut.MakeMutable(1024)
