@@ -1,6 +1,7 @@
 package tgbot
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -28,8 +29,7 @@ func (b *bot) wrapInputAsHandler(in func(string) stateFn, fallback func() stateF
 	return func(u *etron.Update) stateFn {
 		switch {
 		case u.Message != nil:
-			// TODO handle exit/abort/restarts
-			return fallback()
+			return b.handleArbitraryMessage(u.Message, fallback)
 		case u.CallbackQuery != nil:
 			return in(u.CallbackQuery.Data)
 		default:
@@ -57,6 +57,7 @@ func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 		return b.selectOperation()
 	}
 	b.state.entry = stw.Ptr(b.state.op.Registry())
+	b.state.inProgress = true
 	return b.discoverNext()
 }
 
@@ -73,4 +74,22 @@ func (b *bot) renderResults() stateFn {
 
 	b.handleSendMessage(b.SendMessage(buf.String(), b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
 	return b.handleMessage
+}
+
+func (b *bot) sendKeyboard() stateFn {
+	btn := irt.Collect(
+		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
+			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
+				reg := mao.Registry().Info()
+				return etron.InlineKeyboardButton{Text: reg.Key, CallbackData: reg.Key}
+			},
+		),
+	)
+
+	b.handleSendMessage(b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
+		ReplyMarkup: etron.InlineKeyboardMarkup{
+			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
+		},
+	}))
+	return nil
 }

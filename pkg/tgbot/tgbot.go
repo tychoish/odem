@@ -80,21 +80,23 @@ type bot struct {
 	db    *db.Connection
 	conf  *odem.Configuration
 	state struct {
-		has    *dt.Set[dispatch.MinutesAppQueryType]
-		entry  *dispatch.MinutesAppRegistration
-		op     *dispatch.MinutesAppOperation
-		params models.Params
+		has        *dt.Set[dispatch.MinutesAppQueryType]
+		entry      *dispatch.MinutesAppRegistration
+		op         *dispatch.MinutesAppOperation
+		inProgress bool
+		params     models.Params
 	}
 }
 
 func (b *bot) resetState() stateFn {
 	b.state.entry = nil
 	b.state.op = nil
+	b.state.inProgress = false
 	b.state.params = models.Params{
 		Limit: 10,
 		Years: []int{2025, 2026},
 	}
-	return b.handleMessage
+	return b.sendKeyboard()
 }
 
 func (b *bot) Update(update *etron.Update) {
@@ -109,28 +111,7 @@ func (b *bot) Update(update *etron.Update) {
 func (b *bot) handleMessage(u *etron.Update) stateFn {
 	switch {
 	case u.Message != nil:
-		grip.Infoln("message", u.Message.Text)
-		switch {
-		case isOrContainsCmd(u.Message, "exit"):
-			panic("exit")
-		case isOrContainsCmd(u.Message, "abort"):
-			panic("abort")
-		case isOrContainsCmd(u.Message, "quit"):
-			panic("quit")
-		case isOrContainsCmd(u.Message, "help"):
-			b.selectOperation()
-			// TODO print some kind of help text
-			return b.handleMessage
-		case isOrContainsCmd(u.Message, "reset"):
-			b.sendMarkdown("resetting query...")
-			return b.resetState()
-		case isOrContainsCmd(u.Message, "retry"):
-			b.sendMarkdown("retrying...")
-			return b.resetState()
-		case isOrContainsCmd(u.Message, "restart"):
-			b.sendMarkdown("restarting...")
-			return b.resetState()
-		}
+		return b.handleArbitraryMessage(u.Message, b.sendKeyboard)
 	case u.CallbackQuery != nil:
 		return b.handleKeyboardResponse(u.CallbackQuery.Data)
 	default:
@@ -139,6 +120,43 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 		grip.Debug(mut.String())
 	}
 	return b.handleMessage
+}
+
+func (b *bot) handleArbitraryMessage(msg *etron.Message, fallback func() stateFn) stateFn {
+	grip.Infoln("message", msg.Text)
+	switch {
+	case isOrContainsCmd(msg, "exit"):
+		panic("exit")
+	case isOrContainsCmd(msg, "abort"):
+		panic("abort")
+	case isOrContainsCmd(msg, "quit"):
+		panic("quit")
+	case isOrContainsCmd(msg, "help"):
+		b.selectOperation()
+		// TODO print some kind of help text
+		return b.sendKeyboard()
+	case isOrContainsCmd(msg, "reset"):
+		b.sendMarkdown("resetting query...")
+		return b.resetState()
+	case isOrContainsCmd(msg, "retry"):
+		b.sendMarkdown("retrying...")
+		return b.resetState()
+	case isOrContainsCmd(msg, "restart"):
+		b.sendMarkdown("restarting...")
+		return b.resetState()
+	case !b.state.inProgress:
+		if tryTxt := dispatch.NewMinutesAppOperation(msg.Text); tryTxt.Ok() {
+			// note, we do check the match twice here in
+			// the case that three is a match. could be
+			// refactored but not critical
+			return b.handleKeyboardResponse(msg.Text)
+		}
+		return fallback()
+	default:
+		// TODO maybe try and parse "leader/year/singing/song"
+		// from the input text here...
+		return fallback()
+	}
 }
 
 func (b *bot) sendMarkdown(msg string) {
