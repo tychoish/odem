@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/tychoish/fun/adt"
+	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
@@ -78,6 +79,34 @@ func AllMinutesAppMCPHandlers() iter.Seq2[irt.KV[string, string], mcpsrv.Registr
 	}
 }
 
+type MinutesAppQueryType int
+
+const (
+	MinutesAppQueryTypeUnknown MinutesAppQueryType = iota
+	MinutesAppQueryTypeLeader
+	MinutesAppQueryTypeSong
+	MinutesAppQueryTypeSinging
+	MinutesAppQueryTypeLocality
+	MinutesAppQueryTypeYear
+	MinutesAppQueryTypeKey
+	MinutesAppQueryTypeOperation
+	MinutesAppQueryTypeInvalid
+)
+
+func (maqt MinutesAppQueryType) Ok() bool { return maqt > 0 && maqt < MinutesAppQueryTypeInvalid }
+func (maqt MinutesAppQueryType) Validate() error {
+	switch {
+	case maqt.Ok():
+		return nil
+	case maqt == MinutesAppQueryTypeUnknown:
+		return ers.Error("undefined query")
+	case maqt == MinutesAppQueryTypeInvalid:
+		return ers.Error("invalid query")
+	default:
+		return ers.Error("undefined invalid")
+	}
+}
+
 func init() { aliases.populate(); aliases.addFallback() }
 
 func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }
@@ -102,6 +131,7 @@ type MinutesAppRegistration struct {
 	Fuzz        FuzzHandler
 	MCP         mcpsrv.RegistrationFunc
 	err         error
+	Requires    *dt.Set[MinutesAppQueryType]
 }
 
 func (reg MinutesAppRegistration) Ok() bool        { return reg.ID.Ok() }
@@ -140,6 +170,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Leader,
 			Fuzz:        fzfui.LeaderAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.MostLeadSongs).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderLeadHistory:
 		return MinutesAppRegistration{
@@ -150,6 +181,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderLeadHistory,
 			Fuzz:        fzfui.LeaderLeadHistoryAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderLeadHistory).Register,
+			Requires:    dt.MakeSet(irt.Args("leader")),
 		}
 	case MinutesAppOpLeaderSingings:
 		return MinutesAppRegistration{
@@ -160,6 +192,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderSingings,
 			Fuzz:        fzfui.LeaderSingingsAttendedAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderSingings).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpSongs:
 		return MinutesAppRegistration{
@@ -170,6 +203,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Songs,
 			Fuzz:        fzfui.SongAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Songs).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeSong)),
 		}
 	case MinutesAppOpSingings:
 		return MinutesAppRegistration{
@@ -180,6 +214,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Singings,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingingAction),
 			MCP:         mcpsrv.NewTool(mcpsrv.Singings).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeSinging)),
 		}
 	case MinutesAppOpBuddies:
 		return MinutesAppRegistration{
@@ -190,6 +225,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Buddies,
 			Fuzz:        fzfui.SingingBuddiesAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Buddies).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpStrangers:
 		return MinutesAppRegistration{
@@ -200,6 +236,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Strangers,
 			Fuzz:        fzfui.SingingStrangersAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Strangers).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpPopularInOnesExperience:
 		return MinutesAppRegistration{
@@ -210,6 +247,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.PopularityAsExperienced,
 			Fuzz:        fzfui.PopularInOnesExperienceAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.PopularInOnesExperience).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLocallyPopular:
 		return MinutesAppRegistration{
@@ -220,6 +258,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LocallyPopular,
 			Fuzz:        fzfui.LocallyPopularAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LocallyPopular).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLocality)),
 		}
 	case MinutesAppOpPopularInYears:
 		return MinutesAppRegistration{
@@ -230,6 +269,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.PopularityInYears,
 			Fuzz:        fzfui.PopularInYearsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.PopularInYears).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpNeverSung:
 		return MinutesAppRegistration{
@@ -240,6 +280,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.NeverSung,
 			Fuzz:        fzfui.NeverSungAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NeverSung).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpNeverLed:
 		return MinutesAppRegistration{
@@ -250,6 +291,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.NeverLed,
 			Fuzz:        fzfui.NeverLedAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NeverLed).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpRetry:
 		return MinutesAppRegistration{
@@ -263,6 +305,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz: func(ctx context.Context, conn *db.Connection, args string) error {
 				return fuzzySelectOperation(args).FuzzyDispatcher().Handle(ctx, conn)
 			},
+			Requires: dt.MakeSet(irt.Args(MinutesAppQueryTypeOperation)),
 		}
 	case MinutesAppOpUnfamilarHits:
 		return MinutesAppRegistration{
@@ -273,6 +316,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.UnfamilarHits,
 			Fuzz:        fzfui.UnfamilarHitsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.UnfamilarHits).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpConnectedness:
 		return MinutesAppRegistration{
@@ -283,6 +327,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.Connectedness,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingersByConnectednessAction),
 			MCP:         mcpsrv.NewTool(mcpsrv.Connectedness).Register,
+			Requires:    &dt.Set[MinutesAppQueryType]{},
 		}
 	case MinutesAppOpLeaderFootsteps:
 		return MinutesAppRegistration{
@@ -293,6 +338,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderFootsteps,
 			Fuzz:        fzfui.LeaderFootstepsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFootsteps).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpTopLeaders:
 		return MinutesAppRegistration{
@@ -303,6 +349,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.TopLeader,
 			Fuzz:        fzfui.TopLeadersByLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderFavoriteKey:
 		return MinutesAppRegistration{
@@ -313,6 +360,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderFavoriteKey,
 			Fuzz:        fzfui.LeaderFavoriteKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFavoriteKey).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpNewLeadersByYear:
 		return MinutesAppRegistration{
@@ -323,6 +371,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.NewLeadersByYear,
 			Fuzz:        fzfui.NewLeadersByYearAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NewLeadersByYear).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpSongsByKey:
 		return MinutesAppRegistration{
@@ -333,6 +382,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.SongsByKey,
 			Fuzz:        fzfui.SongsByKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.SongsByKey).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpLeaderShare:
 		return MinutesAppRegistration{
@@ -343,6 +393,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeadershipShare,
 			Fuzz:        fzfui.LeadersShareOfLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderShare).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader, MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpTop20Leaders:
 		return MinutesAppRegistration{
@@ -353,6 +404,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeadersByTop20Leads,
 			Fuzz:        fzfui.LeadersByTop20LeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByTop20Leads).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderSingingsPerYear:
 		return MinutesAppRegistration{
@@ -367,12 +419,13 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 	case MinutesAppOpLeadersByKey:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "leaders-in-key",
+			Command:     "leader-by-key",
 			Description: "leaders ordered by number of leads in a given key",
 			Aliases:     []string{"leaders-in-key", "key-leaders", "leads-in-key"},
 			Reporter:    reportui.LeadersByKey,
 			Fuzz:        fzfui.LeadersByKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByKey).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeKey)),
 		}
 	case MinutesAppOpPopularSongsByKey:
 		return MinutesAppRegistration{
@@ -400,6 +453,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 				grip.Info("goodbye!")
 				return nil
 			},
+			Requires: &dt.Set[MinutesAppQueryType]{},
 		}
 	case MinutesAppOpUnknown:
 		return MinutesAppRegistration{ID: mao, err: ers.Error("unknown/undefined operation")}
