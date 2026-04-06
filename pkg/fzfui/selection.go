@@ -27,7 +27,6 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
 		}).Search(strings.Join(args, " "))
 
-	// TODO skip this is we didnt get ny results and go back to normal
 	sdIdx := map[models.SongDetail]int{}
 	for i, v := range songDetails {
 		sdIdx[v] = i
@@ -38,11 +37,14 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*mo
 			preselction = append(preselction, sidx)
 		}
 	}
-	res, err := infra.NewFuzzySearch[models.SongDetail](songDetails).
-		WithSelections(preselction).
+	fs := infra.NewFuzzySearch[models.SongDetail](songDetails).
 		WithToString(func(in models.SongDetail) string {
 			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
-		}).FindOne()
+		})
+	if len(preselction) > 0 {
+		fs = fs.WithSelections(preselction)
+	}
+	res, err := fs.FindOne()
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +107,16 @@ func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (
 	return &singing, nil
 }
 
-// TODO implement exported/reusable SelectSong handler
+func SelectKey(ctx context.Context, conn *db.Connection, input string) (string, error) {
+	if input != "" {
+		return input, nil
+	}
+	keys, err := erc.FromIteratorAll(conn.AllKeys(ctx))
+	if err != nil {
+		return "", err
+	}
+	return infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
+}
 
 func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, singer string) (string, error) {
 	if singer != "" {

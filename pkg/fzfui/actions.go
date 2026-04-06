@@ -55,9 +55,11 @@ func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 
 	grip.Infoln("song info for", s.PageNum)
 
-	// TODO convert this to use the standard KV table.
-	ec.Push(infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(s)))
-	ec.Push(infra.Write(os.Stdout, []byte{'\n'}))
+	var mb mdwn.Builder
+	for k, v := range infra.IterStruct(s) {
+		mb.KV(k, fmt.Sprint(v))
+	}
+	ec.Push(flush(os.Stdout, &mb))
 	grip.Infoln("top leaders of", s.PageNum)
 	ec.Push(renderTopLeaders(conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
 
@@ -335,13 +337,9 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 }
 
 func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	var years []int
-	if yrs != "" {
-		var err error
-		years, err = erc.FromIteratorAll(irt.With2(irt.Slice(strings.Split(yrs, " ")), strconv.Atoi))
-		if err != nil {
-			return err
-		}
+	years, err := SelectYears(yrs)
+	if err != nil {
+		return err
 	}
 
 	grip.Infof("leaders by total leads in year(s) %v", years)
@@ -367,11 +365,14 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 }
 
 func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg string) error {
-	year, err := strconv.Atoi(strings.TrimSpace(arg))
-	if err != nil || year == 0 {
-		year = time.Now().Year()
+	years, err := SelectYears(arg)
+	if err != nil {
+		return err
 	}
-
+	year := time.Now().Year()
+	if len(years) > 0 && years[0] > 0 {
+		year = years[0]
+	}
 	grip.Infof("debut leaders in %d", year)
 	return renderLeaderCounts(dbconn.NewLeadersByYear(ctx, year, 40))
 }
@@ -427,16 +428,10 @@ func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, sin
 }
 
 func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
-	if key == "" {
-		var err error
-		keys, kerr := erc.FromIteratorAll(dbconn.AllKeys(ctx))
-		if kerr != nil {
-			return kerr
-		}
-		key, err = infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
-		if err != nil {
-			return err
-		}
+	var err error
+	key, err = SelectKey(ctx, dbconn, key)
+	if err != nil {
+		return err
 	}
 
 	grip.Infof("leaders by number of leads in key %q", key)
@@ -444,16 +439,10 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 }
 
 func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
-	if key == "" {
-		var err error
-		keys, kerr := erc.FromIteratorAll(dbconn.AllKeys(ctx))
-		if kerr != nil {
-			return kerr
-		}
-		key, err = infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
-		if err != nil {
-			return err
-		}
+	var err error
+	key, err = SelectKey(ctx, dbconn, key)
+	if err != nil {
+		return err
 	}
 
 	grip.Infof("popular songs in key %q", key)
