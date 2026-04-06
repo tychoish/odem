@@ -333,7 +333,6 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) (*Con
 	if err != nil {
 		return nil, err
 	}
-
 	label := "all time"
 	if len(p.Years) > 0 {
 		var sb strings.Builder
@@ -352,6 +351,8 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) (*Con
 	}, nil
 }
 
+// LeadersByKey returns the top N leaders with regards to the number of times they are a top20
+// leader for a song.
 func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
 	results, err := erc.FromIteratorUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)))
 	if err != nil {
@@ -363,6 +364,7 @@ func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p models.Para
 	}, nil
 }
 
+// LeadersByKey returns every key, and the top leader of songs in that key.
 func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
 	results, err := erc.FromIteratorUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 40)))
 	if err != nil {
