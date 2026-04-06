@@ -181,7 +181,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderLeadHistory,
 			Fuzz:        fzfui.LeaderLeadHistoryAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderLeadHistory).Register,
-			Requires:    dt.MakeSet(irt.Args("leader")),
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderSingings:
 		return MinutesAppRegistration{

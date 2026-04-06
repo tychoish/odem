@@ -2,9 +2,7 @@ package tgbot
 
 import (
 	"context"
-	"iter"
 	"slices"
-	"strings"
 	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
@@ -73,16 +71,6 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 	return b
 }
 
-func getBotCommands() iter.Seq[etron.BotCommand] {
-	return irt.Convert(
-		irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
-		func(mao dispatch.MinutesAppOperation) etron.BotCommand {
-			reg := mao.Registry().Info()
-			return etron.BotCommand{Command: joinstr("/", strings.ReplaceAll(reg.Key, "-", "")), Description: reg.Value}
-		},
-	)
-}
-
 type stateFn func(*etron.Update) stateFn
 
 type bot struct {
@@ -97,6 +85,13 @@ type bot struct {
 		op     *dispatch.MinutesAppOperation
 		params models.Params
 	}
+}
+
+func (b *bot) resetState() stateFn {
+	b.state.entry = nil
+	b.state.op = nil
+	b.state.params = models.Params{}
+	return b.handleMessage
 }
 
 func (b *bot) Update(update *etron.Update) {
@@ -121,6 +116,16 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 			panic("quit")
 		case isOrContainsCmd(u.Message, "help"):
 			b.sendKeyboard()
+			return b.handleMessage // TODO split into its own handler
+		case isOrContainsCmd(u.Message, "reset"):
+			b.sendMarkdown("resetting query...")
+			return b.resetState()
+		case isOrContainsCmd(u.Message, "retry"):
+			b.sendMarkdown("retrying...")
+			return b.resetState()
+		case isOrContainsCmd(u.Message, "restart"):
+			b.sendMarkdown("restarting...")
+			return b.resetState()
 		}
 	case u.CallbackQuery != nil:
 		grip.Debug(message.NewKV().KV("type", "callback").KV("body", u.CallbackQuery.Message.Text))
@@ -145,6 +150,10 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 	return b.handleMessage
 }
 
+func (b *bot) sendMarkdown(msg string) {
+	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
+}
+
 func (b *bot) sendKeyboard() {
 	btn := irt.Collect(
 		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
@@ -164,10 +173,6 @@ func (b *bot) sendKeyboard() {
 
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {
 	grip.Error(err)
-
-	if b.conf.Telegram.Quiet {
-		grip.Debug(resp)
-	} else {
-		grip.Info(resp)
-	}
+	grip.Debug(message.When(b.conf.Telegram.Quiet, resp))
+	grip.Info(message.When(!b.conf.Telegram.Quiet, resp))
 }
