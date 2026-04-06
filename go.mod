@@ -3,8 +3,10 @@ module github.com/tychoish/odem
 go 1.25.7
 
 require (
+	github.com/NicoNex/echotron/v3 v3.45.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/koki-develop/go-fzf v0.15.0
+	github.com/masterminds/semver v1.5.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/tychoish/cmdr v0.5.5
 	github.com/tychoish/dbx v0.8.0
@@ -16,6 +18,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
@@ -36,7 +39,6 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mark3labs/mcp-go v0.44.0 // indirect
-	github.com/masterminds/semver v1.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
@@ -59,6 +61,7 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.70.0 // indirect

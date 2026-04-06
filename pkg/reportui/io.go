@@ -1,6 +1,7 @@
 package reportui
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 
@@ -31,12 +32,12 @@ func getFile(dir string, args ...string) (*os.File, error) {
 	return f, nil
 }
 
-type wstdout struct{ adt.Once[*os.File] }
+type wstdout[W io.Writer] struct{ adt.Once[W] }
 
-func (w *wstdout) stdout() *os.File            { return w.Do(w.init) }
-func (w *wstdout) init() *os.File              { return os.Stdout }
-func (w *wstdout) Write(b []byte) (int, error) { return w.stdout().Write(b) }
-func (*wstdout) Close() error                  { return nil }
+func wrapWriter[W io.Writer](in W) *wstdout[W]    { return new(wstdout[W]).with(in) }
+func (w *wstdout[W]) with(in W) *wstdout[W]       { w.Once.Set(func() W { return in }); return w }
+func (w *wstdout[W]) Write(b []byte) (int, error) { return w.Resolve().Write(b) }
+func (*wstdout[w]) Close() error                  { return nil }
 
 type wrcloselog struct {
 	name string

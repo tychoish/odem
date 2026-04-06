@@ -28,8 +28,9 @@ type Params struct {
 	// Prefix (directory, etc.) of the path to write a report to.
 	PathPrefix string
 	// ToStdout write report to standard out.
-	ToStdout              bool // for reportUI only
-	SuppressInteractivity bool // when true do not fall back to interactive fuzzy search
+	ToStdout              bool      // for reportUI only
+	ToWriter              io.Writer // for tgbot
+	SuppressInteractivity bool      // when true do not fall back to interactive fuzzy search
 }
 
 // WithoutInteraction returns a params struct that tells the
@@ -51,12 +52,15 @@ func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, 
 // getWriter returns an io.Writer (stdout or a new file) plus a cleanup func.
 // The caller must call cleanup() when done. For stdout, cleanup is a no-op.
 func (params Params) getWriter(tags ...string) (io.WriteCloser, error) {
-	if params.ToStdout {
-		return &wstdout{}, nil
-	}
-	if len(tags) == 0 {
+	switch {
+	case params.ToStdout:
+		return wrapWriter(os.Stdout), nil
+	case params.ToWriter != nil:
+		return wrapWriter(params.ToWriter), nil
+	case len(tags) == 0:
 		return nil, ers.New("must specify a file name for the report")
 	}
+
 	if len(params.PathPrefix) != 0 && !util.FileExists(params.PathPrefix) {
 		if err := os.MkdirAll(params.PathPrefix, 0o755); err != nil {
 			return nil, err

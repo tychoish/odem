@@ -18,6 +18,7 @@ import (
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
 	"github.com/tychoish/odem/pkg/reportui"
+	"github.com/tychoish/odem/pkg/tgbot"
 )
 
 func MCP() *cmdr.Commander {
@@ -30,6 +31,16 @@ func MCP() *cmdr.Commander {
 		With(infra.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
+		}))
+}
+
+func Telegram() *cmdr.Commander {
+	return cmdr.MakeCommander().
+		SetName("telegram").Aliases("tg").
+		SetUsage("telegram chat bot service").
+		With(infra.AttachConfiguration).
+		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+			return tgbot.NewService(ctx, odem.GetConfiguration(ctx), conn).Start(ctx)
 		}))
 }
 

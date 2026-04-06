@@ -19,6 +19,10 @@ type Configuration struct {
 		Level          level.Priority `bson:"log_level" json:"log_level" yaml:"log_level"`
 		ManualReloadDB bool           `bson:"manual_reload_db" json:"manual_reload_db" yaml:"manual_reload_db"`
 	} `bson:"settings" json:"settings" yaml:"settings"`
+	Telegram struct {
+		BotToken string `bson:"bot_token" json:"bot_token" yaml:"bot_token"`
+		Quiet    bool   `bson:"quiet" json:"quiet" yaml:"quiet"`
+	} `bson:"telegram" json:"telegram" yaml:"telegram"`
 	Reports struct {
 		BasePath string `bson:"base_path" json:"base_path" yaml:"base_path"`
 		Batches  []struct {

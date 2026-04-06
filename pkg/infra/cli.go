@@ -71,6 +71,17 @@ func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.C
 	}
 }
 
+type cancelCtxKey struct{}
+
+func withCanceler(ctx context.Context) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+	return context.WithValue(ctx, cancelCtxKey{}, cancel)
+}
+
+func GetCanceler(ctx context.Context) context.CancelFunc {
+	return ctx.Value(cancelCtxKey{}).(context.CancelFunc)
+}
+
 func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
@@ -79,6 +90,7 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		SetName(name).
 		SetAppOptions(cmdr.AppOptions{Name: name, Usage: "🚩 🌞 🔲 stats application", Version: release.Version.Resolve().String()}).
 		Middleware(logger.Setup).
+		Middleware(withCanceler).
 		Middleware(JasperSetup).
 		EnableCompletionCmd().
 		With(RootHelpAction).

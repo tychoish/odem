@@ -23,6 +23,7 @@ func main() {
 		ep.Fuzzy(),
 		ep.Report(),
 		ep.MCP(),
+		ep.Telegram(),
 		ep.Version(),
 		ep.Docs(),
 		ep.Hacking(),
