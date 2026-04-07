@@ -105,7 +105,7 @@ WHERE leader = ?;`
 	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader)
 }
 
-func (conn *Connection) LeaderLeadHistory(ctx context.Context, leader string) iter.Seq2[models.LessonInfo, error] {
+func (conn *Connection) LeaderLeadHistory(ctx context.Context, leader string, limit int) iter.Seq2[models.LessonInfo, error] {
 	const query = `
 SELECT
 	CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS singer_name,
@@ -128,8 +128,10 @@ LEFT JOIN (
 ) AS loc ON loc.minutes_id = slj.minutes_id
 LEFT JOIN book_song_joins AS bsj ON slj.song_id = bsj.song_id AND bsj.book_id = 2
 WHERE CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) = ?
-ORDER BY minutes.Year DESC, slj.minutes_id DESC`
-	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader)
+ORDER BY minutes.Year DESC, slj.minutes_id DESC
+LIMIT ?`
+	// TODO add limit conditionally with a builder
+	return dbx.Query[models.LessonInfo](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 40000))
 }
 
 func (conn *Connection) LeaderSingingsAttended(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderSingingAttendance, error] {
@@ -307,7 +309,7 @@ LIMIT ?`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
-func (conn *Connection) GloballyPopularForYears(ctx context.Context, years ...int) iter.Seq2[models.LeaderSongRank, error] {
+func (conn *Connection) GloballyPopularForYears(ctx context.Context, limit int, years ...int) iter.Seq2[models.LeaderSongRank, error] {
 	currentYear := time.Now().Year()
 
 	var includeYears, excludeYears []int
@@ -347,10 +349,10 @@ JOIN book_song_joins AS bsj ON bsj.song_id = ss.song_id AND bsj.book_id = 2`)
 		qb.With(" WHERE ss.year NOT IN (%+?)", excludeYears)
 	}
 
-	qb.WithSQL(`
+	qb.With(`
 GROUP BY ss.song_id
 ORDER BY count DESC
-LIMIT 40`)
+LIMIT %?`, cmp.Or(limit, 20))
 
 	query, args := qb.Build()
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, args...)
@@ -391,7 +393,7 @@ ORDER BY count DESC`)
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, args...)
 }
 
-func (conn *Connection) NeverLed(ctx context.Context, name string) iter.Seq2[models.LeaderSongRank, error] {
+func (conn *Connection) NeverLed(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT
     ? AS name,
@@ -409,8 +411,9 @@ AND bsj.song_id NOT IN (
     JOIN leaders AS l ON l.id = lss.leader_id
     WHERE l.name = ?
 )
-ORDER BY count DESC`
-	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name)
+ORDER BY count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 20))
 }
 
 func (conn *Connection) LeaderFootsteps(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderFootstep, error] {
@@ -455,7 +458,7 @@ LIMIT ?`
 	return dbx.Query[models.LeaderFootstep](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
-func (conn *Connection) LeaderShareOfLeads(ctx context.Context, name string, years ...int) (*float64, error) {
+func (conn *Connection) LeaderShareOfLeads(ctx context.Context, name string, limit int, years ...int) (*float64, error) {
 	currentYear := time.Now().Year()
 
 	var includeYears, excludeYears []int

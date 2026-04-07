@@ -328,7 +328,7 @@ func TestSingersConnectedness(t *testing.T) {
 
 func TestLeaderShareOfLeads(t *testing.T) {
 	conn, ctx := testConn(t)
-	v, err := conn.LeaderShareOfLeads(ctx, testLeader)
+	v, err := conn.LeaderShareOfLeads(ctx, testLeader, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +339,7 @@ func TestLeaderShareOfLeads(t *testing.T) {
 
 func TestLeaderShareOfLeadsWithYear(t *testing.T) {
 	conn, ctx := testConn(t)
-	v, err := conn.LeaderShareOfLeads(ctx, "Sam Kleinman", 2023, 2024)
+	v, err := conn.LeaderShareOfLeads(ctx, "Sam Kleinman", 8, 2023, 2024)
 	if err != nil {
 		t.Fatal(err)
 	}

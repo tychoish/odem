@@ -74,35 +74,41 @@ func (b *bot) setOperationSelectorButtons() {
 func (b *bot) selectSinger() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeLeader)
 	grip.Debug("selecting singer")
+	b.sendMarkdown("which singer are you looking for?")
 	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
 }
 
 func (b *bot) selectSong() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeSong)
 	grip.Debug("selecting song")
+	b.sendMarkdown("which song (page number) are you looking for?")
 	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
 }
 
 func (b *bot) selectSinging() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeSinging)
 	grip.Debug("selecting singing")
+	b.sendMarkdown("which singing are you looking for (the match on this is dodgy/rough, apologies)?")
 	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
 }
 
 func (b *bot) selectYear() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeYear)
 	grip.Debug("selecting year")
+	b.sendMarkdown("which year would you like to filter by?")
 	return b.wrapInputAsHandler(b.captureInputAsYears, b.discoverNext)
 }
 
 func (b *bot) selectLocality() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeLocality)
 	grip.Debug("selecting locality")
+	b.sendMarkdown("what locality would you like to filter by (state codes)?")
 	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
 }
 
 func (b *bot) selectKey() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeKey)
 	grip.Debug("selecting key")
+	b.sendMarkdown("what key would you like to filter by (accidentals are hard)?")
 	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
 }

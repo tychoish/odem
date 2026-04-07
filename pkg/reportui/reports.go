@@ -53,7 +53,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H1(singer)
 
-	share, err := conn.LeaderShareOfLeads(ctx, singer)
+	share, err := conn.LeaderShareOfLeads(ctx, singer, 16)
 	ec.Push(err)
 	v, err := conn.SingersConnectedness(ctx, singer)
 	ec.Push(err)
@@ -101,7 +101,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Never Led")
 	mb.Paragraph("Songs from the 2025 book that ", singer, " has never led, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), 12), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, 20), 12), ec.Push))
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing ", singer, " attended, by global popularity.")
@@ -282,7 +282,7 @@ func PopularityInYears(ctx context.Context, conn *db.Connection, p Params) error
 
 	mb.KV("Years", cmp.Or(strings.Join(yearsStrs, ", "), "(all)"))
 
-	writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, years...), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -348,7 +348,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Never Led: %s", singer))
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer), cmp.Or(p.Limit, 20)), ec.Push))
+	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -481,7 +481,7 @@ func LeadershipShare(ctx context.Context, conn *db.Connection, p Params) error {
 	var ec erc.Collector
 	var mb mdwn.Builder
 
-	v, err := conn.LeaderShareOfLeads(ctx, singer, years...)
+	v, err := conn.LeaderShareOfLeads(ctx, singer, cmp.Or(p.Limit, 20), years...)
 	ec.Push(err)
 
 	mb.H2(fmt.Sprintf("Leader Share: %s", singer))
@@ -518,7 +518,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p Params) (err 
 		mdwn.Column{Name: "Song"},
 		mdwn.Column{Name: "Page"},
 		mdwn.Column{Name: "Key"},
-	).Extend(irt.Convert(erc.HandleAll(conn.LeaderLeadHistory(ctx, singer), ec.Push), func(row models.LessonInfo) []string {
+	).Extend(irt.Convert(erc.HandleAll(conn.LeaderLeadHistory(ctx, singer, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LessonInfo) []string {
 		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SongName, row.SongPageNumber, row.SongKey}
 	})).Build()
 	mb.Line()

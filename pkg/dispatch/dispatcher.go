@@ -107,6 +107,31 @@ func (maqt MinutesAppQueryType) Validate() error {
 	}
 }
 
+func (maqt MinutesAppQueryType) String() string {
+	switch maqt {
+	case MinutesAppQueryTypeUnknown:
+		return "unknown"
+	case MinutesAppQueryTypeLeader:
+		return "leader"
+	case MinutesAppQueryTypeSong:
+		return "song"
+	case MinutesAppQueryTypeSinging:
+		return "singing"
+	case MinutesAppQueryTypeLocality:
+		return "locality"
+	case MinutesAppQueryTypeYear:
+		return "year"
+	case MinutesAppQueryTypeKey:
+		return "key"
+	case MinutesAppQueryTypeOperation:
+		return "operation"
+	case MinutesAppQueryTypeInvalid:
+		return "invalid"
+	default:
+		return fmt.Sprintf("MinutesAppQueryType<%d>[undefined]", maqt)
+	}
+}
+
 func init() { aliases.populate(); aliases.addFallback() }
 
 func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }

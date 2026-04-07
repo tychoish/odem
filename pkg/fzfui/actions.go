@@ -109,7 +109,7 @@ func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, singer 
 		mdwn.Column{Name: "Song"},
 		mdwn.Column{Name: "Page"},
 		mdwn.Column{Name: "Key"},
-	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderLeadHistory(ctx, singer), ec.Push), func(row models.LessonInfo) []string {
+	).Extend(irt.Convert(erc.HandleAll(dbconn.LeaderLeadHistory(ctx, singer, 50000), ec.Push), func(row models.LessonInfo) []string {
 		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SongName, row.SongPageNumber, row.SongKey}
 	})).Build()
 
@@ -214,7 +214,7 @@ func NeverLedAction(ctx context.Context, dbconn *db.Connection, singer string) e
 	}
 
 	grip.Infof("songs never led by %s", singer)
-	return renderTopLedSongs(dbconn.NeverLed(ctx, singer))
+	return renderTopLedSongs(dbconn.NeverLed(ctx, singer, 40))
 }
 
 func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string) error {
@@ -321,7 +321,7 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 	}
 
 	grip.Infof("lead share for %q in year(s) %v", singer, years)
-	v, err := dbconn.LeaderShareOfLeads(ctx, singer, years...)
+	v, err := dbconn.LeaderShareOfLeads(ctx, singer, 16, years...)
 	if err != nil {
 		return err
 	}
@@ -456,5 +456,5 @@ func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 	}
 
 	grip.Infof("songs by popularity in year(s) %v", years)
-	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, years...))
+	return renderTopLedSongs(dbconn.GloballyPopularForYears(ctx, 20, years...))
 }

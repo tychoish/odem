@@ -43,7 +43,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) (*Conte
 		return nil, err
 	}
 
-	results, err := erc.FromIteratorUntil(irt.Limit2(conn.NeverLed(ctx, leader.Name), cmp.Or(p.Limit, 20)))
+	results, err := erc.FromIteratorUntil(conn.NeverLed(ctx, leader.Name, cmp.Or(p.Limit, 20)))
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params
 		return nil, err
 	}
 
-	results, err := erc.FromIteratorUntil(irt.Limit2(conn.LeaderLeadHistory(ctx, leader.Name), cmp.Or(p.Limit, 100)))
+	results, err := erc.FromIteratorUntil(conn.LeaderLeadHistory(ctx, leader.Name, cmp.Or(p.Limit, 100)))
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func PopularInOnesExperience(ctx context.Context, conn *db.Connection, p models.
 }
 
 func PopularInYears(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	results, err := erc.FromIteratorUntil(irt.Limit2(conn.GloballyPopularForYears(ctx, p.Years...), cmp.Or(p.Limit, 25)))
+	results, err := erc.FromIteratorUntil(irt.Limit2(conn.GloballyPopularForYears(ctx, 20, p.Years...), cmp.Or(p.Limit, 25)))
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func LeaderShare(ctx context.Context, conn *db.Connection, p models.Params) (*Le
 		return nil, err
 	}
 
-	share, err := conn.LeaderShareOfLeads(ctx, leader.Name, p.Years...)
+	share, err := conn.LeaderShareOfLeads(ctx, leader.Name, 32, p.Years...)
 	if err != nil {
 		return nil, err
 	}
