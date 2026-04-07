@@ -43,6 +43,7 @@ type Configuration struct {
 		} `bson:"targets" json:"targets" yaml:"targets"`
 		Version            string `bson:"version" json:"version" yaml:"version"`
 		DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
+		LocalRepoPath      string `bson:"local_repo_path" json:"local_repo_path" yaml:"local_repo_path"`
 	} `bson:"build" json:"build" yaml:"build"`
 	Runtime struct {
 		DryRun    bool

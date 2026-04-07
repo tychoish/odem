@@ -52,11 +52,8 @@ func Hacking() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("hacking").
 		Aliases("hack").
+		SetHidden(true).
 		SetUsage("hacking and testing").
-		Flags(cmdr.FlagBuilder(false).
-			SetName("http").
-			SetUsage("call to start use the http service").
-			Flag()).
 		With(infra.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Infoln("🤖 🎶", release.Version.Resolve())
@@ -67,44 +64,50 @@ func Hacking() *cmdr.Commander {
 		})
 }
 
-func Release() *cmdr.Commander {
+func Build() *cmdr.Commander {
 	return cmdr.MakeCommander().
-		SetName("release").
-		SetUsage("build and release automation").
-		With(infra.CommandHelpAction).
+		SetName("build").
+		SetUsage("project automation and release tools").
+		With(infra.AttachConfiguration).
+		With(infra.WorkerAction(release.LocalBuild)).
 		Subcommanders(
 			cmdr.MakeCommander().
-				SetName("tag").
-				SetUsage("shortcut create release tag").
-				Flags(cmdr.FlagBuilder("v0.0.0").
-					SetName("tag").
-					SetRequired(true).
-					SetUsage("name of new tag, should start with a V").Flag()).
-				SetAction(func(ctx context.Context, cc *cli.Command) error {
-					return jasper.Context(ctx).
-						CreateCommand(ctx).
-						AppendArgs("git", "tag", "--annotate", "--edit", cmdr.GetFlag[string](cc, "tag")).
-						Run(ctx)
-				}),
-			cmdr.MakeCommander().
-				SetName("build").
+				SetName("all").
 				SetUsage("build artifacts for odem release; must run inside of the odem git repository").
 				Flags(cmdr.FlagBuilder(false).
 					SetName("dry-run", "n").
 					SetUsage("disables all (most?) write operations for some (admin) operations").
 					Flag()).
-				With(infra.AttachConfiguration).
 				With(infra.WorkerAction(release.BuildArtifacts)),
 			cmdr.MakeCommander().
-				SetName("upload").
-				SetUsage("upload built artifacts for the given release tag to GitHub").
-				Flags(cmdr.FlagBuilder("").
-					SetName("tag").
-					SetUsage("git tag / version string to upload (e.g. v1.2.3)").
-					SetRequired(true).
-					SetValidate(release.ValidateVersion).
-					Flag()).
-				With(infra.AttachConfiguration).
-				With(infra.Operation(release.UploadArtifacts)),
+				SetName("release").
+				SetUsage("release automation").
+				With(infra.CommandHelpAction).
+				Subcommanders(
+					cmdr.MakeCommander().
+						SetName("tag").
+						SetUsage("shortcut create release tag").
+						Flags(cmdr.FlagBuilder("v0.0.0").
+							SetName("tag").
+							SetRequired(true).
+							SetUsage("name of new tag, should start with a V").Flag()).
+						SetAction(func(ctx context.Context, cc *cli.Command) error {
+							return jasper.Context(ctx).
+								CreateCommand(ctx).
+								AppendArgs("git", "tag", "--annotate", "--edit", cmdr.GetFlag[string](cc, "tag")).
+								Run(ctx)
+						}),
+					cmdr.MakeCommander().
+						SetName("upload").
+						SetUsage("upload built artifacts for the given release tag to GitHub").
+						Flags(cmdr.FlagBuilder("").
+							SetName("tag").
+							SetUsage("git tag / version string to upload (e.g. v1.2.3)").
+							SetRequired(true).
+							SetValidate(release.ValidateVersion).
+							Flag()).
+						With(infra.AttachConfiguration).
+						With(infra.Operation(release.UploadArtifacts)),
+				),
 		)
 }

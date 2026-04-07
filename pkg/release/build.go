@@ -3,6 +3,7 @@ package release
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/jasper"
+	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/logger"
 )
@@ -109,4 +111,22 @@ func BuildArtifacts(ctx context.Context) error {
 
 	ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
 	return ec.Resolve()
+}
+
+func LocalBuild(ctx context.Context) error {
+	conf := odem.GetConfiguration(ctx)
+	pwd := erc.Must(os.Getwd())
+	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, util.TryExpandHomedir("~/src/odemp/"), pwd), util.FileExists) {
+		path := filepath.Join(basepath, "cmd", "odem.go")
+		if !util.FileExists(path) {
+			continue
+		}
+
+		return jasper.Context(ctx).
+			CreateCommand(ctx).
+			AppendArgs("go", "build", "./cmd/odem.go").
+			SetCombinedSender(level.Info, logger.Plain(ctx).Sender()).
+			Run(ctx)
+	}
+	return erc.Errorf("no odem checkout discoverable: %s", pwd)
 }
