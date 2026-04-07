@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"iter"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/tychoish/fun/irt"
@@ -44,6 +45,7 @@ func runeByteOffset(b []byte, n int) int {
 		_, size := utf8.DecodeRune(b[pos:])
 		pos += size
 	}
+
 	return pos
 }
 
@@ -55,7 +57,11 @@ func runeByteOffset(b []byte, n int) int {
 // is WriteTo — bytes.Buffer.WriteTo drains directly to the writer with no
 // intermediate string copy, while strings.Builder.String() would require one.
 // The trade-off is that String() itself copies; prefer WriteTo when possible.
-type Builder struct{ strut.Buffer }
+type Builder struct{ strut.Mutable }
+
+func MakeBuilder(capacity int) *Builder    { return &Builder{Mutable: *strut.MakeMutable(capacity)} }
+func (m *Builder) Release()                { m.Mutable.Release() }
+func (m *Builder) Truncate(targetSize int) { m.Mutable = m.Mutable[:max(0, min(targetSize, m.Len()))] }
 
 // H1/H2/H3 write the heading followed by a blank line.
 func (m *Builder) H1(text string) *Builder { return m.heading(1, text) }
@@ -63,8 +69,7 @@ func (m *Builder) H2(text string) *Builder { return m.heading(2, text) }
 func (m *Builder) H3(text string) *Builder { return m.heading(3, text) }
 
 func (m *Builder) heading(level int, text string) *Builder {
-	m.Repeat("#", level)
-	m.Concat(" ", text)
+	m.Concat(strings.Repeat("#", level), " ", text)
 	m.NLines(2)
 	return m
 }
@@ -216,7 +221,10 @@ func (m *Builder) ParagraphBreak() *Builder { m.NLines(2); return m }
 
 // WriteTo drains the accumulated content to w without copying to an
 // intermediate string.
-func (m *Builder) WriteTo(w io.Writer) (int64, error) { return m.Buffer.WriteTo(w) }
+func (m *Builder) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(m.Mutable)
+	return int64(n), err
+}
 
 // Text writes s to the builder and returns the receiver for chaining.
 // Use this to intersperse plain text with inline formatting methods:
@@ -344,8 +352,7 @@ func (t *Table) Build() *Builder {
 	// Header row.
 	t.mb.PushString("|")
 	for i, col := range t.cols {
-		t.mb.Concat(" ", col.Name)
-		t.mb.Repeat(" ", widths[i]-utf8.RuneCountInString(col.Name))
+		t.mb.Concat(" ", col.Name, strings.Repeat(" ", widths[i]-utf8.RuneCountInString(col.Name)))
 		t.mb.PushString(" |")
 	}
 	t.mb.Line()
@@ -355,10 +362,9 @@ func (t *Table) Build() *Builder {
 	for i, col := range t.cols {
 		t.mb.PushString(" ")
 		if col.RightAlign {
-			t.mb.Repeat("-", widths[i]-1)
-			t.mb.PushString(":")
+			t.mb.Concat(strings.Repeat("-", widths[i]-1), ":")
 		} else {
-			t.mb.Repeat("-", widths[i])
+			t.mb.PushString(strings.Repeat("-", widths[i]))
 		}
 		t.mb.PushString(" |")
 	}
@@ -392,11 +398,11 @@ func (t *Table) Build() *Builder {
 			pad := widths[i] - cellLen
 			t.mb.PushString(" ")
 			if col.RightAlign && pad > 0 {
-				t.mb.Repeat(" ", pad)
+				t.mb.PushString(strings.Repeat(" ", pad))
 			}
 			t.mb.PushBytes(cellBytes)
 			if !col.RightAlign && pad > 0 {
-				t.mb.Repeat(" ", pad)
+				t.mb.PushString(strings.Repeat(" ", pad))
 			}
 			t.mb.PushString(" |")
 		}

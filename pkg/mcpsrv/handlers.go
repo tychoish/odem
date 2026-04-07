@@ -60,7 +60,7 @@ func MostLeadSongs(ctx context.Context, conn *db.Connection, p models.Params) (*
 		return nil, err
 	}
 
-	results, err := erc.FromIteratorUntil(conn.MostLeadSongs(ctx, leader.Name, cmp.Or(p.Limit, 24)))
+	results, err := erc.FromIteratorUntil(conn.MostLedSongs(ctx, leader.Name, cmp.Or(p.Limit, 24)))
 	if err != nil {
 		return nil, err
 	}

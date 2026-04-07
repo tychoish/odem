@@ -9,7 +9,7 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func writeSongTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderSongRank]) {
+func WriteSongTable(mb *mdwn.Builder, seq iter.Seq[models.LeaderSongRank]) {
 	mb.NewTable(
 		mdwn.Column{Name: "Count", RightAlign: true},
 		mdwn.Column{Name: "Page"},

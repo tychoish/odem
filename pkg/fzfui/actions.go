@@ -24,7 +24,7 @@ func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
 	}
 	grip.Infof("songs led by: %s", singer)
 
-	return renderTopLedSongs(conn.MostLeadSongs(ctx, singer, 32))
+	return renderTopLedSongs(conn.MostLedSongs(ctx, singer, 32))
 }
 
 func SongAction(ctx context.Context, conn *db.Connection, song string) error {

@@ -1,6 +1,7 @@
 package tgbot
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -8,12 +9,10 @@ import (
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/dispatch"
-	"github.com/tychoish/odem/pkg/reportui"
 )
 
 func (b *bot) discoverNext() stateFn {
@@ -89,16 +88,16 @@ func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 func (b *bot) renderResults() stateFn {
 	grip.Info(message.NewKV().KV("status", "rendering now...").KV("state", b.state.params).KV("command", b.state.op.String()))
 
-	buf := strut.MakeMutable(1024)
-	defer buf.Release()
-	buf.PushString("```")
-	grip.Error(b.state.entry.Reporter.Report(b.ctx, b.db, reportui.Params{
-		Params:                b.state.params,
-		ToWriter:              buf,
-		SuppressInteractivity: true,
-	}))
-	buf.PushString("```")
+	for msg, err := range b.state.entry.Messenger(b.ctx, b.db, b.state.params) {
+		if err != nil {
+			grip.Alert(message.NewKV().KV("op", b.state.entry.Command).KV("outcome", "overflow").KV("len", msg.Len()).KV("query", b.state.params))
+			b.sendPlain(fmt.Sprintf("❗got error producing results: %v", err))
+			break
+		} else {
+			b.sendMarkdown(msg.String())
+			msg.Release()
+		}
+	}
 
-	b.handleSendMessage(b.SendMessage(buf.String(), b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
 	return b.resetState()
 }

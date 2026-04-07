@@ -64,7 +64,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.Line()
 
 	mb.H2("Most Led Songs")
-	writeSongTable(&mb, erc.HandleAll(conn.MostLeadSongs(ctx, singer, 24), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.MostLedSongs(ctx, singer, 24), ec.Push))
 	mb.H2("Favorite Keys")
 	mb.KVTable(
 		irt.MakeKV("Count", "Key"),
@@ -74,7 +74,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Songs in Your Experience")
 	mb.Paragraph("Most frequently led songs at singings ", singer, " attended.")
-	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
 
 	mb.H2("Singing Buddies")
 	mb.Paragraph("The people that have been the most singings that ", singer, " was at.")
@@ -97,15 +97,15 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Unfamiliar Hits")
 	mb.Paragraph("Othewise popular songs that are under represented at singings ", singer, " has been at.")
-	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
 
 	mb.H2("Never Led")
 	mb.Paragraph("Songs from the 2025 book that ", singer, " has never led, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, 20), 12), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, 20), 12), ec.Push))
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing ", singer, " attended, by global popularity.")
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -256,7 +256,7 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Popular in %s's Experience", singer))
-	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, cmp.Or(p.Limit, defaultN)), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, cmp.Or(p.Limit, defaultN)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -282,7 +282,7 @@ func PopularityInYears(ctx context.Context, conn *db.Connection, p Params) error
 
 	mb.KV("Years", cmp.Or(strings.Join(yearsStrs, ", "), "(all)"))
 
-	writeSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -304,7 +304,7 @@ func LocallyPopular(ctx context.Context, conn *db.Connection, p Params) (err err
 	defer func() { err = erc.Join(wr.Close()) }()
 	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Locally Popular: %s", p.Name))
-	writeSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -326,7 +326,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Never Sung: %s", singer))
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), cmp.Or(p.Limit, 20)), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -348,7 +348,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Never Led: %s", singer))
-	writeSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -370,7 +370,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", singer))
-	writeSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -708,7 +708,7 @@ func PopularSongsByKey(ctx context.Context, conn *db.Connection, p Params) (err 
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Popular Songs in Key: %s", key))
-	writeSongTable(&mb, erc.HandleAll(conn.PopularSongsByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
+	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()

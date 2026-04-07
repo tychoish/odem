@@ -15,8 +15,8 @@ import (
 	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
+	"github.com/tychoish/odem/pkg/msgui"
 	"github.com/tychoish/odem/pkg/reportui"
-	"github.com/tychoish/odem/pkg/tgbot/msgui"
 )
 
 type MinutesAppOperation int

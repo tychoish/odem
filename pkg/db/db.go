@@ -64,7 +64,7 @@ WHERE inv.name IS NULL;`
 	return dbx.Query[string](ctx, conn.db.QueryContext, query)
 }
 
-func (conn *Connection) MostLeadSongs(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+func (conn *Connection) MostLedSongs(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT
 	name,

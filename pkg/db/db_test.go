@@ -62,7 +62,7 @@ func TestAllLeaderNames(t *testing.T) {
 func TestMostLeadSongs(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
-	for _, err := range conn.MostLeadSongs(ctx, testLeader, 5) {
+	for _, err := range conn.MostLedSongs(ctx, testLeader, 5) {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +105,7 @@ func TestAllLessons(t *testing.T) {
 func TestLeaderLeadHistory(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
-	for _, err := range conn.LeaderLeadHistory(ctx, testLeader) {
+	for _, err := range conn.LeaderLeadHistory(ctx, testLeader, 20) {
 		if err != nil {
 			t.Fatal(err)
 		}
