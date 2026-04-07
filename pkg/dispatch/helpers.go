@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"fmt"
 	"iter"
 
 	"github.com/tychoish/cmdr"
@@ -13,6 +14,7 @@ import (
 
 func isOk[T interface{ Ok() bool }](in T) bool { return in.Ok() }
 func toOp(in int) MinutesAppOperation          { return MinutesAppOperation(in) }
+func toString[T fmt.Stringer](in T) string     { return in.String() }
 
 func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	info := mao.GetInfo()

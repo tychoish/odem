@@ -16,46 +16,41 @@ import (
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
 	"github.com/tychoish/odem/pkg/reportui"
+	"github.com/tychoish/odem/pkg/tgbot/msgui"
 )
 
 type MinutesAppOperation int
 
-type aliasMap struct {
-	adt.SyncMap[string, MinutesAppOperation]
-}
-
 const (
 	MinutesAppOpUnknown MinutesAppOperation = iota
 	MinutesAppOpLeaderMostLed
-	MinutesAppOpSongs
-	MinutesAppOpSingings
-	MinutesAppOpBuddies
-	MinutesAppOpStrangers
-	MinutesAppOpPopularInOnesExperience
-	MinutesAppOpPopularInYears
-	MinutesAppOpLocallyPopular
-	MinutesAppOpNeverSung
-	MinutesAppOpNeverLed
-	MinutesAppOpUnfamilarHits
-	MinutesAppOpConnectedness
-	MinutesAppOpLeaderFootsteps
-	MinutesAppOpTopLeaders
-	MinutesAppOpLeaderShare
+	MinutesAppOpLeaderFavoriteKey
+	MinutesAppOpLeaderRoleModels
+	MinutesAppOpLeaderUnfamilarHits
+	MinutesAppOpLeaderBuddies
+	MinutesAppOpLeaderStrangers
+	MinutesAppOpLeaderNeverSung
+	MinutesAppOpLeaderNeverLed
 	MinutesAppOpLeaderLeadHistory
 	MinutesAppOpLeaderSingings
-	MinutesAppOpLeaderFavoriteKey
-	MinutesAppOpNewLeadersByYear
+	MinutesAppOpLeaderConnectedness
+	MinutesAppOpLeaderShare
+	MinutesAppOpSingings
+	MinutesAppOpSongs
 	MinutesAppOpSongsByKey
-	MinutesAppOpTop20Leaders
-	MinutesAppOpLeaderSingingsPerYear
-	MinutesAppOpLeadersByKey
+	MinutesAppOpPopularAsObserved
+	MinutesAppOpPopularInYears
 	MinutesAppOpPopularSongsByKey
+	MinutesAppOpPopularLocally
+	MinutesAppOpTop20Leaders
+	MinutesAppOpTopLeaders
+	MinutesAppOpTopLeadersByKey
+	MinutesAppOpLeaderDebutes
+	MinutesAppOpLeaderSingingsPerYear
 	MinutesAppOpInvalid
 	MinutesAppOpRetry
 	MinutesAppOpExit = 181
 )
-
-var aliases aliasMap
 
 func AllMinutesAppOps() iter.Seq[MinutesAppOperation] {
 	return irt.Keep(irt.Convert(irt.Range(0, 181), toOp), isOk)
@@ -63,6 +58,10 @@ func AllMinutesAppOps() iter.Seq[MinutesAppOperation] {
 
 func AllMinutesAppAliases() iter.Seq2[MinutesAppOperation, []string] {
 	return irt.With(AllMinutesAppOps(), getAliases)
+}
+
+func AllMinutesAppCommands() iter.Seq2[string, MinutesAppOperation] {
+	return irt.Flip(irt.With(AllMinutesAppOps(), toString))
 }
 
 func AllMinutesAppMCPHandlers() iter.Seq2[irt.KV[string, string], mcpsrv.RegistrationFunc] {
@@ -132,8 +131,6 @@ func (maqt MinutesAppQueryType) String() string {
 	}
 }
 
-func init() { aliases.populate(); aliases.addFallback() }
-
 func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }
 func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] { return mao.Registry().Info() }
 func (mao MinutesAppOperation) ReportDispatcher() Reporter      { return mao.Registry().GetReporter() }
@@ -143,9 +140,18 @@ func (mao MinutesAppOperation) String() string                  { return mao.Get
 func (mao MinutesAppOperation) Validate() error                 { return mao.Registry().err }
 func (mao MinutesAppOperation) Ok() bool                        { return mao.isvalid() || mao == MinutesAppOpExit }
 func (mao MinutesAppOperation) isvalid() bool                   { return mao > 0 && mao < MinutesAppOpInvalid }
-func getAliases(mao MinutesAppOperation) []string               { return mao.Aliases() }
-func (am *aliasMap) addFallback()                               { am.Store("", MinutesAppOpInvalid) }
-func (am *aliasMap) populate()                                  { aliases.Extend(infra.ReverseMapping(AllMinutesAppAliases())) }
+
+type aliasMap struct {
+	adt.SyncMap[string, MinutesAppOperation]
+}
+
+var aliases aliasMap
+
+func init()                                       { aliases.addCommands(); aliases.addAlaises(); aliases.addFallback() }
+func getAliases(mao MinutesAppOperation) []string { return mao.Aliases() }
+func (am *aliasMap) addFallback()                 { am.Store("", MinutesAppOpInvalid) }
+func (am *aliasMap) addAlaises()                  { am.Extend(infra.ReverseMapping(AllMinutesAppAliases())) }
+func (am *aliasMap) addCommands()                 { am.Extend(AllMinutesAppCommands()) }
 
 type MinutesAppRegistration struct {
 	ID          MinutesAppOperation
@@ -154,9 +160,10 @@ type MinutesAppRegistration struct {
 	Aliases     []string
 	Reporter    Reporter
 	Fuzz        FuzzHandler
+	Messenger   msgui.Messenger
 	MCP         mcpsrv.RegistrationFunc
-	err         error
 	Requires    *dt.Set[MinutesAppQueryType]
+	err         error
 }
 
 func (reg MinutesAppRegistration) Ok() bool        { return reg.ID.Ok() }
@@ -196,16 +203,18 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeaderAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.MostLeadSongs).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.MostLed,
 		}
 	case MinutesAppOpLeaderLeadHistory:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "leader-history",
+			Command:     "lead-history",
 			Description: "a list of all leads for a leader, with details about the song and the singing",
 			Aliases:     []string{"leaders", "leader", "lead-history", "leader-history", "all-leads"},
 			Reporter:    reportui.LeaderLeadHistory,
 			Fuzz:        fzfui.LeaderLeadHistoryAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderLeadHistory).Register,
+			Messenger:   msgui.LeaderLeadHistory,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderSingings:
@@ -218,6 +227,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeaderSingingsAttendedAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderSingings).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.LeaderSingings,
 		}
 	case MinutesAppOpSongs:
 		return MinutesAppRegistration{
@@ -229,52 +239,57 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.SongAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Songs).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeSong)),
+			Messenger:   msgui.Songs,
 		}
 	case MinutesAppOpSingings:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "singings",
 			Description: "provide basic information about a specific singing, with a list of the leaders and the songs they led.",
-			Aliases:     []string{"singing", "singings", "allday", "convention"},
+			Aliases:     []string{"singing", "singings", "allday", "convention", "all-days", "conventions", "all-day", "alldays"},
 			Reporter:    reportui.Singings,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingingAction),
 			MCP:         mcpsrv.NewTool(mcpsrv.Singings).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeSinging)),
+			Messenger:   msgui.Singings,
 		}
-	case MinutesAppOpBuddies:
+	case MinutesAppOpLeaderBuddies:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "leader-buddies",
+			Command:     "buddies",
 			Description: "return a list of the singers most-frequent co-attenders of of singings for one singer.",
-			Aliases:     []string{"buddies", "buddy", "connections", "neighbors", "leader-buddies"},
+			Aliases:     []string{"buddies", "buddy", "connections", "neighbors", "leader-buddies", "singing-buddies"},
 			Reporter:    reportui.Buddies,
 			Fuzz:        fzfui.SingingBuddiesAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Buddies).Register,
+			Messenger:   msgui.Buddies,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
-	case MinutesAppOpStrangers:
+	case MinutesAppOpLeaderStrangers:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "strangers",
 			Description: "return a list of singers that the specified singer has never sung with, (but most of their buddies have!)",
-			Aliases:     []string{"strangers", "enemies", "never-neighbors", "leader-strangers"},
+			Aliases:     []string{"strangers", "enemies", "never-neighbors", "leader-strangers", "singing-strangers", "stranger", "singing-stranger"},
 			Reporter:    reportui.Strangers,
 			Fuzz:        fzfui.SingingStrangersAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.Strangers).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.Strangers,
 		}
-	case MinutesAppOpPopularInOnesExperience:
+	case MinutesAppOpPopularAsObserved:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "popular-in-ones-experience",
+			Command:     "popular-as-observed",
 			Description: "a list of songs ordered by number of leads of all songs sung at singings thatone singer has attended.",
-			Aliases:     []string{"prevalent", "popular-in-ones-experience"},
+			Aliases:     []string{"prevalent", "popular-in-ones-experience", "as-observed"},
 			Reporter:    reportui.PopularityAsExperienced,
 			Fuzz:        fzfui.PopularInOnesExperienceAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.PopularInOnesExperience).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.PopularAsObserved,
 		}
-	case MinutesAppOpLocallyPopular:
+	case MinutesAppOpPopularLocally:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "popular-locally",
@@ -284,6 +299,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LocallyPopularAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LocallyPopular).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLocality)),
+			Messenger:   msgui.PopularLocally,
 		}
 	case MinutesAppOpPopularInYears:
 		return MinutesAppRegistration{
@@ -295,8 +311,9 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.PopularInYearsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.PopularInYears).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
+			Messenger:   msgui.PopularInYears,
 		}
-	case MinutesAppOpNeverSung:
+	case MinutesAppOpLeaderNeverSung:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "never-sung",
@@ -306,8 +323,9 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.NeverSungAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NeverSung).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.NeverSung,
 		}
-	case MinutesAppOpNeverLed:
+	case MinutesAppOpLeaderNeverLed:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "never-led",
@@ -317,6 +335,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.NeverLedAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NeverLed).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.NeverLed,
 		}
 	case MinutesAppOpRetry:
 		return MinutesAppRegistration{
@@ -332,7 +351,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			},
 			Requires: dt.MakeSet(irt.Args(MinutesAppQueryTypeOperation)),
 		}
-	case MinutesAppOpUnfamilarHits:
+	case MinutesAppOpLeaderUnfamilarHits:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "unfamilar-hits",
@@ -342,28 +361,31 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.UnfamilarHitsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.UnfamilarHits).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.UnfamilarHits,
 		}
-	case MinutesAppOpConnectedness:
+	case MinutesAppOpLeaderConnectedness:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "connectedness",
 			Description: "a list of singers, ordered by their connectedness ratio, or the percentge of the community they've sung with.",
-			Aliases:     []string{"connectedness", "connected", "network"},
+			Aliases:     []string{"connectedness", "connected", "network", "leader-connectedness"},
 			Reporter:    reportui.Connectedness,
 			Fuzz:        SimpleFuzzyHandler(fzfui.SingersByConnectednessAction),
 			MCP:         mcpsrv.NewTool(mcpsrv.Connectedness).Register,
 			Requires:    &dt.Set[MinutesAppQueryType]{},
+			Messenger:   msgui.Connectedness,
 		}
-	case MinutesAppOpLeaderFootsteps:
+	case MinutesAppOpLeaderRoleModels:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "leader-footsteps",
+			Command:     "leader-role-models",
 			Description: "a list of a leaders most frequently led songs, with that song's most frequently leader.",
-			Aliases:     []string{"leader-footsteps", "footsteps", "giants", "singing-idols"},
+			Aliases:     []string{"leader-footsteps", "footsteps", "giants", "singing-idols", "role-models", "rolemodels"},
 			Reporter:    reportui.LeaderFootsteps,
 			Fuzz:        fzfui.LeaderFootstepsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFootsteps).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.LeaderRoleModels,
 		}
 	case MinutesAppOpTopLeaders:
 		return MinutesAppRegistration{
@@ -375,6 +397,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.TopLeadersByLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.TopLeaders,
 		}
 	case MinutesAppOpLeaderFavoriteKey:
 		return MinutesAppRegistration{
@@ -386,16 +409,18 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeaderFavoriteKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderFavoriteKey).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.LeaderFavoriteKey,
 		}
-	case MinutesAppOpNewLeadersByYear:
+	case MinutesAppOpLeaderDebutes:
 		return MinutesAppRegistration{
 			ID:          mao,
-			Command:     "new-leaders",
+			Command:     "debuts",
 			Description: "leaders making their debut in a given year, by lead count",
-			Aliases:     []string{"new-leaders", "debuts", "first-timers"},
+			Aliases:     []string{"new-leaders", "first-timers", "leader-debuts", "new-leader", "debut-year"},
 			Reporter:    reportui.NewLeadersByYear,
 			Fuzz:        fzfui.NewLeadersByYearAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.NewLeadersByYear).Register,
+			Messenger:   msgui.LeaderDebutsByYear,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpSongsByKey:
@@ -408,6 +433,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.SongsByKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.SongsByKey).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
+			Messenger:   msgui.SongsByKey,
 		}
 	case MinutesAppOpLeaderShare:
 		return MinutesAppRegistration{
@@ -419,17 +445,19 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeadersShareOfLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderShare).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader, MinutesAppQueryTypeYear)),
+			Messenger:   msgui.LeaderShare,
 		}
 	case MinutesAppOpTop20Leaders:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "top20-leaders",
 			Description: "leaders ordered by number of top-20 leads",
-			Aliases:     []string{"top20-leaders", "top20", "top-twenty"},
+			Aliases:     []string{"top20-leaders", "top20", "top-twenty", "top-20-leaders"},
 			Reporter:    reportui.LeadersByTop20Leads,
 			Fuzz:        fzfui.LeadersByTop20LeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByTop20Leads).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger:   msgui.Top20Leaders,
 		}
 	case MinutesAppOpLeaderSingingsPerYear:
 		return MinutesAppRegistration{
@@ -440,8 +468,9 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.LeaderSingingsPerYear,
 			Fuzz:        fzfui.LeaderSingingsPerYearAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderSingingsPerYear).Register,
+			Messenger:   msgui.LeaderSingingsPerYear,
 		}
-	case MinutesAppOpLeadersByKey:
+	case MinutesAppOpTopLeadersByKey:
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "leader-by-key",
@@ -451,6 +480,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:        fzfui.LeadersByKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeadersByKey).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeKey)),
+			Messenger:   msgui.LeadersByKey,
 		}
 	case MinutesAppOpPopularSongsByKey:
 		return MinutesAppRegistration{
@@ -461,6 +491,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.PopularSongsByKey,
 			Fuzz:        fzfui.PopularSongsByKeyAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.PopularSongsByKey).Register,
+			Messenger:   msgui.PopularSongsByKey,
 		}
 	case MinutesAppOpExit:
 		return MinutesAppRegistration{
