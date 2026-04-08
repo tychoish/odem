@@ -22,3 +22,10 @@ func renderTable[T any](write func(*mdwn.Builder, iter.Seq[T]), seq iter.Seq2[T,
 	}
 	return ec.Resolve()
 }
+
+func idxorz[T any, S ~[]T](sl S, idx int) (z T) {
+	if len(sl) < idx {
+		return z
+	}
+	return sl[idx]
+}

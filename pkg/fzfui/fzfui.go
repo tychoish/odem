@@ -25,7 +25,7 @@ func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
 	}
 	grip.Infof("songs led by: %s", singer)
 
-	return renderTable(models.WriteSongTable, conn.MostLedSongs(ctx, singer, 32))
+	return renderTable(models.WriteSongTable, conn.MostLedSongs(ctx, singer.Name, 32))
 }
 
 func SongAction(ctx context.Context, conn *db.Connection, song string) error {
@@ -68,7 +68,7 @@ func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 }
 
 func SingingAction(ctx context.Context, dbconn *db.Connection) error {
-	singing, err := SelectSinging(ctx, dbconn)
+	singing, err := SelectSinging(ctx, dbconn, "")
 	if err != nil {
 		return err
 	}
@@ -80,38 +80,38 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 	return renderTable(models.WriteSingingLessonsTable, dbconn.SingingLessons(ctx, singing.SingingName))
 }
 
-func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
-	grip.Infof("lead history for: %s", singer)
+	grip.Infof("lead history for: %s", singer.Name)
 
-	return renderTable(models.WriteLessonTable, dbconn.LeaderLeadHistory(ctx, singer, 50000))
+	return renderTable(models.WriteLessonTable, dbconn.LeaderLeadHistory(ctx, singer.Name, 50000))
 }
 
-func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 	grip.Infof("singings attended by: %s", singer)
 
-	return renderTable(models.WriteLeaderSingingsTable, dbconn.LeaderSingingsAttended(ctx, singer, 0))
+	return renderTable(models.WriteLeaderSingingsTable, dbconn.LeaderSingingsAttended(ctx, singer.Name, 0))
 }
 
-func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
 	var ec erc.Collector
-	grip.Infof("singing buddies for %q", singer)
+	grip.Infof("singing buddies for %q", singer.Name)
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -121,8 +121,8 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer str
 	return nil
 }
 
-func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer s
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Count"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -142,34 +142,34 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer s
 	return nil
 }
 
-func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("most common songs at singings attended by %s", singer)
-	return renderTable(models.WriteSongTable, dbconn.PopularSongsInOnesExperience(ctx, singer, 20))
+	grip.Infof("most common songs at singings attended by %s", singer.Name)
+	return renderTable(models.WriteSongTable, dbconn.PopularSongsInOnesExperience(ctx, input, 20))
 }
 
-func NeverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("songs never sung at singing %s was present at", singer)
-	return renderTable(models.WriteSongTable, dbconn.NeverSung(ctx, singer))
+	grip.Infof("songs never sung at singing %s was present at", singer.Name)
+	return renderTable(models.WriteSongTable, dbconn.NeverSung(ctx, singer.Name))
 }
 
-func NeverLedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func NeverLedAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("songs never led by %s", singer)
-	return renderTable(models.WriteSongTable, dbconn.NeverLed(ctx, singer, 40))
+	grip.Infof("songs never led by %s", singer.Name)
+	return renderTable(models.WriteSongTable, dbconn.NeverLed(ctx, singer.Name, 40))
 }
 
 func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string) error {
@@ -187,28 +187,28 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string
 	return renderTable(models.WriteSongTable, dbconn.LocallyPopular(ctx, 20, localities...))
 }
 
-func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("otherwise popular songs less-or-unfamilar to %s", singer)
-	return renderTable(models.WriteSongTable, dbconn.TheUnfamilarHits(ctx, singer, 20))
+	grip.Infof("otherwise popular songs less-or-unfamilar to %s", singer.Name)
+	return renderTable(models.WriteSongTable, dbconn.TheUnfamilarHits(ctx, singer.Name, 20))
 }
 
-func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
 	var ec erc.Collector
-	grip.Infof("leads per key for %q", singer)
+	grip.Infof("leads per key for %q", singer.Name)
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Key", "Leads"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderFavoriteKey(ctx, singer, 20), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderFavoriteKey(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -234,15 +234,15 @@ func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) er
 	return nil
 }
 
-func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer)
+	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer.Name)
 
-	return renderTable(models.WriteLeaderFootstepTable, dbconn.LeaderFootsteps(ctx, singer, 32))
+	return renderTable(models.WriteLeaderFootstepTable, dbconn.LeaderFootsteps(ctx, singer.Name, 32))
 }
 
 func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -253,13 +253,13 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 		return err
 	}
 
-	years, err := SelectYears(input)
+	years, err := SelectYears(strings.Split(input, " "))
 	if err != nil {
 		return err
 	}
 
-	grip.Infof("lead share for %q in year(s) %v", singer, years)
-	v, err := dbconn.LeaderShareOfLeads(ctx, singer, 16, years...)
+	grip.Infof("lead share for %q in year(s) %v", singer.Name, years)
+	v, err := dbconn.LeaderShareOfLeads(ctx, singer.Name, 16, years...)
 	if err != nil {
 		return err
 	}
@@ -268,14 +268,14 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 		label = fmt.Sprintf("Share of Leads (%v)", years)
 	}
 	var mb mdwn.Builder
-	mb.KV("Leader", singer)
+	mb.KV("Leader", singer.Name)
 	mb.KV(label, fmt.Sprintf("%.4f%%", *v*100))
 
 	return flush(os.Stdout, &mb)
 }
 
 func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(yrs)
+	years, err := SelectYears(strings.Split(yrs, " "))
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 }
 
 func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg string) error {
-	years, err := SelectYears(arg)
+	years, err := SelectYears(strings.Split(arg, " "))
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg stri
 }
 
 func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(yrs)
+	years, err := SelectYears(strings.Split(yrs, " "))
 	if err != nil {
 		return err
 	}
@@ -314,18 +314,18 @@ func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ str
 	return renderTable(models.WriteLeaderCountTableForCount, dbconn.LeadersByTop20Leads(ctx, 40))
 }
 
-func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := SelectLeader(ctx, dbconn, singer)
+func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, input string) error {
+	singer, err := SelectLeader(ctx, dbconn, input)
 	if err != nil {
 		return err
 	}
 
 	var ec erc.Collector
-	grip.Infof("singings per year for %q", singer)
+	grip.Infof("singings per year for %q", singer.Name)
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Year", "Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderSingingsPerYear(ctx, singer), ec.Push)), func(k string, v int) (string, string) {
+		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderSingingsPerYear(ctx, singer.Name), ec.Push)), func(k string, v int) (string, string) {
 			return k, strconv.Itoa(v)
 		}),
 	)
@@ -358,7 +358,7 @@ func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key str
 }
 
 func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(yrs)
+	years, err := SelectYears(strings.Split(yrs, " "))
 	if err != nil {
 		return err
 	}

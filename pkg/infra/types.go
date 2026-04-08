@@ -12,7 +12,8 @@ import (
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
-	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/message"
 )
 
 func IterStruct(foo any) iter.Seq2[string, any] {
@@ -144,39 +145,82 @@ func (fsi *FuzzySearchItems[T]) FindOne() (T, error) {
 }
 
 type SearchParams struct {
-	Prompt string
-	Input  string
+	DisableInteraction  bool
+	SelectFirstWhenMany bool
+	Prompt              string
+	Input               string
+	Multi               bool
 }
 
 func (sp *SearchParams) ClearInput() *SearchParams              { return sp.With("") }
+func (sp *SearchParams) WithoutInteractive() *SearchParams      { return sp.Interaction(false) }
+func (sp *SearchParams) Interaction(arg bool) *SearchParams     { sp.DisableInteraction = !arg; return sp }
+func (sp *SearchParams) UseFirstResult() *SearchParams          { sp.SelectFirstWhenMany = true; return sp }
 func (sp *SearchParams) With(input string) *SearchParams        { sp.Input = input; return sp }
 func (sp *SearchParams) WithPrompt(prompt string) *SearchParams { sp.Prompt = prompt; return sp }
+func (sp *SearchParams) WithMulti() *SearchParams               { sp.Multi = true; return sp }
 
-func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) string, sp *SearchParams, resolver func(A) B) B {
+const (
+	ErrNotFound     = ers.Error("not found")
+	ErrEmptyResults = ers.Error("no results")
+)
+
+func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) string, sp *SearchParams, resolver func(A) B) (iter.Seq[B], error) {
 	if len(options) == 1 {
-		return resolver(options[0])
+		return irt.One(resolver(options[0])), nil
 	}
 
 	if sp.Input != "" {
 		narrowed := irt.Collect(
-			infra.NewFuzzySearch[A](options).
+			NewFuzzySearch[A](options).
 				WithToString(toString).
 				Search(sp.Input))
-		if len(narrowed) == 1 {
-			return resolver(narrowed[0])
+		switch {
+		case len(narrowed) == 1:
+			return irt.One(resolver(narrowed[0])), nil
+		case len(narrowed) > 1 && sp.SelectFirstWhenMany:
+			return irt.One(resolver(narrowed[0])), nil
+		case len(narrowed) > 1 && sp.Multi:
+			return irt.Convert(irt.Slice(narrowed), resolver), nil
 		}
-		if len(narrowed) > 1 {
+
+		if len(narrowed) > 1 && !sp.Multi {
 			return FuzzySearchWithFallback(narrowed, toString, sp.ClearInput(), resolver)
 		}
+		if sp.DisableInteraction {
+			grip.Error(message.NewKV().
+				KV("op", "fuzzy-search").
+				KV("interactivity", !sp.DisableInteraction).
+				KV("input", sp.Input).
+				KV("options", len(options)),
+			)
+
+			return irt.Zero[B](), ErrNotFound
+		}
+	}
+	if sp.DisableInteraction {
+		grip.Warning("interactivity disabled without input")
+		return irt.Zero[B](), ErrEmptyResults
 	}
 
-	res, err := infra.NewFuzzySearch[A](options).
+	search := NewFuzzySearch[A](options).
 		WithToString(toString).
-		Prompt(sp.Prompt).
-		FindOne()
-	if err != nil {
-		panic(err)
+		Prompt(sp.Prompt)
+
+	if sp.Multi {
+		narrowed, err := erc.FromIteratorAll(search.Find())
+		if err != nil {
+			return irt.Zero[B](), err
+		}
+
+		return irt.Convert(irt.Slice(narrowed), resolver), nil
 	}
 
-	return resolver(res)
+	res, err := search.FindOne()
+	if err != nil {
+		grip.Error(message.NewKV().KV("op", "fuzzy-search").KV("err", err))
+		return irt.Zero[B](), err
+	}
+
+	return irt.One(resolver(res)), nil
 }

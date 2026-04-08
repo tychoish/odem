@@ -2,10 +2,7 @@ package fzfui
 
 import (
 	"context"
-	"iter"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -21,34 +18,41 @@ func SelectSong(ctx context.Context, dbconn *db.Connection, input string) (*mode
 		return nil, err
 	}
 
-	match := infra.FuzzySearchWithFallback(
+	res, err := infra.FuzzySearchWithFallback(
 		details,
 		models.MenuFormat,
 		new(infra.SearchParams).With(input).WithPrompt("song"),
 		noop,
 	)
+	if err != nil {
+		return nil, err
+	}
+	match := erc.MustOk(irt.Initial(res))
 
 	grip.Debugln("resolved song:", match.MenuFormat())
 
 	return &match, nil
 }
 
-func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (string, error) {
+func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (*models.LeaderProfile, error) {
 	profiles, err := erc.FromIteratorAll(dbconn.AllLeaderProfiles(ctx))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	match := infra.FuzzySearchWithFallback(
+	res, err := infra.FuzzySearchWithFallback(
 		profiles,
 		models.MenuFormat,
 		new(infra.SearchParams).With(input).WithPrompt("leader"),
-		func(lp models.LeaderProfile) string { return lp.Name },
+		noop,
 	)
+	if err != nil {
+		return nil, err
+	}
+	match := erc.MustOk(irt.Initial(res))
 
 	grip.Debugln("resolved leader:", match)
-
-	return match, nil
+	return &match, nil
 }
 
 func SelectSinging(ctx context.Context, dbconn *db.Connection, input string) (*models.SingingInfo, error) {
@@ -57,12 +61,16 @@ func SelectSinging(ctx context.Context, dbconn *db.Connection, input string) (*m
 		return nil, err
 	}
 
-	match := infra.FuzzySearchWithFallback(
+	res, err := infra.FuzzySearchWithFallback(
 		options,
 		models.MenuFormat,
 		new(infra.SearchParams).With(input).WithPrompt("leader"),
 		noop,
 	)
+	if err != nil {
+		return nil, err
+	}
+	match := erc.MustOk(irt.Initial(res))
 
 	grip.Debugln("selected singing", match.SingingName)
 	return &match, nil
@@ -74,48 +82,33 @@ func SelectKey(ctx context.Context, conn *db.Connection, input string) (string, 
 		return "", err
 	}
 
-	match := infra.FuzzySearchWithFallback(
+	match, err := infra.FuzzySearchWithFallback(
 		keys,
-		models.MenuFormat,
+		noop,
 		new(infra.SearchParams).With(input).WithPrompt("key"),
 		noop,
 	)
+	if err != nil {
+		return "", err
+	}
 
 	grip.Debugln("selected key", match)
 
-	return match, nil
+	return erc.MustOk(irt.Initial(match)), nil
 }
 
-// SelectYears parses years from userInput (comma-separated integers) or
-// prompts the user with a fuzzy selector. Selecting or passing 0 means
+// SelectYears parses years from userInput (space-separated integers) or
+// prompts the user with a fuzzy multi-selector. Selecting or passing 0 means
 // "all years" and returns nil, nil. An empty selection also returns nil, nil.
-func SelectYears(userInput string) ([]int, error) {
-	var seq iter.Seq2[int, error]
-
-	if userInput != "" {
-		seq = irt.With2(
-			irt.Slice(strings.Split(userInput, " ")),
-			strconv.Atoi,
-		)
-	} else {
-		currentYear := time.Now().Year()
-
-		seq = infra.NewFuzzySearch[int](
-			irt.Chain(irt.Args(
-				irt.Args(0), // 0 = all years (no filter)
-				irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
-				irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
-			))).Prompt("years (0 = all)").
-			Find() // findMany
+func SelectYears(userInput []string) ([]int, error) {
+	if len(userInput) > 1 {
+		return erc.FromIteratorAll(irt.With2(irt.Slice(userInput), strconv.Atoi))
 	}
 
-	var ec erc.Collector
-
-	years := irt.Collect(irt.RemoveZeros(erc.HandleUntil(seq, ec.Push)))
-
-	if !ec.Ok() {
-		return nil, ec.Resolve()
-	}
-
-	return years, nil
+	return erc.FromIteratorAll(infra.FuzzySearchWithFallback(
+		irt.Collect(infra.YearSelectorRange(1995)),
+		strconv.Itoa,
+		new(infra.SearchParams).With(idxorz(userInput, 0)).WithPrompt("years (0 = all)").WithMulti(),
+		noop[int],
+	))
 }

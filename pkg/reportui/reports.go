@@ -17,7 +17,6 @@ import (
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/db"
-	"github.com/tychoish/odem/pkg/fzfui"
 	"github.com/tychoish/odem/pkg/mdwn"
 	"github.com/tychoish/odem/pkg/models"
 )
@@ -112,7 +111,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	sg, err := fzfui.SelectSong(ctx, conn, p.Name)
+	sg, err := p.SelectSong(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -142,7 +141,7 @@ func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
 }
 
 func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	info, err := fzfui.SelectSinging(ctx, conn, p.Name)
+	info, err := p.SelectSinging(ctx, conn)
 	if err != nil {
 		return err
 	}
@@ -246,9 +245,15 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 }
 
 func PopularityInYears(ctx context.Context, conn *db.Connection, p Params) error {
-	years, err := fzfui.SelectYears(p.Name) // TODO change upstream function to take integers and separate out parings
-	if err != nil {
-		return err
+	var years []int
+	if len(p.Years) > 0 {
+		years = p.Years
+	} else {
+		var err error
+		years, err = p.SelectYears(ctx, conn)
+		if err != nil {
+			return err
+		}
 	}
 
 	yearsStrs := irt.Collect(irt.Convert(irt.Slice(years), itoa))

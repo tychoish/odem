@@ -14,16 +14,22 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem/pkg/db"
-	"github.com/tychoish/odem/pkg/fzfui"
+	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
 )
 
 func itoa(in int) string                                  { return strconv.Itoa(in) }
+func noop[T any](in T) T                                  { return in }
 func sumLens(s []string) (l int)                          { irt.ForEach(irt.Slice(s), func(s string) { l += len(s) }); return }
 func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
 func intValToStr(key string, value int) (string, string)  { return key, strconv.Itoa(value) }
 func fmtPercentKVs(k string, v float64) (string, string)  { return k, fmt.Sprintf("%.4f%%", v*100) }
-func asRows(lsr models.LeaderSongRank) []string           { return (&lsr).StringFields() }
+func idxorz[T any, S ~[]T](sl S, idx int) (z T) {
+	if len(sl) < idx {
+		return z
+	}
+	return sl[idx]
+}
 
 // Params is the collection of arguments for generating a
 type Params struct {
@@ -40,40 +46,29 @@ type Params struct {
 // implementation to avoid interaction.
 func (p Params) WithoutInteraction() Params { p.SuppressInteractivity = true; return p }
 
+func (p Params) Search() *infra.SearchParams {
+	return new(infra.SearchParams).With(p.Name).Interaction(!p.SuppressInteractivity)
+}
+
 func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, error) {
-	if p.SuppressInteractivity {
-		out, err := SelectLeader(ctx, conn, p.Name)
-		if err != nil {
-			return "", err
-		}
-		return out.Name, nil
+	out, err := SelectLeader(ctx, conn, p.Search())
+	if err != nil {
+		return "", err
 	}
 
-	return fzfui.SelectLeader(ctx, conn, p.Name)
+	return out.Name, nil
 }
 
 func (p Params) SelectSong(ctx context.Context, conn *db.Connection) (*models.SongDetail, error) {
-	if p.SuppressInteractivity {
-		out, err := SelectSong(ctx, conn, p.Name)
-		if err != nil {
-			return nil, err
-		}
-		return out, nil
-	}
-
-	return fzfui.SelectSong(ctx, conn, p.Name)
+	return SelectSong(ctx, conn, p.Search())
 }
 
-func (p Params) SelectSiging(ctx context.Context, conn *db.Connection) (*models.SingingInfo, error) {
-	if p.SuppressInteractivity {
-		out, err := SelectSinging(ctx, conn, p.Name)
-		if err != nil {
-			return nil, err
-		}
-		return out, nil
-	}
+func (p Params) SelectSinging(ctx context.Context, conn *db.Connection) (*models.SingingInfo, error) {
+	return SelectSinging(ctx, conn, p.Search())
+}
 
-	return fzfui.SelectSinging(ctx, conn, p.Name)
+func (p Params) SelectKey(ctx context.Context, conn *db.Connection) (string, error) {
+	return SelectKey(ctx, conn, p.Search())
 }
 
 func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, error) {
@@ -85,7 +80,7 @@ func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, er
 		return []int{time.Now().Year() - 1}, nil
 	}
 
-	return fzfui.SelectYears(p.Name)
+	return SelectYears(p.Search())
 }
 
 func (p Params) SelectLocality(ctx context.Context, conn *db.Connection) ([]string, error) {
@@ -97,17 +92,6 @@ func (p Params) SelectLocality(ctx context.Context, conn *db.Connection) ([]stri
 	}
 
 	return nil, ers.New("not implemented")
-}
-
-func (p Params) SelectKey(ctx context.Context, conn *db.Connection) (string, error) {
-	if p.SuppressInteractivity {
-		if len(p.Name) > 0 {
-			return p.Name, nil
-		}
-		return "", errors.New("headless key selection not implemented")
-	}
-
-	return fzfui.SelectKey(ctx, conn, p.Name)
 }
 
 // getWriter returns an io.Writer (stdout or a new file) plus a cleanup func.
