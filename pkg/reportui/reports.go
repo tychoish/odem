@@ -64,7 +64,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.Line()
 
 	mb.H2("Most Led Songs")
-	WriteSongTable(&mb, erc.HandleAll(conn.MostLedSongs(ctx, singer, 24), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.MostLedSongs(ctx, singer, 24), ec.Push))
 	mb.H2("Favorite Keys")
 	mb.KVTable(
 		irt.MakeKV("Count", "Key"),
@@ -74,7 +74,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Songs in Your Experience")
 	mb.Paragraph("Most frequently led songs at singings ", singer, " attended.")
-	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, 12), ec.Push))
 
 	mb.H2("Singing Buddies")
 	mb.Paragraph("The people that have been the most singings that ", singer, " was at.")
@@ -93,19 +93,19 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Singing Idols")
 	mb.Paragraph("The top leaders of all of ", singer, "'s top songs!")
-	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer, 20), ec.Push))
+	models.WriteLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer, 20), ec.Push))
 
 	mb.H2("Unfamiliar Hits")
 	mb.Paragraph("Othewise popular songs that are under represented at singings ", singer, " has been at.")
-	WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, 20), ec.Push))
 
 	mb.H2("Never Led")
 	mb.Paragraph("Songs from the 2025 book that ", singer, " has never led, by global popularity.")
-	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, 20), 12), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, 20), 12), ec.Push))
 
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing ", singer, " attended, by global popularity.")
-	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), 12), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -135,15 +135,7 @@ func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	mb.Line()
 
 	mb.H3("Top Leaders")
-	mb.NewTable(
-		mdwn.Column{Name: "Name"},
-		mdwn.Column{Name: "Count", RightAlign: true},
-		mdwn.Column{Name: "Led Last Year"},
-		mdwn.Column{Name: "Years Active", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersOfSong(ctx, sg.PageNum, cmp.Or(p.Limit, 20)), ec.Push), func(l models.LeaderOfSongInfo) []string {
-		return []string{l.Name, strconv.Itoa(l.Count), strconv.FormatBool(l.LedInLastYear), strconv.Itoa(l.NumYears)}
-	})).Build()
-	mb.Line()
+	models.WriteSongLeadersTable(&mb, erc.HandleAll(conn.TopLeadersOfSong(ctx, sg.PageNum, cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -173,16 +165,7 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	mb.Line()
 
 	mb.H3("Lessons")
-	mb.NewTable(
-		mdwn.Column{Name: "Lesson", RightAlign: true},
-		mdwn.Column{Name: "Leader"},
-		mdwn.Column{Name: "Song"},
-		mdwn.Column{Name: "Key"},
-		mdwn.Column{Name: "Title"},
-	).Extend(irt.Convert(erc.HandleAll(conn.SingingLessons(ctx, p.Name), ec.Push), func(s models.SingingLessionInfo) []string {
-		return []string{strconv.Itoa(s.LessonID), s.SingerName, s.SongPageNumber, s.SongKey, s.SongName}
-	})).Build()
-	mb.Line()
+	models.WriteSingingLessonsTable(&mb, erc.HandleAll(conn.SingingLessons(ctx, p.Name), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -256,7 +239,7 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Popular in %s's Experience", singer))
-	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, cmp.Or(p.Limit, defaultN)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer, cmp.Or(p.Limit, defaultN)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -282,7 +265,7 @@ func PopularityInYears(ctx context.Context, conn *db.Connection, p Params) error
 
 	mb.KV("Years", cmp.Or(strings.Join(yearsStrs, ", "), "(all)"))
 
-	WriteSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -304,7 +287,7 @@ func LocallyPopular(ctx context.Context, conn *db.Connection, p Params) (err err
 	defer func() { err = erc.Join(wr.Close()) }()
 	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Locally Popular: %s", p.Name))
-	WriteSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 32), localities...), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -326,7 +309,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Never Sung: %s", singer))
-	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), cmp.Or(p.Limit, 20)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer), cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -348,7 +331,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Never Led: %s", singer))
-	WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverLed(ctx, singer, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -370,7 +353,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 	// ---------------- THE FOLD ----------------
 	mb.H2(fmt.Sprintf("Unfamiliar Hits: %s", singer))
-	WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer, cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -444,19 +427,7 @@ func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
 		mb.KV("Years", strings.Join(yearsStr, ", "))
 	}
 
-	var pos int
-	mb.NewTable(
-		mdwn.Column{Name: "#", RightAlign: true},
-		mdwn.Column{Name: "Name"},
-		mdwn.Column{Name: "Leads", RightAlign: true},
-		mdwn.Column{Name: "Last Year", RightAlign: true},
-		mdwn.Column{Name: "%", RightAlign: true},
-		mdwn.Column{Name: "Running Total %", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 40), years...), ec.Push), func(row models.LeaderLeadCount) []string {
-		pos++
-		return []string{strconv.Itoa(pos), row.Name, strconv.Itoa(row.Count), strconv.Itoa(row.LastLeadYear), fmt.Sprintf("%.2f%%", row.Percentage*100), fmt.Sprintf("%.2f%%", row.RunningTotal*100)}
-	})).Build()
-	mb.Line()
+	models.WriteTopLeadersTable(&mb, erc.HandleAll(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 40), years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -512,16 +483,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p Params) (err 
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Lead History: %s", singer))
-	mb.NewTable(
-		mdwn.Column{Name: "Date"},
-		mdwn.Column{Name: "Singing"},
-		mdwn.Column{Name: "Song"},
-		mdwn.Column{Name: "Page"},
-		mdwn.Column{Name: "Key"},
-	).Extend(irt.Convert(erc.HandleAll(conn.LeaderLeadHistory(ctx, singer, cmp.Or(p.Limit, 40)), ec.Push), func(row models.LessonInfo) []string {
-		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SongName, row.SongPageNumber, row.SongKey}
-	})).Build()
-	mb.Line()
+	models.WriteLessonTable(&mb, erc.HandleAll(conn.LeaderLeadHistory(ctx, singer, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -543,17 +505,7 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p Params) (err err
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singings Attended: %s", singer))
-	mb.NewTable(
-		mdwn.Column{Name: "Date"},
-		mdwn.Column{Name: "Singing"},
-		mdwn.Column{Name: "State"},
-		mdwn.Column{Name: "City"},
-		mdwn.Column{Name: "Led", RightAlign: true},
-		mdwn.Column{Name: "Leaders", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.LeaderSingingsAttended(ctx, singer, cmp.Or(p.Limit, 0)), ec.Push), func(row models.LeaderSingingAttendance) []string {
-		return []string{row.SingingDate.String(), strings.ReplaceAll(row.SingingName, "\\n", "; "), row.SingingState, row.SingingCity, strconv.Itoa(row.LeaderLeadCount), strconv.Itoa(row.NumberOfLeaders)}
-	})).Build()
-	mb.Line()
+	models.WriteLeaderSingingsTable(&mb, erc.HandleAll(conn.LeaderSingingsAttended(ctx, singer, cmp.Or(p.Limit, 0)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
@@ -582,7 +534,7 @@ func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err e
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Debut Leaders: %d", year))
-	writeLeaderCountTable(&mb, "Leads", erc.HandleAll(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)), ec.Push))
+	models.WriteLeaderCountTable(&mb, "Leads", erc.HandleAll(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -614,14 +566,7 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p Params) (err error) 
 	}
 	mb.H2(heading)
 
-	mb.NewTable(
-		mdwn.Column{Name: "Key"},
-		mdwn.Column{Name: "Count", RightAlign: true},
-		mdwn.Column{Name: "Percentage", RightAlign: true},
-	).Extend(irt.Convert(erc.HandleAll(conn.SongsByKey(ctx, p.Years...), ec.Push), func(row models.LeaderSongRank) []string {
-		return []string{row.Key, row.NumLeads, fmt.Sprintf("%.1f%%", row.Ratio*100)}
-	})).Build()
-	mb.Line()
+	models.WriteSongsByKeyTable(&mb, erc.HandleAll(conn.SongsByKey(ctx, p.Years...), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -638,7 +583,7 @@ func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p Params) (er
 	var mb mdwn.Builder
 
 	mb.H2("Leaders by Top-20 Leads")
-	writeLeaderCountTable(&mb, "Top-20 Leads", erc.HandleAll(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)), ec.Push))
+	models.WriteLeaderCountTable(&mb, "Top-20 Leads", erc.HandleAll(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -686,7 +631,7 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p Params) (err error
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Leaders in Key: %s", key))
-	writeLeaderCountTable(&mb, "Count", erc.HandleAll(conn.LeadersByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
+	models.WriteLeaderCountTable(&mb, "Count", erc.HandleAll(conn.LeadersByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -708,7 +653,7 @@ func PopularSongsByKey(ctx context.Context, conn *db.Connection, p Params) (err 
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Popular Songs in Key: %s", key))
-	WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsByKey(ctx, key, cmp.Or(p.Limit, 40)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
@@ -729,7 +674,7 @@ func LeaderFootsteps(ctx context.Context, conn *db.Connection, p Params) error {
 	var ec erc.Collector
 	var mb mdwn.Builder
 	mb.H2(fmt.Sprintf("Leader Footsteps: %s", singer))
-	writeLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+	models.WriteLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()

@@ -121,7 +121,7 @@ func LocalBuild(ctx context.Context) error {
 		if !util.FileExists(path) {
 			continue
 		}
-
+		grip.Infoln("building:", "./cmd/odem/.go")
 		return jasper.Context(ctx).
 			CreateCommand(ctx).
 			AppendArgs("go", "build", "./cmd/odem.go").
