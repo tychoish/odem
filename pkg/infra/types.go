@@ -12,6 +12,7 @@ import (
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
+	"github.com/tychoish/odem/pkg/infra"
 )
 
 func IterStruct(foo any) iter.Seq2[string, any] {
@@ -140,4 +141,42 @@ func (fsi *FuzzySearchItems[T]) FindOne() (T, error) {
 		return v, err
 	}
 	return fsi.zero(), ers.New("not found")
+}
+
+type SearchParams struct {
+	Prompt string
+	Input  string
+}
+
+func (sp *SearchParams) ClearInput() *SearchParams              { return sp.With("") }
+func (sp *SearchParams) With(input string) *SearchParams        { sp.Input = input; return sp }
+func (sp *SearchParams) WithPrompt(prompt string) *SearchParams { sp.Prompt = prompt; return sp }
+
+func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) string, sp *SearchParams, resolver func(A) B) B {
+	if len(options) == 1 {
+		return resolver(options[0])
+	}
+
+	if sp.Input != "" {
+		narrowed := irt.Collect(
+			infra.NewFuzzySearch[A](options).
+				WithToString(toString).
+				Search(sp.Input))
+		if len(narrowed) == 1 {
+			return resolver(narrowed[0])
+		}
+		if len(narrowed) > 1 {
+			return FuzzySearchWithFallback(narrowed, toString, sp.ClearInput(), resolver)
+		}
+	}
+
+	res, err := infra.NewFuzzySearch[A](options).
+		WithToString(toString).
+		Prompt(sp.Prompt).
+		FindOne()
+	if err != nil {
+		panic(err)
+	}
+
+	return resolver(res)
 }

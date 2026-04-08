@@ -15,93 +15,75 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-func SelectSong(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SongDetail, error) {
-	songDetails, err := erc.FromIteratorAll(dbconn.AllSongDetails(ctx))
+func SelectSong(ctx context.Context, dbconn *db.Connection, input string) (*models.SongDetail, error) {
+	details, err := erc.FromIteratorAll(dbconn.AllSongDetails(ctx))
 	if err != nil {
 		return nil, err
 	}
 
-	sg := infra.NewFuzzySearch[models.SongDetail](songDetails).
-		WithToString(models.MenuFormat).
-		Search(strings.Join(args, " "))
+	match := infra.FuzzySearchWithFallback(
+		details,
+		models.MenuFormat,
+		new(infra.SearchParams).With(input).WithPrompt("song"),
+		noop,
+	)
 
-	sdIdx := map[models.SongDetail]int{}
-	for i, v := range songDetails {
-		sdIdx[v] = i
-	}
-	preselction := []int{}
-	for detail := range sg {
-		if sidx, ok := sdIdx[detail]; ok {
-			preselction = append(preselction, sidx)
-		}
-	}
+	grip.Debugln("resolved song:", match.MenuFormat())
 
-	fs := infra.NewFuzzySearch[models.SongDetail](songDetails).
-		WithToString(models.MenuFormat)
-
-	if len(preselction) > 0 {
-		fs = fs.WithSelections(preselction)
-	}
-	res, err := fs.FindOne()
-	if err != nil {
-		return nil, err
-	}
-	return &res, nil
+	return &match, nil
 }
 
 func SelectLeader(ctx context.Context, dbconn *db.Connection, input string) (string, error) {
-	var ec erc.Collector
-	profiles := erc.HandleAll(dbconn.AllLeaderProfiles(ctx), ec.Push)
-	if !ec.Ok() {
-		return "", ec.Resolve()
-	}
-
-	if input != "" {
-		matches := irt.Collect(infra.NewFuzzySearch[models.LeaderProfile](profiles).
-			WithToString(models.MenuFormat).
-			Search(input))
-		if len(matches) == 1 {
-			grip.Debugln("resolved leader", matches[0].Name)
-			return matches[0].Name, nil
-		}
-	}
-
-	leader, err := infra.NewFuzzySearch[models.LeaderProfile](profiles).
-		WithToString(models.MenuFormat).
-		FindOne()
+	profiles, err := erc.FromIteratorAll(dbconn.AllLeaderProfiles(ctx))
 	if err != nil {
 		return "", err
 	}
 
-	grip.Debugln("selected leader", leader)
-	return leader.Name, nil
+	match := infra.FuzzySearchWithFallback(
+		profiles,
+		models.MenuFormat,
+		new(infra.SearchParams).With(input).WithPrompt("leader"),
+		func(lp models.LeaderProfile) string { return lp.Name },
+	)
+
+	grip.Debugln("resolved leader:", match)
+
+	return match, nil
 }
 
-func SelectSinging(ctx context.Context, dbconn *db.Connection, args ...string) (*models.SingingInfo, error) {
-	var ec erc.Collector
-
-	singings := irt.Collect(erc.HandleAll(dbconn.AllSingings(ctx), ec.Push))
-	singing, err := infra.NewFuzzySearch[models.SingingInfo](singings).
-		WithToString(models.MenuFormat).
-		Prompt("leaders").
-		FindOne()
-
-	if !ec.PushOk(err) || !ec.Ok() {
-		return nil, ec.Resolve()
+func SelectSinging(ctx context.Context, dbconn *db.Connection, input string) (*models.SingingInfo, error) {
+	options, err := erc.FromIteratorAll(dbconn.AllSingings(ctx))
+	if err != nil {
+		return nil, err
 	}
-	grip.Debugln("selected singing", singing.SingingName)
-	return &singing, nil
+
+	match := infra.FuzzySearchWithFallback(
+		options,
+		models.MenuFormat,
+		new(infra.SearchParams).With(input).WithPrompt("leader"),
+		noop,
+	)
+
+	grip.Debugln("selected singing", match.SingingName)
+	return &match, nil
 }
 
 func SelectKey(ctx context.Context, conn *db.Connection, input string) (string, error) {
-	if input != "" {
-		return input, nil
-	}
 	keys, err := erc.FromIteratorAll(conn.AllKeys(ctx))
 	if err != nil {
 		return "", err
 	}
-	return infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
+
+	match := infra.FuzzySearchWithFallback(
+		keys,
+		models.MenuFormat,
+		new(infra.SearchParams).With(input).WithPrompt("key"),
+		noop,
+	)
+
+	grip.Debugln("selected key", match)
+
+	return match, nil
 }
 
 // SelectYears parses years from userInput (comma-separated integers) or
@@ -123,14 +105,13 @@ func SelectYears(userInput string) ([]int, error) {
 				irt.Args(0), // 0 = all years (no filter)
 				irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
 				irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
-			))).Prompt("years (0 = all)").Find()
+			))).Prompt("years (0 = all)").
+			Find() // findMany
 	}
 
 	var ec erc.Collector
 
-	years := irt.Collect(irt.RemoveZeros(erc.HandleUntil(
-		seq, ec.Push,
-	)))
+	years := irt.Collect(irt.RemoveZeros(erc.HandleUntil(seq, ec.Push)))
 
 	if !ec.Ok() {
 		return nil, ec.Resolve()
