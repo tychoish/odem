@@ -2,12 +2,12 @@ package fzfui
 
 import (
 	"context"
+	"iter"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tychoish/fun/erc"
-	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
@@ -104,52 +104,37 @@ func SelectKey(ctx context.Context, conn *db.Connection, input string) (string, 
 	return infra.NewFuzzySearch[string](keys).Prompt("key").FindOne()
 }
 
-func interactivelyResolveSingerName(ctx context.Context, conn *db.Connection, singer string) (string, error) {
-	if singer != "" {
-		return singer, nil
-	}
-
-	singer, err := SelectLeader(ctx, conn, singer)
-	if err != nil {
-		return "", err
-	}
-	if singer == "" {
-		return "", ers.New("not found")
-	}
-
-	return singer, nil
-}
-
 // SelectYears parses years from userInput (comma-separated integers) or
 // prompts the user with a fuzzy selector. Selecting or passing 0 means
 // "all years" and returns nil, nil. An empty selection also returns nil, nil.
 func SelectYears(userInput string) ([]int, error) {
+	var seq iter.Seq2[int, error]
+
 	if userInput != "" {
-		years, err := erc.FromIteratorAll(
-			irt.With2(
-				irt.Slice(strings.Split(userInput, " ")),
-				strconv.Atoi,
-			),
+		seq = irt.With2(
+			irt.Slice(strings.Split(userInput, " ")),
+			strconv.Atoi,
 		)
-		switch {
-		case err != nil:
-			return nil, err
-		case len(years) != 0:
-			return filterYears(years), nil
-		}
+	} else {
+		currentYear := time.Now().Year()
+
+		seq = infra.NewFuzzySearch[int](
+			irt.Chain(irt.Args(
+				irt.Args(0), // 0 = all years (no filter)
+				irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
+				irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
+			))).Prompt("years (0 = all)").Find()
 	}
 
-	currentYear := time.Now().Year()
+	var ec erc.Collector
 
-	years, err := erc.FromIteratorAll(infra.NewFuzzySearch[int](
-		irt.Chain(irt.Args(
-			irt.Args(0), // 0 = all years (no filter)
-			irt.While(irt.MonotonicFrom(1995), func(v int) bool { return v < currentYear }),
-			irt.While(irt.MonotonicFrom(-1*currentYear), func(v int) bool { return v < -1995 }),
-		)),
-	).Prompt("years (0 = all)").Find())
-	if err != nil {
-		return nil, err
+	years := irt.Collect(irt.RemoveZeros(erc.HandleUntil(
+		seq, ec.Push,
+	)))
+
+	if !ec.Ok() {
+		return nil, ec.Resolve()
 	}
-	return filterYears(years), nil
+
+	return years, nil
 }

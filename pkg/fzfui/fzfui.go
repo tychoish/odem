@@ -19,7 +19,7 @@ import (
 )
 
 func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
-	singer, err := interactivelyResolveSingerName(ctx, conn, arg)
+	singer, err := SelectLeader(ctx, conn, arg)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 }
 
 func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, singer 
 }
 
 func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, si
 }
 
 func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, singer str
 }
 
 func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, singer s
 }
 
 func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, s
 }
 
 func NeverSungAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func NeverSungAction(ctx context.Context, dbconn *db.Connection, singer string) 
 }
 
 func NeverLedAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string
 }
 
 func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, singer stri
 }
 
 func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) er
 }
 
 func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, singer st
 func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
 	// input may be "Singer Name" or "Singer Name,2023,2024"
 	parts := strings.SplitN(input, ",", 2)
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, strings.TrimSpace(parts[0]))
+	singer, err := SelectLeader(ctx, dbconn, strings.TrimSpace(parts[0]))
 	if err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ str
 }
 
 func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-	singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
+	singer, err := SelectLeader(ctx, dbconn, singer)
 	if err != nil {
 		return err
 	}
