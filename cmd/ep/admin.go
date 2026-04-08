@@ -69,7 +69,7 @@ func Build() *cmdr.Commander {
 		SetName("build").
 		SetUsage("project automation and release tools").
 		With(infra.AttachConfiguration).
-		With(infra.WorkerAction(release.LocalBuild)).
+		With(infra.WorkerAction(infra.WorkerWithTiming("build-all", release.LocalBuild))).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("all").
@@ -78,7 +78,7 @@ func Build() *cmdr.Commander {
 					SetName("dry-run", "n").
 					SetUsage("disables all (most?) write operations for some (admin) operations").
 					Flag()).
-				With(infra.WorkerAction(release.BuildArtifacts)),
+				With(infra.WorkerAction(infra.WorkerWithTiming("build-all", release.BuildArtifacts)),)
 			cmdr.MakeCommander().
 				SetName("release").
 				SetUsage("release automation").

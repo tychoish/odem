@@ -5,10 +5,13 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/srv"
+	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/message"
 	"github.com/tychoish/jasper"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
@@ -116,4 +119,12 @@ func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
 	return func(cmd *cmdr.Commander) {
 		cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return op(ctx) })
 	}
+}
+
+func WorkerWithTiming(name string, op fnx.Worker) fnx.Worker {
+	return fnx.Worker(func(ctx context.Context) error {
+		startAt := time.Now()
+		defer func() { grip.Info(message.NewKV().KV("name", name).KV("duration", time.Since(startAt))) }()
+		return op(ctx)
+	})
 }
