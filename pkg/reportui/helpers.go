@@ -18,17 +18,10 @@ import (
 )
 
 func itoa(in int) string                                  { return strconv.Itoa(in) }
-func noop[T any](in T) T                                  { return in }
 func sumLens(s []string) (l int)                          { irt.ForEach(irt.Slice(s), func(s string) { l += len(s) }); return }
 func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
 func intValToStr(key string, value int) (string, string)  { return key, strconv.Itoa(value) }
 func fmtPercentKVs(k string, v float64) (string, string)  { return k, fmt.Sprintf("%.4f%%", v*100) }
-func idxorz[T any, S ~[]T](sl S, idx int) (z T) {
-	if len(sl) < idx {
-		return z
-	}
-	return sl[idx]
-}
 
 // Params is the collection of arguments for generating a
 type Params struct {
@@ -60,8 +53,8 @@ func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, 
 
 func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, error) {
 	if p.SuppressInteractivity {
-		if len(p.Params.Years) > 0 {
-			return p.Params.Years, nil
+		if len(p.Years) > 0 {
+			return p.Years, nil
 		}
 
 		return []int{time.Now().Year() - 1}, nil

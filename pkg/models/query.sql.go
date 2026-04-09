@@ -40,15 +40,15 @@ func (q *Queries) GetLeader(ctx context.Context, name *string) (GetLeaderRow, er
 
 const getSingerConnectedness = `-- name: GetSingerConnectedness :one
 SELECT
-	CAST(COUNT(DISTINCT b.leader_id) AS REAL) / (SELECT COUNT(*) FROM leaders) AS connectedness
+	CAST(CAST(COUNT(DISTINCT b.leader_id) AS REAL) / CAST((SELECT COUNT(*) FROM leaders) AS REAL) AS REAL) AS connectedness
 FROM song_leader_joins a
 JOIN song_leader_joins b ON b.minutes_id = a.minutes_id AND b.leader_id != a.leader_id
 WHERE a.leader_id = (SELECT id FROM leaders WHERE leaders.name = ?)
 `
 
-func (q *Queries) GetSingerConnectedness(ctx context.Context, name *string) (int64, error) {
+func (q *Queries) GetSingerConnectedness(ctx context.Context, name *string) (float64, error) {
 	row := q.db.QueryRowContext(ctx, getSingerConnectedness, name)
-	var connectedness int64
+	var connectedness float64
 	err := row.Scan(&connectedness)
 	return connectedness, err
 }

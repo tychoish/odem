@@ -90,8 +90,8 @@ func BuildArtifacts(ctx context.Context) error {
 			}
 
 		}
-		switch {
-		case build.GOOS == "windows":
+		switch build.GOOS {
+		case "windows":
 			zipball := filepath.Join(versionBuildPath, joindot(artifactName, "zip"))
 			cmd.AppendArgs("zip", "-j", zipball, filepath.Join(binaryPath, binaryName))
 			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball))

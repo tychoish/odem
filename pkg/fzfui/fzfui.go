@@ -348,8 +348,7 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 }
 
 func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
-	var err error
-	selector.Key(ctx, dbconn, new(infra.SearchParams).With(key).WithPrompt("key"))
+	key, err := selector.Key(ctx, dbconn, new(infra.SearchParams).With(key).WithPrompt("key"))
 	if err != nil {
 		return err
 	}

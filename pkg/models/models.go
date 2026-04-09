@@ -206,13 +206,13 @@ type SingingInfo struct {
 }
 
 type SingingLesson struct {
-	SequenceNumber int64  `db:"sequence_number" json:"sequence_number"`
-	LessonID       int64  `db:"lesson_id" json:"lesson_id"`
-	SingingName    string `db:"singing_name" json:"singing_name"`
-	SingerName     string `db:"singer_name" json:"singer_name"`
-	SongPageNumber string `db:"song_page_number" json:"song_page_number"`
-	SongName       string `db:"song_name" json:"song_name"`
-	SongKey        string `db:"song_key" json:"song_key"`
+	SequenceNumber int64       `db:"sequence_number" json:"sequence_number"`
+	LessonID       int64       `db:"lesson_id" json:"lesson_id"`
+	SingingName    string      `db:"singing_name" json:"singing_name"`
+	SingerName     string      `db:"singer_name" json:"singer_name"`
+	SongPageNumber interface{} `db:"song_page_number" json:"song_page_number"`
+	SongName       string      `db:"song_name" json:"song_name"`
+	SongKey        interface{} `db:"song_key" json:"song_key"`
 }
 
 type Song struct {

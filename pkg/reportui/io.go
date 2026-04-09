@@ -35,7 +35,7 @@ func getFile(dir string, args ...string) (*os.File, error) {
 type wstdout[W io.Writer] struct{ adt.Once[W] }
 
 func wrapWriter[W io.Writer](in W) *wstdout[W]    { return new(wstdout[W]).with(in) }
-func (w *wstdout[W]) with(in W) *wstdout[W]       { w.Once.Set(func() W { return in }); return w }
+func (w *wstdout[W]) with(in W) *wstdout[W]       { w.Set(func() W { return in }); return w }
 func (w *wstdout[W]) Write(b []byte) (int, error) { return w.Resolve().Write(b) }
 func (*wstdout[w]) Close() error                  { return nil }
 
