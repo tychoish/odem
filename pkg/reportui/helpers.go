@@ -1,7 +1,6 @@
 package reportui
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/jasper/util"
-	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
 	"github.com/tychoish/odem/pkg/selector"
@@ -42,22 +40,19 @@ func (p Params) Search() *infra.SearchParams {
 	return new(infra.SearchParams).With(p.Name).Interaction(!p.SuppressInteractivity)
 }
 
-func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, error) {
-	out, err := selector.Leader(ctx, conn, p.Search())
-	if err != nil {
-		return "", err
-	}
-
-	return out.Name, nil
-}
-
-func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, error) {
+func (p Params) selectYears() ([]int, error) {
 	if p.SuppressInteractivity {
 		if len(p.Years) > 0 {
 			return p.Years, nil
 		}
 
 		return []int{time.Now().Year() - 1}, nil
+	}
+	if len(p.Years) > 0 {
+		p.Name = irt.JoinStringsWith(irt.Chain(irt.Args(
+			irt.Args(p.Name),
+			irt.Convert(irt.Slice(p.Years), strconv.Itoa),
+		)), " ")
 	}
 
 	return selector.Years(p.Search())

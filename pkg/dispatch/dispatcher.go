@@ -199,7 +199,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Command:     "most-led",
 			Description: "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).",
 			Aliases:     []string{"leader-most-led", "leader-most-frequent", "most-led", "often-led"},
-			Reporter:    reportui.Leader,
+			Reporter:    reportui.MostLed,
 			Fuzz:        fzfui.LeaderAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.MostLeadSongs).Register,
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),

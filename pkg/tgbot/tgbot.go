@@ -17,13 +17,6 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
-/*
-TODO:
-- [x] figure how why there's double posting
-- [x] suppress interactivity throughout the codebase
-- [ ] build specific telegram bot rendering. (new package, probably)
-*/
-
 type Service struct {
 	signal <-chan struct{}
 	conf   *odem.Configuration

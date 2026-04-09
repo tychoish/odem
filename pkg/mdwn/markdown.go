@@ -64,12 +64,13 @@ func (m *Builder) Release()                { m.Mutable.Release() }
 func (m *Builder) Truncate(targetSize int) { m.Mutable = m.Mutable[:max(0, min(targetSize, m.Len()))] }
 
 // H1/H2/H3 write the heading followed by a blank line.
-func (m *Builder) H1(text string) *Builder { return m.heading(1, text) }
-func (m *Builder) H2(text string) *Builder { return m.heading(2, text) }
-func (m *Builder) H3(text string) *Builder { return m.heading(3, text) }
+func (m *Builder) H1(text ...string) *Builder { return m.heading(1, text...) }
+func (m *Builder) H2(text ...string) *Builder { return m.heading(2, text...) }
+func (m *Builder) H3(text ...string) *Builder { return m.heading(3, text...) }
 
-func (m *Builder) heading(level int, text string) *Builder {
-	m.Concat(strings.Repeat("#", level), " ", text)
+func (m *Builder) heading(level int, text ...string) *Builder {
+	m.Concat(strings.Repeat("#", level), " ")
+	m.Concat(text...)
 	m.NLines(2)
 	return m
 }

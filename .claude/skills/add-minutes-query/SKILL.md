@@ -4,7 +4,7 @@ description: |
   Add a new query of the minutes data to the `odem` system. Given a description or name of the operation, implement, test, and integrate it.
 ---
 
-You will generate a query to satisfy the request and then conect the query with various interfaces a fuzzy CLI (pkg/fzfui) for interactive use, a static report renderer (pkg/reportui), and an MCP tool handler (pkg/mcpsrv). Once everything is implemented you will register the operations in the dispatcher (pkg/dispatch), test it thoroughly.
+You will generate a query to satisfy the request and then connect the query with various interfaces a fuzzy CLI (pkg/fzfui) for interactive use, a static report renderer (pkg/reportui), and an MCP tool handler (pkg/mcpsrv). Once everything is implemented you will register the operations in the dispatcher (pkg/dispatch), test it thoroughly.
 
 ## Step 1 — Understand the schema
 
@@ -96,7 +96,7 @@ Add `break` after the first iteration for unbounded queries. Assert domain invar
 ## Step 5 — Add an action to `pkg/fzfui/actions.go`
 
 ```go
-func myQueryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
+func MyQueryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
     singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
     if err != nil { return err }
     grip.Infof("…", singer)
@@ -110,7 +110,38 @@ func myQueryAction(ctx context.Context, dbconn *db.Connection, singer string) er
 - For `KV` results or custom shapes, build a `tabby.New()` table directly (see existing examples in the file)
 - For multi-select inputs (e.g. localities): `erc.FromIteratorAll(infra.NewFuzzySearch[T](options).Find("prompt"))`
 
-## Step 6 — Add a Static Report rendering  to `pkg/reportui/reports.go`
+## Step 6a — Add a Static Report rendering  to `pkg/reportui/reports.go`
+
+Add an report generation function following the pattern of the other reporting functions in this file. Use the `func(ctx context.Context, conn *db.Connection, p Params) error` signature.
+
+```go
+func MyQuery(ctx context.Context, conn *db.Connection, in Params) (err error) {
+    info, err := selector.Leader(ctx, conn, in.Search()) // or other selector
+	if err != nil {
+		return err
+	}
+
+	w, err := in.getWriter(info.Name, "<my-query>")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H1(singer.Name, "--", "<title>")
+	models.WriteSongTable(&mb, erc.HandleAll(conn.DatabasQuery(ctx, info.Name, 40), ec.Push))
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+```
+
+For custom types add a table helper longside `models.WriteSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
+
+The comments with `THE FOLD` split the function between setup and configuration, and rendering of results.
+
+## Step 6a — For Leader-scoped queries, add a section to the LeaderOverview report in `pkg/reportui/overview.go`
 
 ```go
 mb.H2("My New Section")
@@ -122,7 +153,7 @@ mb.KVTable(irt.MakeKV("Name", "Count"),                                         
 writeMyTable(&mb, erc.HandleAll(conn.MyQuery(ctx, singer, 25), ec.Push))                            // custom type — add helper at bottom of file
 ```
 
-For custom types add a table helper alongside `writeSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
+For custom types add a table helper longside `models.WriteSongTable`. `mdwn.Builder` tables take `iter.Seq` — use `erc.HandleAll` to strip errors.
 
 ## Step 7 — Add an MCP handler to `pkg/mcpsrv/handlers.go`
 
@@ -147,7 +178,32 @@ func MyQuery(ctx context.Context, conn *db.Connection, p models.Params) (*Contex
 
 Use `irt.KV[string, int]` for key-value count results, `models.LeaderSongRank` for song rank results, or a custom model as needed.
 
-## Step 8 — Register in `pkg/dispatch/dispatcher.go`
+## Step 8 — Create an interactive Messenger handler in `pkg/msgui/msgui.go`
+
+Follow the pattern of the existing `Messenger` implementations, which have the `func(context.Context, *db.Connection, models.Params) iter.Seq2[*mdwn.Builder, error]` signature.
+
+The handlers mostly follow the same structure and content as the `reportui` implementations, but render more compact outputs, without headings, and have smaller result sets.
+
+```go
+func MessengerOp(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+
+		md := mdwn.MakeBuilder(len(p.Name) + 20)
+		md.Concat("Title **", p.Name, "**:")
+		if !yield(md, nil) {
+			return
+		}
+
+		mdtb := mdwn.MakeBuilder(4096)
+	    // collect and generate data, potentially in several messages
+	    yield(mdtb, nil)
+	}
+```
+
+
+Each `mdwn.Builder` represents a single message sent to the user. Include all tables in three back-ticks to prevent formatting problems for wider output. Use the `models.Write<>` helpers to generate well-formed output.
+
+## Step 9 — Register in `pkg/dispatch/dispatcher.go`
 
 All in `dispatch.go`:
 
@@ -157,7 +213,7 @@ All in `dispatch.go`:
    MinutesAppOpInvalid
    ```
 
-2. **`Registry()`** — build a `MinutesAppRegistration` with `Reporter`, `Fuzz`, and `MCP` all wired:
+2. **`Registry()`** — build a `MinutesAppRegistration` with `Reporter`, `Fuzz`, `Messenger`, and `MCP` all wired:
 
    ```go
    MinutesAppRegistration{
@@ -168,11 +224,14 @@ All in `dispatch.go`:
        Reporter:    reportui.MyQuery,
        Fuzz:        fzfui.MyQueryAction,
        MCP:         mcpsrv.NewTool(mcpsrv.MyQuery).Register,
+       Requires:    dt.MakeSet(irt.Args(MinuitesAppQueryType))
    }
    ```
 
+The `Requires` set identifies the parameter values needed for this operation: not all queries require all arguments.
+
 All wiring and necessary functionality is derived from this registration information.
 
-## Step 9 — Build and verify
+## Step 10 — Build and verify
 
 Run `go build ./...` and fix any errors. Use `go test ./... -timeout=1m` to verify that all tests pass. Confirm the operation appears in the fzf menu and returns sensible output.

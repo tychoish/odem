@@ -64,24 +64,29 @@ func Report() *cmdr.Commander {
 			Flag()).
 		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher())).
 		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...).
-		Subcommanders(cmdr.MakeCommander().
-			SetName("batch").
-			SetUsage("render all configured reports").
-			With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
-				conf := odem.GetConfiguration(ctx)
-				path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
+		Subcommanders(
+			cmdr.MakeCommander().
+				SetName("generate").
+				SetUsage("render a report for a specific user, with interactive user selection").
+				With(dispatch.ReportOperationSpec(reportui.Leader)),
+			cmdr.MakeCommander().
+				SetName("batch").
+				SetUsage("render all configured reports").
+				With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+					conf := odem.GetConfiguration(ctx)
+					path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
 
-				var ec erc.Collector
-				var jobs dt.List[fnx.Worker]
+					var ec erc.Collector
+					var jobs dt.List[fnx.Worker]
 
-				// There's only one batch right now, and there's no benefit to splitting it up rn.
-				for batch := range slices.Values(conf.Reports.Batches) {
-					jobs.Extend(reportui.LeaderJobs(conn, filepath.Join(batch.Name, path), batch.Leaders))
-				}
+					// There's only one batch right now, and there's no benefit to splitting it up rn.
+					for batch := range slices.Values(conf.Reports.Batches) {
+						jobs.Extend(reportui.LeaderJobs(conn, filepath.Join(batch.Name, path), batch.Leaders))
+					}
 
-				ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
+					ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
 
-				return ec.Resolve()
-			})),
+					return ec.Resolve()
+				})),
 		)
 }
