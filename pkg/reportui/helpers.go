@@ -2,12 +2,10 @@ package reportui
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/tychoish/fun/ers"
@@ -16,6 +14,7 @@ import (
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
+	"github.com/tychoish/odem/pkg/selector"
 )
 
 func itoa(in int) string                                  { return strconv.Itoa(in) }
@@ -51,24 +50,12 @@ func (p Params) Search() *infra.SearchParams {
 }
 
 func (p Params) SelectLeader(ctx context.Context, conn *db.Connection) (string, error) {
-	out, err := SelectLeader(ctx, conn, p.Search())
+	out, err := selector.Leader(ctx, conn, p.Search())
 	if err != nil {
 		return "", err
 	}
 
 	return out.Name, nil
-}
-
-func (p Params) SelectSong(ctx context.Context, conn *db.Connection) (*models.SongDetail, error) {
-	return SelectSong(ctx, conn, p.Search())
-}
-
-func (p Params) SelectSinging(ctx context.Context, conn *db.Connection) (*models.SingingInfo, error) {
-	return SelectSinging(ctx, conn, p.Search())
-}
-
-func (p Params) SelectKey(ctx context.Context, conn *db.Connection) (string, error) {
-	return SelectKey(ctx, conn, p.Search())
 }
 
 func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, error) {
@@ -80,18 +67,7 @@ func (p Params) SelectYears(ctx context.Context, conn *db.Connection) ([]int, er
 		return []int{time.Now().Year() - 1}, nil
 	}
 
-	return SelectYears(p.Search())
-}
-
-func (p Params) SelectLocality(ctx context.Context, conn *db.Connection) ([]string, error) {
-	if len(p.Name) > 0 {
-		return strings.Split(p.Name, ","), nil
-	}
-	if p.SuppressInteractivity {
-		return nil, errors.New("headless locality selection not implemented")
-	}
-
-	return nil, ers.New("not implemented")
+	return selector.Years(p.Search())
 }
 
 // getWriter returns an io.Writer (stdout or a new file) plus a cleanup func.

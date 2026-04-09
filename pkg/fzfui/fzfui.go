@@ -16,10 +16,11 @@ import (
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mdwn"
 	"github.com/tychoish/odem/pkg/models"
+	"github.com/tychoish/odem/pkg/selector"
 )
 
 func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
-	singer, err := SelectLeader(ctx, conn, arg)
+	singer, err := selector.Leader(ctx, conn, new(infra.SearchParams).With(arg).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -68,7 +69,7 @@ func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 }
 
 func SingingAction(ctx context.Context, dbconn *db.Connection) error {
-	singing, err := SelectSinging(ctx, dbconn, "")
+	singing, err := selector.Singing(ctx, dbconn, new(infra.SearchParams).With("").WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 }
 
 func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input s
 }
 
 func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, in
 }
 
 func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input stri
 }
 
 func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -143,7 +144,7 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input st
 }
 
 func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -153,7 +154,7 @@ func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, i
 }
 
 func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -163,7 +164,7 @@ func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) e
 }
 
 func NeverLedAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -188,7 +189,7 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string
 }
 
 func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input strin
 }
 
 func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -235,7 +236,7 @@ func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) er
 }
 
 func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -247,13 +248,13 @@ func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input str
 
 func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
 	// input may be "Singer Name" or "Singer Name,2023,2024"
-	parts := strings.SplitN(input, ",", 2)
-	singer, err := SelectLeader(ctx, dbconn, strings.TrimSpace(parts[0]))
+	name, yrstr, _ := strings.Cut(input, ",")
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(name).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
 
-	years, err := SelectYears(strings.Split(input, " "))
+	years, err := selector.Years(new(infra.SearchParams).With(yrstr).WithPrompt("years (0 = all)").WithMulti())
 	if err != nil {
 		return err
 	}
@@ -275,7 +276,7 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 }
 
 func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(strings.Split(yrs, " "))
+	years, err := selector.Years(new(infra.SearchParams).With(yrs).WithPrompt("years (0 = all)").WithMulti())
 	if err != nil {
 		return err
 	}
@@ -286,7 +287,7 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 }
 
 func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg string) error {
-	years, err := SelectYears(strings.Split(arg, " "))
+	years, err := selector.Years(new(infra.SearchParams).With(arg).WithPrompt("years (0 = all)").WithMulti())
 	if err != nil {
 		return err
 	}
@@ -299,7 +300,7 @@ func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg stri
 }
 
 func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(strings.Split(yrs, " "))
+	years, err := selector.Years(new(infra.SearchParams).With(yrs).WithPrompt("years (0 = all)").WithMulti())
 	if err != nil {
 		return err
 	}
@@ -315,7 +316,7 @@ func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ str
 }
 
 func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, input string) error {
-	singer, err := SelectLeader(ctx, dbconn, input)
+	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
 		return err
 	}
@@ -337,7 +338,7 @@ func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, inp
 
 func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
 	var err error
-	key, err = SelectKey(ctx, dbconn, key)
+	key, err = selector.Key(ctx, dbconn, new(infra.SearchParams).With(key).WithPrompt("key"))
 	if err != nil {
 		return err
 	}
@@ -348,7 +349,7 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 
 func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
 	var err error
-	key, err = SelectKey(ctx, dbconn, key)
+	selector.Key(ctx, dbconn, new(infra.SearchParams).With(key).WithPrompt("key"))
 	if err != nil {
 		return err
 	}
@@ -358,7 +359,7 @@ func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key str
 }
 
 func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
-	years, err := SelectYears(strings.Split(yrs, " "))
+	years, err := selector.Years(new(infra.SearchParams).With(yrs).WithPrompt("years (0 = all)").WithMulti())
 	if err != nil {
 		return err
 	}

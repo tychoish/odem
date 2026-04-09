@@ -13,7 +13,7 @@ import (
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
-	"github.com/tychoish/odem/pkg/reportui"
+	"github.com/tychoish/odem/pkg/selector"
 )
 
 type ContextualSequence[C, T any] struct {
@@ -26,7 +26,7 @@ func searchParams(p models.Params) *infra.SearchParams {
 }
 
 func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*Cont
 }
 
 func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) (*Conte
 }
 
 func MostLeadSongs(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func MostLeadSongs(ctx context.Context, conn *db.Connection, p models.Params) (*
 }
 
 func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LessonInfo], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params
 }
 
 func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSingingAttendance], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) (
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SongDetail, models.LeaderOfSongInfo], error) {
-	sg, err := reportui.SelectSong(ctx, conn, searchParams(p))
+	sg, err := selector.Song(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func Songs(ctx context.Context, conn *db.Connection, p models.Params) (*Contextu
 }
 
 func Singings(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SingingInfo, models.SingingLessionInfo], error) {
-	info, err := reportui.SelectSinging(ctx, conn, searchParams(p))
+	info, err := selector.Singing(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) (*Conte
 }
 
 func Buddies(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func Buddies(ctx context.Context, conn *db.Connection, p models.Params) (*Contex
 }
 
 func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*Cont
 }
 
 func PopularInOnesExperience(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func LocallyPopular(ctx context.Context, conn *db.Connection, p models.Params) (
 }
 
 func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) (*
 }
 
 func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*
 }
 
 func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Pa
 }
 
 func LeaderFootsteps(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderFootstep], error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ type LeaderShareOutput struct {
 }
 
 func LeaderShare(ctx context.Context, conn *db.Connection, p models.Params) (*LeaderShareOutput, error) {
-	leader, err := reportui.SelectLeader(ctx, conn, searchParams(p))
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
 	}
