@@ -184,7 +184,7 @@ func PopularInOnesExperience(ctx context.Context, conn *db.Connection, p models.
 		return nil, err
 	}
 
-	results, err := erc.FromIteratorUntil(conn.PopularSongsInOnesExperience(ctx, leader.Name, cmp.Or(p.Limit, 25)))
+	results, err := erc.FromIteratorUntil(conn.PopularAsObserved(ctx, leader.Name, cmp.Or(p.Limit, 25)))
 	if err != nil {
 		return nil, err
 	}

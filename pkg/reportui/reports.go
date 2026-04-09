@@ -187,7 +187,7 @@ func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params)
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Popular in %s's Experience", singer.Name))
-	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer.Name, cmp.Or(p.Limit, defaultN)), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularAsObserved(ctx, singer.Name, cmp.Or(p.Limit, defaultN)), ec.Push))
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()

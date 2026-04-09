@@ -147,7 +147,7 @@ func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.PopularSongsInOnesExperience(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push))
+		models.WriteSongTable(mdtb, erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -315,7 +315,7 @@ func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params)
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLeaderFootstepTable(mdtb, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriterLeaderIdolsTable(mdtb, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())

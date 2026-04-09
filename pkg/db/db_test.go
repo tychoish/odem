@@ -184,7 +184,7 @@ func TestSingingBuddies(t *testing.T) {
 func TestPopularSongsInOnesExperience(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0
-	for _, err := range conn.PopularSongsInOnesExperience(ctx, testSocialLeader, 5) {
+	for _, err := range conn.PopularAsObserved(ctx, testSocialLeader, 5) {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -270,7 +270,7 @@ func TestUnfamiliarHitsExcludesFamiliarSongs(t *testing.T) {
 	conn, ctx := testConn(t)
 
 	experienced := make(map[string]bool)
-	for song, err := range conn.PopularSongsInOnesExperience(ctx, testLeader, limit) {
+	for song, err := range conn.PopularAsObserved(ctx, testLeader, limit) {
 		if err != nil {
 			t.Fatalf("PopularSongsInOnesExperience(%q): %v", testLeader, err)
 		}

@@ -36,7 +36,7 @@ func WriteLeaderCountTable(mb *mdwn.Builder, countColName string, seq iter.Seq[L
 	mb.Line()
 }
 
-func WriteLeaderFootstepTable(mb *mdwn.Builder, seq iter.Seq[LeaderFootstep]) {
+func WriterLeaderIdolsTable(mb *mdwn.Builder, seq iter.Seq[LeaderFootstep]) {
 	mb.NewTable(
 		mdwn.Column{Name: "Song"},
 		mdwn.Column{Name: "Page"},

@@ -195,7 +195,7 @@ LIMIT ?;`
 	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
-func (conn *Connection) PopularSongsInOnesExperience(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
+func (conn *Connection) PopularAsObserved(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	const query = `
 SELECT lsa.attendance_count AS count, bsj.page_num AS song_page, s.title AS song_title, bsj.keys AS song_keys
 FROM leader_song_attendance AS lsa

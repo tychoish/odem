@@ -3,6 +3,7 @@ package reportui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/tychoish/fun/erc"
@@ -36,10 +37,15 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	ec.Push(err)
 	v, err := conn.GetSingerConnectedness(ctx, &singer.Name)
 	ec.Push(err)
+	leaderInfo, err := conn.GetLeader(ctx, &singer.Name)
+	ec.Push(err)
 
 	mb.KV("Generated", time.Now().Format(time.DateOnly))
 	mb.KV("Share of All Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100))
 	mb.KV("Connectedness", fmt.Sprintf("%.2f%%", v*100))
+	mb.KV("Number of Top 20 Leads", strconv.Itoa(int(leaderInfo.Top20Count)))
+	mb.KV("Lesson Count", strconv.Itoa(int(leaderInfo.LessonCount)))
+
 	mb.Line()
 
 	mb.H2("Most Led Songs")
@@ -51,9 +57,9 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	)
 	mb.Line()
 
-	mb.H2("Songs in Your Experience")
+	mb.H2("Popular Songs, as Observed")
 	mb.Paragraph("Most frequently led songs at singings ", singer.Name, " attended.")
-	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularSongsInOnesExperience(ctx, singer.Name, 12), ec.Push))
+	models.WriteSongTable(&mb, erc.HandleAll(conn.PopularAsObserved(ctx, singer.Name, 12), ec.Push))
 
 	mb.H2("Singing Buddies")
 	mb.Paragraph("The people that have been the most singings that ", singer.Name, " was at.")
@@ -70,9 +76,9 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	)
 	mb.Line()
 
-	mb.H2("Singing Idols")
+	mb.H2("Singing Role Models")
 	mb.Paragraph("The top leaders of all of ", singer.Name, "'s top songs!")
-	models.WriteLeaderFootstepTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer.Name, 20), ec.Push))
+	models.WriterLeaderIdolsTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer.Name, 20), ec.Push))
 
 	mb.H2("Unfamiliar Hits")
 	mb.Paragraph("Othewise popular songs that are under represented at singings ", singer.Name, " has been at.")
