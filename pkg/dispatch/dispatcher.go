@@ -4,16 +4,13 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"strings"
 
-	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/fzfui"
-	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
 	"github.com/tychoish/odem/pkg/msgui"
 	"github.com/tychoish/odem/pkg/reportui"
@@ -64,73 +61,6 @@ func AllMinutesAppCommands() iter.Seq2[string, MinutesAppOperation] {
 	return irt.Flip(irt.With(AllMinutesAppOps(), toString))
 }
 
-func AllMinutesAppMCPHandlers() iter.Seq2[irt.KV[string, string], mcpsrv.RegistrationFunc] {
-	return func(yield func(irt.KV[string, string], mcpsrv.RegistrationFunc) bool) {
-		for op := range AllMinutesAppOps() {
-			r := op.Registry()
-			if r.MCP == nil {
-				continue
-			}
-			if !yield(r.Info(), r.MCP) {
-				return
-			}
-		}
-	}
-}
-
-type MinutesAppQueryType int
-
-const (
-	MinutesAppQueryTypeUnknown MinutesAppQueryType = iota
-	MinutesAppQueryTypeLeader
-	MinutesAppQueryTypeSong
-	MinutesAppQueryTypeSinging
-	MinutesAppQueryTypeLocality
-	MinutesAppQueryTypeYear
-	MinutesAppQueryTypeKey
-	MinutesAppQueryTypeOperation
-	MinutesAppQueryTypeInvalid
-)
-
-func (maqt MinutesAppQueryType) Ok() bool { return maqt > 0 && maqt < MinutesAppQueryTypeInvalid }
-func (maqt MinutesAppQueryType) Validate() error {
-	switch {
-	case maqt.Ok():
-		return nil
-	case maqt == MinutesAppQueryTypeUnknown:
-		return ers.Error("undefined query")
-	case maqt == MinutesAppQueryTypeInvalid:
-		return ers.Error("invalid query")
-	default:
-		return ers.Error("undefined invalid")
-	}
-}
-
-func (maqt MinutesAppQueryType) String() string {
-	switch maqt {
-	case MinutesAppQueryTypeUnknown:
-		return "unknown"
-	case MinutesAppQueryTypeLeader:
-		return "leader"
-	case MinutesAppQueryTypeSong:
-		return "song"
-	case MinutesAppQueryTypeSinging:
-		return "singing"
-	case MinutesAppQueryTypeLocality:
-		return "locality"
-	case MinutesAppQueryTypeYear:
-		return "year"
-	case MinutesAppQueryTypeKey:
-		return "key"
-	case MinutesAppQueryTypeOperation:
-		return "operation"
-	case MinutesAppQueryTypeInvalid:
-		return "invalid"
-	default:
-		return fmt.Sprintf("MinutesAppQueryType<%d>[undefined]", maqt)
-	}
-}
-
 func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }
 func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] { return mao.Registry().Info() }
 func (mao MinutesAppOperation) ReportDispatcher() Reporter      { return mao.Registry().GetReporter() }
@@ -140,56 +70,6 @@ func (mao MinutesAppOperation) String() string                  { return mao.Get
 func (mao MinutesAppOperation) Validate() error                 { return mao.Registry().err }
 func (mao MinutesAppOperation) Ok() bool                        { return mao.isvalid() || mao == MinutesAppOpExit }
 func (mao MinutesAppOperation) isvalid() bool                   { return mao > 0 && mao < MinutesAppOpInvalid }
-
-type aliasMap struct {
-	adt.SyncMap[string, MinutesAppOperation]
-}
-
-var aliases aliasMap
-
-func init()                                       { aliases.addCommands(); aliases.addAlaises(); aliases.addFallback() }
-func getAliases(mao MinutesAppOperation) []string { return mao.Aliases() }
-func (am *aliasMap) addFallback()                 { am.Store("", MinutesAppOpInvalid) }
-func (am *aliasMap) addAlaises()                  { am.Extend(infra.ReverseMapping(AllMinutesAppAliases())) }
-func (am *aliasMap) addCommands()                 { am.Extend(AllMinutesAppCommands()) }
-
-type MinutesAppRegistration struct {
-	ID          MinutesAppOperation
-	Command     string
-	Description string
-	Aliases     []string
-	Reporter    Reporter
-	Fuzz        FuzzHandler
-	Messenger   msgui.Messenger
-	MCP         mcpsrv.RegistrationFunc
-	Requires    *dt.Set[MinutesAppQueryType]
-	err         error
-}
-
-func (reg MinutesAppRegistration) Ok() bool        { return reg.ID.Ok() }
-func (reg MinutesAppRegistration) Validate() error { return reg.err }
-
-func (reg MinutesAppRegistration) Info() irt.KV[string, string] {
-	return irt.MakeKV(reg.Command, reg.Description)
-}
-
-func (reg MinutesAppRegistration) GetFuzzHandler() FuzzHandler {
-	return func(c context.Context, d *db.Connection, a string) error {
-		if reg.Fuzz == nil {
-			return reg.err
-		}
-		return reg.Fuzz(c, d, a)
-	}
-}
-
-func (reg MinutesAppRegistration) GetReporter() Reporter {
-	return func(c context.Context, d *db.Connection, p reportui.Params) error {
-		if reg.Reporter == nil {
-			return reg.err
-		}
-		return reg.Reporter(c, d, p)
-	}
-}
 
 func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 	switch mao {
@@ -518,33 +398,4 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 	default:
 		return MinutesAppRegistration{ID: mao, err: fmt.Errorf("undefined/invalid operation %s", mao)}
 	}
-}
-
-func fuzzySelectOperation(arg string) MinutesAppOperation {
-	// this needs to be in the dispatcher package to avoid a circular dependency, even though it
-	// feels like it wants to be in the fzfui package.
-	arg = strings.ReplaceAll(arg, " ", "-")
-	grip.Debugln("selecting operation to dispatch", arg)
-
-	operation := NewMinutesAppOperation(arg)
-
-	if !operation.Ok() {
-		var err error
-		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOps()).Prompt("odem operation").FindOne()
-		if operation.Ok() {
-			return operation
-		}
-		if newop := NewMinutesAppOperation(operation.String()); newop.Ok() {
-			grip.Debugln("succeeded to identify %s on fallback", newop)
-			return newop
-		}
-
-		if err != nil {
-			grip.Warningf("operation %q is not valid, %v, retrying", operation.String(), err)
-			return MinutesAppOpRetry
-		}
-	}
-
-	grip.Debugln("selected", operation)
-	return operation
 }
