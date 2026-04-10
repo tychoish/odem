@@ -1,6 +1,7 @@
 package mdwn
 
 import (
+	"fmt"
 	"iter"
 	"strings"
 	"testing"
@@ -9,7 +10,8 @@ import (
 	"github.com/tychoish/fun/irt"
 )
 
-// mb is a test helper that builds content and returns the string.
+// build is a test helper that runs fn against a fresh Builder and returns the
+// accumulated string.
 func build(fn func(*Builder)) string {
 	var mb Builder
 	fn(&mb)
@@ -18,650 +20,658 @@ func build(fn func(*Builder)) string {
 
 // --- Headings ---
 
-func TestH1(t *testing.T) {
-	got := build(func(m *Builder) { m.H1("Title") })
-	want := "# Title\n\n"
-	if got != want {
-		t.Errorf("H1: got %q, want %q", got, want)
-	}
-}
-
-func TestH2(t *testing.T) {
-	got := build(func(m *Builder) { m.H2("Section") })
-	want := "## Section\n\n"
-	if got != want {
-		t.Errorf("H2: got %q, want %q", got, want)
-	}
-}
-
-func TestH3(t *testing.T) {
-	got := build(func(m *Builder) { m.H3("Sub") })
-	want := "### Sub\n\n"
-	if got != want {
-		t.Errorf("H3: got %q, want %q", got, want)
-	}
-}
-
-// --- Paragraph ---
-
-func TestParagraph(t *testing.T) {
-	got := build(func(m *Builder) { m.Paragraph("Hello world.") })
-	if got != "Hello world.\n\n" {
-		t.Errorf("Paragraph: got %q", got)
-	}
-}
-
-func TestItalicParagraph(t *testing.T) {
-	got := build(func(m *Builder) { m.ItalicParagraph("note") })
-	if got != "_note_\n\n" {
-		t.Errorf("ItalicParagraph: got %q", got)
-	}
-}
-
-// --- KV ---
-
-func TestKV(t *testing.T) {
-	got := build(func(m *Builder) { m.KV("Name", "Alice") })
-	if got != "**Name**: Alice\n" {
-		t.Errorf("KV: got %q", got)
-	}
-}
-
-// --- Lists ---
-
-func TestBulletListEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.BulletList() })
-	if got != "" {
-		t.Errorf("BulletList(empty): expected empty string, got %q", got)
-	}
-}
-
-func TestBulletList(t *testing.T) {
-	got := build(func(m *Builder) { m.BulletList("alpha", "beta", "gamma") })
-	want := "- alpha\n- beta\n- gamma\n\n"
-	if got != want {
-		t.Errorf("BulletList: got %q, want %q", got, want)
-	}
-}
-
-func TestBulletListItem(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.BulletListItem("one")
-		m.BulletListItem("two")
-	})
-	if got != "- one\n- two\n" {
-		t.Errorf("BulletListItem: got %q", got)
-	}
-}
-
-func TestExtendBulletList(t *testing.T) {
-	items := []string{"x", "y", "z"}
-	got := build(func(m *Builder) {
-		m.ExtendBulletList(func(yield func(string) bool) {
-			for _, s := range items {
-				if !yield(s) {
-					return
-				}
+func TestHeadings(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"H1", func(m *Builder) { m.H1("Title") }, "# Title\n\n"},
+		{"H2", func(m *Builder) { m.H2("Section") }, "## Section\n\n"},
+		{"H3", func(m *Builder) { m.H3("Sub") }, "### Sub\n\n"},
+		{"H1 empty", func(m *Builder) { m.H1("") }, "# \n\n"},
+		{"H1 variadic concat", func(m *Builder) { m.H1("Foo", "Bar") }, "# FooBar\n\n"},
+		{"H1Words single", func(m *Builder) { m.H1Words("Title") }, "# Title\n\n"},
+		{"H1Words multi", func(m *Builder) { m.H1Words("Release", "1.2.3") }, "# Release 1.2.3\n\n"},
+		{"H1Words none", func(m *Builder) { m.H1Words() }, "# \n\n"},
+		{"H2Words", func(m *Builder) { m.H2Words("Section", "One") }, "## Section One\n\n"},
+		{"H3Words", func(m *Builder) { m.H3Words("Sub", "Section") }, "### Sub Section\n\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
 			}
 		})
-	})
-	want := "- x\n- y\n- z\n\n"
-	if got != want {
-		t.Errorf("ExtendBulletList: got %q, want %q", got, want)
 	}
 }
 
-func TestExtendBulletListEmpty(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.ExtendBulletList(func(yield func(string) bool) {})
-	})
-	if got != "" {
-		t.Errorf("ExtendBulletList(empty): expected empty, got %q", got)
+// --- Paragraphs ---
+
+func TestParagraphs(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"Paragraph", func(m *Builder) { m.Paragraph("Hello world.") }, "Hello world.\n\n"},
+		{"Paragraph empty", func(m *Builder) { m.Paragraph("") }, "\n\n"},
+		{"Paragraph variadic", func(m *Builder) { m.Paragraph("Hello", " world.") }, "Hello world.\n\n"},
+		{"ParagraphWords", func(m *Builder) { m.ParagraphWords("hello", "world") }, "hello world\n\n"},
+		{"ParagraphWords single", func(m *Builder) { m.ParagraphWords("hello") }, "hello\n\n"},
+		{"ParagraphWords none", func(m *Builder) { m.ParagraphWords() }, "\n\n"},
+		{"ItalicParagraph", func(m *Builder) { m.ItalicParagraph("note") }, "_note_\n\n"},
+		{"ItalicParagraph empty", func(m *Builder) { m.ItalicParagraph("") }, "__\n\n"},
+		{"ItalicParagraph variadic", func(m *Builder) { m.ItalicParagraph("a", "b") }, "_ab_\n\n"},
+		{"ParagraphBreak", func(m *Builder) { m.PushString("a").ParagraphBreak().PushString("b") }, "a\n\nb"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
-func TestOrderedListEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.OrderedList() })
-	if got != "" {
-		t.Errorf("OrderedList(empty): expected empty string, got %q", got)
+// --- KV methods ---
+
+func TestKVMethods(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"KV", func(m *Builder) { m.KV("Name", "Alice") }, "**Name**: Alice\n"},
+		{"KV empty", func(m *Builder) { m.KV("", "") }, "****: \n"},
+		{"KVany string", func(m *Builder) { m.KVany("Name", "Alice") }, "**Name**: Alice\n"},
+		{"KVany int", func(m *Builder) { m.KVany("Count", 42) }, "**Count**: 42\n"},
+		{"KVany bool", func(m *Builder) { m.KVany("Flag", true) }, "**Flag**: true\n"},
+		{"FromKV", func(m *Builder) { m.FromKV(irt.MakeKV("K", "V")) }, "**K**: V\n"},
+		{"FromKVany", func(m *Builder) { m.FromKVany(irt.MakeKV[string, any]("N", 7)) }, "**N**: 7\n"},
+		{"KVs", func(m *Builder) {
+			m.KVs(irt.MakeKV("Name", "Alice"), irt.MakeKV("Role", "Engineer"))
+		}, "**Name**: Alice\n**Role**: Engineer\n"},
+		{"KVanys", func(m *Builder) {
+			m.KVanys(irt.MakeKV[string, any]("Count", 42), irt.MakeKV[string, any]("Flag", true))
+		}, "**Count**: 42\n**Flag**: true\n"},
+		{"ExtendKV", func(m *Builder) {
+			m.ExtendKV(func(yield func(string, string) bool) {
+				yield("A", "1")
+				yield("B", "2")
+			})
+		}, "**A**: 1\n**B**: 2\n"},
+		{"ExtendKVany", func(m *Builder) {
+			m.ExtendKVany(func(yield func(string, any) bool) {
+				yield("X", 99)
+				yield("Y", false)
+			})
+		}, "**X**: 99\n**Y**: false\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
+
+// --- Bullet lists ---
+
+func TestBulletList(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"BulletListItem single", func(m *Builder) { m.BulletListItem("one") }, "- one\n"},
+		{"BulletListItem empty", func(m *Builder) { m.BulletListItem("") }, "- \n"},
+		{"BulletListItem variadic", func(m *Builder) { m.BulletListItem("foo", " ", "bar") }, "- foo bar\n"},
+		{"BulletListItem multiple calls", func(m *Builder) {
+			m.BulletListItem("one")
+			m.BulletListItem("two")
+		}, "- one\n- two\n"},
+		{"BulletListItemWords none", func(m *Builder) { m.BulletListItemWords() }, "- \n"},
+		{"BulletListItemWords single", func(m *Builder) { m.BulletListItemWords("alpha") }, "- alpha\n"},
+		{"BulletListItemWords multi", func(m *Builder) { m.BulletListItemWords("a", "b", "c") }, "- a b c\n"},
+		{"BulletList", func(m *Builder) { m.BulletList("alpha", "beta", "gamma") }, "- alpha\n- beta\n- gamma\n\n"},
+		{"BulletList empty", func(m *Builder) { m.BulletList() }, ""},
+		{"BulletList all empty strings", func(m *Builder) { m.BulletList("", "", "") }, ""},
+		{"ExtendBulletList", func(m *Builder) {
+			m.ExtendBulletList(func(yield func(string) bool) {
+				for _, s := range []string{"x", "y", "z"} {
+					if !yield(s) {
+						return
+					}
+				}
+			})
+		}, "- x\n- y\n- z\n\n"},
+		{"ExtendBulletList empty", func(m *Builder) {
+			m.ExtendBulletList(func(yield func(string) bool) {})
+		}, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// --- Ordered lists ---
 
 func TestOrderedList(t *testing.T) {
-	got := build(func(m *Builder) { m.OrderedList("first", "second", "third") })
-	want := "1. first\n1. second\n1. third\n\n"
-	if got != want {
-		t.Errorf("OrderedList: got %q, want %q", got, want)
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"OrderedListItem single", func(m *Builder) { m.OrderedListItem("a") }, "1. a\n"},
+		{"OrderedListItem empty", func(m *Builder) { m.OrderedListItem("") }, "1. \n"},
+		{"OrderedListItem variadic", func(m *Builder) { m.OrderedListItem("step", " one") }, "1. step one\n"},
+		{"OrderedListItem multiple calls", func(m *Builder) {
+			m.OrderedListItem("a")
+			m.OrderedListItem("b")
+		}, "1. a\n1. b\n"},
+		{"OrderedListItemWords none", func(m *Builder) { m.OrderedListItemWords() }, "1. \n"},
+		{"OrderedListItemWords single", func(m *Builder) { m.OrderedListItemWords("first") }, "1. first\n"},
+		{"OrderedListItemWords multi", func(m *Builder) { m.OrderedListItemWords("first", "item") }, "1. first item\n"},
+		{"OrderedList", func(m *Builder) { m.OrderedList("first", "second", "third") }, "1. first\n1. second\n1. third\n\n"},
+		{"OrderedList empty", func(m *Builder) { m.OrderedList() }, ""},
+		{"ExtendOrderedList", func(m *Builder) {
+			m.ExtendOrderedList(func(yield func(string) bool) {
+				for _, s := range []string{"one", "two", "three"} {
+					if !yield(s) {
+						return
+					}
+				}
+			})
+		}, "1. one\n1. two\n1. three\n\n"},
+		{"ExtendOrderedList empty", func(m *Builder) {
+			m.ExtendOrderedList(func(yield func(string) bool) {})
+		}, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
-func TestOrderedListItem(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.OrderedListItem("a")
-		m.OrderedListItem("b")
-	})
-	if got != "1. a\n1. b\n" {
-		t.Errorf("OrderedListItem: got %q", got)
-	}
-}
-
-// --- Block quote ---
+// --- Block quotes ---
 
 func TestBlockQuote(t *testing.T) {
-	got := build(func(m *Builder) { m.BlockQuote("line one\nline two") })
-	want := "> line one\n> line two\n\n"
-	if got != want {
-		t.Errorf("BlockQuote: got %q, want %q", got, want)
-	}
-}
-
-func TestBlockQuoteTrailingNewline(t *testing.T) {
-	// Trailing newlines in the input should not produce extra "> " lines.
-	got := build(func(m *Builder) { m.BlockQuote("text\n\n") })
-	want := "> text\n\n"
-	if got != want {
-		t.Errorf("BlockQuote(trailing newline): got %q, want %q", got, want)
-	}
-}
-
-func TestBlockQuotePreservesBlankLines(t *testing.T) {
-	// Blank lines in the middle of the text must be preserved.
-	got := build(func(m *Builder) { m.BlockQuote("para one\n\npara two") })
-	want := "> para one\n> \n> para two\n\n"
-	if got != want {
-		t.Errorf("BlockQuote(blank line): got %q, want %q", got, want)
-	}
-}
-
-func TestBlockQuoteWith(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.BlockQuoteWith(func(inner *Builder) {
-			inner.BulletList("item a", "item b")
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"basic", func(m *Builder) { m.BlockQuote("line one\nline two") }, "> line one\n> line two\n\n"},
+		{"trailing newline trimmed", func(m *Builder) { m.BlockQuote("text\n\n") }, "> text\n\n"},
+		{"blank lines preserved", func(m *Builder) { m.BlockQuote("para one\n\npara two") }, "> para one\n> \n> para two\n\n"},
+		{"empty string", func(m *Builder) { m.BlockQuote("") }, ""},
+		{"only newlines", func(m *Builder) { m.BlockQuote("\n\n") }, ""},
+		{"variadic parts", func(m *Builder) { m.BlockQuote("line one\n", "line two") }, "> line one\n> line two\n\n"},
+		{"variadic all empty", func(m *Builder) { m.BlockQuote("", "") }, ""},
+		{"BlockQuoteWith", func(m *Builder) {
+			m.BlockQuoteWith(func(inner *Builder) { inner.BulletList("item a", "item b") })
+		}, "> - item a\n> - item b\n\n"},
+		{"BlockQuoteWith empty fn", func(m *Builder) { m.BlockQuoteWith(func(*Builder) {}) }, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
 		})
-	})
-	// Each line of the inner output should be prefixed with "> ".
-	for line := range strings.SplitSeq(strings.TrimRight(got, "\n"), "\n") {
-		if line != "" && !strings.HasPrefix(line, "> ") {
-			t.Errorf("BlockQuoteWith: line %q missing '> ' prefix", line)
-		}
-	}
-	if !strings.Contains(got, "> - item a") {
-		t.Errorf("BlockQuoteWith: expected '> - item a' in output, got %q", got)
 	}
 }
 
 // --- Fenced code ---
 
 func TestFencedCode(t *testing.T) {
-	got := build(func(m *Builder) { m.FencedCode("go", "fmt.Println()") })
-	want := "```go\nfmt.Println()\n```\n\n"
-	if got != want {
-		t.Errorf("FencedCode: got %q, want %q", got, want)
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"with lang", func(m *Builder) { m.FencedCode("go", "fmt.Println()") }, "```go\nfmt.Println()\n```\n\n"},
+		{"no lang", func(m *Builder) { m.FencedCode("", "x := 1\n") }, "```\nx := 1\n```\n\n"},
+		{"empty code", func(m *Builder) { m.FencedCode("", "") }, "```\n\n```\n\n"},
+		{"FencedCodeWith lang", func(m *Builder) {
+			m.FencedCodeWith("go", func(inner *Builder) { inner.PushString("fmt.Println()\n") })
+		}, "```go\nfmt.Println()\n```\n\n"},
+		{"FencedCodeWith no lang", func(m *Builder) {
+			m.FencedCodeWith("", func(inner *Builder) { inner.PushString("x := 1\n") })
+		}, "```\nx := 1\n```\n\n"},
+		{"FencedCodeWith multi-line", func(m *Builder) {
+			m.FencedCodeWith("sh", func(inner *Builder) { inner.PushString("echo hello\necho world\n") })
+		}, "```sh\necho hello\necho world\n```\n\n"},
+		{"FencedCodeWith empty fn", func(m *Builder) { m.FencedCodeWith("go", func(*Builder) {}) }, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
-func TestFencedCodeNoLang(t *testing.T) {
-	got := build(func(m *Builder) { m.FencedCode("", "x := 1\n") })
-	want := "```\nx := 1\n```\n\n"
-	if got != want {
-		t.Errorf("FencedCode(no lang): got %q, want %q", got, want)
+// --- Indentation ---
+
+func TestIndent(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"IndentWith 4-space", func(m *Builder) {
+			m.IndentWith("    ", func(inner *Builder) { inner.PushString("line one\nline two\n") })
+		}, "    line one\n    line two\n\n"},
+		{"IndentWith tab", func(m *Builder) {
+			m.IndentWith("\t", func(inner *Builder) { inner.PushString("a\nb\n") })
+		}, "\ta\n\tb\n\n"},
+		{"IndentWith empty fn", func(m *Builder) { m.IndentWith("    ", func(*Builder) {}) }, ""},
+		{"IndentedCode multi-line", func(m *Builder) { m.IndentedCode("x := 1\ny := 2") }, "    x := 1\n    y := 2\n\n"},
+		{"IndentedCode empty", func(m *Builder) { m.IndentedCode("") }, ""},
+		{"IndentedCodeWith", func(m *Builder) {
+			m.IndentedCodeWith(func(inner *Builder) { inner.PushString("fmt.Println()\n") })
+		}, "    fmt.Println()\n\n"},
+		{"IndentedCodeWith empty fn", func(m *Builder) { m.IndentedCodeWith(func(*Builder) {}) }, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
 // --- Inline formatters ---
 
-func TestBold(t *testing.T) {
-	got := build(func(m *Builder) { m.Bold("important") })
-	if got != "**important**" {
-		t.Errorf("Bold: got %q", got)
-	}
-}
-
-func TestItalic(t *testing.T) {
-	got := build(func(m *Builder) { m.Italic("em") })
-	if got != "_em_" {
-		t.Errorf("Italic: got %q", got)
-	}
-}
-
-func TestPreformatted(t *testing.T) {
-	got := build(func(m *Builder) { m.Preformatted("code") })
-	if got != "`code`" {
-		t.Errorf("Preformatted: got %q", got)
-	}
-}
-
-func TestLink(t *testing.T) {
-	got := build(func(m *Builder) { m.Link("click", "https://example.com") })
-	if got != "[click](https://example.com)" {
-		t.Errorf("Link: got %q", got)
-	}
-}
-
-func TestStrikethrough(t *testing.T) {
-	got := build(func(m *Builder) { m.Strikethrough("old") })
-	if got != "~~old~~" {
-		t.Errorf("Strikethrough: got %q", got)
-	}
-}
-
-func TestInlineChaining(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.Bold("Note").Text(": see ").Link("docs", "https://example.com").ParagraphBreak()
-	})
-	want := "**Note**: see [docs](https://example.com)\n\n"
-	if got != want {
-		t.Errorf("inline chaining: got %q, want %q", got, want)
-	}
-}
-
-// --- ParagraphBreak ---
-
-func TestParagraphBreak(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.PushString("a")
-		m.ParagraphBreak()
-		m.PushString("b")
-	})
-	if got != "a\n\nb" {
-		t.Errorf("ParagraphBreak: got %q", got)
-	}
-}
-
-// --- TableBuilder ---
-
-func TestTableBasic(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(
-			Column{Name: "Name"},
-			Column{Name: "Count", RightAlign: true},
-		).Row("Alice", "42").Row("Bob", "7").Build()
-	})
-
-	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
-	if len(lines) < 4 { // header + separator + 2 rows (blank line stripped)
-		t.Fatalf("TableBasic: expected at least 4 lines, got %d:\n%s", len(lines), got)
-	}
-	if !strings.HasPrefix(lines[0], "| Name") {
-		t.Errorf("TableBasic: header line = %q", lines[0])
-	}
-	if !strings.Contains(lines[1], "---") {
-		t.Errorf("TableBasic: separator line = %q", lines[1])
-	}
-	// Right-aligned separator ends with ":".
-	if !strings.Contains(lines[1], ":") {
-		t.Errorf("TableBasic: right-align separator missing colon: %q", lines[1])
-	}
-	if !strings.Contains(lines[2], "Alice") {
-		t.Errorf("TableBasic: data row 0 = %q", lines[2])
-	}
-	if !strings.Contains(lines[3], "Bob") {
-		t.Errorf("TableBasic: data row 1 = %q", lines[3])
-	}
-}
-
-func TestTablePipeEscaping(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "Val"}).Row("a|b").Build()
-	})
-	if !strings.Contains(got, `a\|b`) {
-		t.Errorf("TablePipeEscaping: pipe not escaped in %q", got)
-	}
-}
-
-func TestTableColumnAlignment(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(
-			Column{Name: "L"},
-			Column{Name: "R", RightAlign: true},
-		).Row("left", "1234").Build()
-	})
-	lines := strings.Split(got, "\n")
-	dataRow := lines[2]
-	// In a right-aligned column "1234" should be flush-right; the left cell "left"
-	// should be flush-left. Both cells are space-padded to column width.
-	if !strings.Contains(dataRow, "| left") {
-		t.Errorf("TableAlignment: left cell not left-aligned in %q", dataRow)
-	}
-	if !strings.Contains(dataRow, "1234 |") {
-		t.Errorf("TableAlignment: right cell not right-aligned in %q", dataRow)
-	}
-}
-
-func TestTableMinWidth(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "X", MinWidth: 10}).Row("hi").Build()
-	})
-	// Column should be at least 10 chars wide (excluding padding pipes).
-	lines := strings.Split(got, "\n")
-	header := lines[0]
-	// Count characters between the first and second "|".
-	parts := strings.Split(header, "|")
-	if len(parts) < 2 {
-		t.Fatalf("TableMinWidth: unexpected header %q", header)
-	}
-	cellWidth := len(parts[1]) - 2 // subtract the two spaces
-	if cellWidth < 10 {
-		t.Errorf("TableMinWidth: column width %d < MinWidth 10", cellWidth)
-	}
-}
-
-func TestTableMaxWidth(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "T", MaxWidth: 8}).Row("short").Row("this is a very long value").Build()
-	})
-	lines := strings.Split(got, "\n")
-	longRow := lines[3] // header, sep, short, long
-	if strings.Contains(longRow, "this is a very long value") {
-		t.Errorf("TableMaxWidth: long value was not truncated: %q", longRow)
-	}
-	if !strings.Contains(longRow, "...") {
-		t.Errorf("TableMaxWidth: truncated cell missing ellipsis: %q", longRow)
-	}
-}
-
-func TestTableRows(t *testing.T) {
-	rows := [][]string{{"a", "1"}, {"b", "2"}}
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "K"}, Column{Name: "V"}).Rows(rows).Build()
-	})
-	if !strings.Contains(got, "| a") || !strings.Contains(got, "| b") {
-		t.Errorf("TableRows: expected rows a,b in %q", got)
-	}
-}
-
-func TestTableExtend(t *testing.T) {
-	seq := func(yield func([]string) bool) {
-		for _, row := range [][]string{{"x", "10"}, {"y", "20"}} {
-			if !yield(row) {
-				return
-			}
-		}
-	}
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
-			Extend(iter.Seq[[]string](seq)).Build()
-	})
-	if !strings.Contains(got, "| x") || !strings.Contains(got, "| y") {
-		t.Errorf("TableExtend: expected rows x,y in %q", got)
-	}
-}
-
-func TestTableEmptyRows(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "A"}, Column{Name: "B"}).Build()
-	})
-	// Build returns early when there are no rows, producing no output.
-	if got != "" {
-		t.Errorf("TableEmptyRows: expected empty output, got %q", got)
-	}
-}
-
-func TestTableEndsWithBlankLine(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "X"}).Row("v").Build()
-	})
-	if !strings.HasSuffix(got, "\n") {
-		t.Errorf("Table: expected trailing blank line, got %q", got)
-	}
-}
-
-func TestExtendOrderedList(t *testing.T) {
-	items := []string{"one", "two", "three"}
-	got := build(func(m *Builder) {
-		m.ExtendOrderedList(func(yield func(string) bool) {
-			for _, s := range items {
-				if !yield(s) {
-					return
-				}
+func TestInlineFormatters(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		// Bold
+		{"Bold single", func(m *Builder) { m.Bold("important") }, "**important**"},
+		{"Bold variadic", func(m *Builder) { m.Bold("a", "b", "c") }, "**abc**"},
+		{"Bold empty", func(m *Builder) { m.Bold("") }, "****"},
+		{"BoldWords", func(m *Builder) { m.BoldWords("hello", "world") }, "**hello world**"},
+		// Italic
+		{"Italic single", func(m *Builder) { m.Italic("em") }, "_em_"},
+		{"Italic variadic", func(m *Builder) { m.Italic("a", "b") }, "_ab_"},
+		{"Italic empty", func(m *Builder) { m.Italic("") }, "__"},
+		{"ItalicWords", func(m *Builder) { m.ItalicWords("foo", "bar") }, "_foo bar_"},
+		// Preformatted
+		{"Preformatted single", func(m *Builder) { m.Preformatted("code") }, "`code`"},
+		{"Preformatted variadic", func(m *Builder) { m.Preformatted("x", "y") }, "`xy`"},
+		{"Preformatted empty", func(m *Builder) { m.Preformatted("") }, "``"},
+		{"PreformattedWords", func(m *Builder) { m.PreformattedWords("go", "build") }, "`go build`"},
+		// Strikethrough
+		{"Strikethrough single", func(m *Builder) { m.Strikethrough("old") }, "~~old~~"},
+		{"Strikethrough variadic", func(m *Builder) { m.Strikethrough("a", "b") }, "~~ab~~"},
+		{"Strikethrough empty", func(m *Builder) { m.Strikethrough("") }, "~~~~"},
+		{"StrikethroughWords", func(m *Builder) { m.StrikethroughWords("old", "text") }, "~~old text~~"},
+		// Link
+		{"Link", func(m *Builder) { m.Link("click", "https://example.com") }, "[click](https://example.com)"},
+		{"Link empty", func(m *Builder) { m.Link("", "") }, "[]()"},
+		// Text
+		{"Text single", func(m *Builder) { m.Text("hello") }, "hello"},
+		{"Text variadic", func(m *Builder) { m.Text("hello", " ", "world") }, "hello world"},
+		{"Text empty", func(m *Builder) { m.Text("") }, ""},
+		{"TextWords", func(m *Builder) { m.TextWords("hello", "world") }, "hello world"},
+		// Chaining
+		{"chained", func(m *Builder) {
+			m.Bold("Note").Text(": see ").Link("docs", "https://example.com").ParagraphBreak()
+		}, "**Note**: see [docs](https://example.com)\n\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
 			}
 		})
+	}
+}
+
+// --- Push<op> chainable wrappers ---
+
+func TestPushOps(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		fn   func(*Builder)
+		want string
+	}{
+		{"PushString chain", func(m *Builder) { m.PushString("a").PushString("b") }, "ab"},
+		{"PushBytes chain", func(m *Builder) { m.PushBytes([]byte("hi")).PushBytes([]byte("!")) }, "hi!"},
+		{"PushLine", func(m *Builder) { m.PushString("x").PushLine().PushString("y") }, "x\ny"},
+		{"PushNLines", func(m *Builder) { m.PushString("x").PushNLines(2).PushString("y") }, "x\n\ny"},
+		{"PushConcat", func(m *Builder) { m.PushConcat("a", "b", "c") }, "abc"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := build(c.fn); got != c.want {
+				t.Errorf("got %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// --- fmt.Formatter and WriteTo ---
+
+func TestFormat(t *testing.T) {
+	t.Run("%s", func(t *testing.T) {
+		var mb Builder
+		mb.H1("Hi")
+		if got := fmt.Sprintf("%s", &mb); got != "# Hi\n\n" {
+			t.Errorf("got %q, want %q", got, "# Hi\n\n")
+		}
 	})
-	want := "1. one\n1. two\n1. three\n\n"
-	if got != want {
-		t.Errorf("ExtendOrderedList: got %q, want %q", got, want)
-	}
-}
-
-func TestExtendOrderedListEmpty(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.ExtendOrderedList(func(yield func(string) bool) {})
+	t.Run("%v", func(t *testing.T) {
+		var mb Builder
+		mb.Paragraph("hello")
+		if got := fmt.Sprintf("%v", &mb); got != "hello\n\n" {
+			t.Errorf("got %q, want %q", got, "hello\n\n")
+		}
 	})
-	if got != "" {
-		t.Errorf("ExtendOrderedList(empty): expected empty, got %q", got)
-	}
+	t.Run("unknown verb", func(t *testing.T) {
+		var mb Builder
+		mb.Text("x")
+		if got := fmt.Sprintf("%d", &mb); got != "%!d(mdwn.Builder)" {
+			t.Errorf("got %q, want %q", got, "%!d(mdwn.Builder)")
+		}
+	})
+	t.Run("WriteTo", func(t *testing.T) {
+		var mb Builder
+		mb.H1("Test")
+		var out strings.Builder
+		n, err := mb.WriteTo(&out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := out.String()
+		if got != "# Test\n\n" {
+			t.Errorf("WriteTo: got %q", got)
+		}
+		if int(n) != len(got) {
+			t.Errorf("WriteTo: reported n=%d but len=%d", n, len(got))
+		}
+	})
 }
 
-func TestBlockQuoteWithEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.BlockQuoteWith(func(*Builder) {}) })
-	if got != "" {
-		t.Errorf("BlockQuoteWith(empty fn): expected empty output, got %q", got)
-	}
-}
+// --- Builder lifecycle ---
 
-func TestBlockQuoteEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.BlockQuote("") })
-	if got != "" {
-		t.Errorf("BlockQuote(empty): expected empty, got %q", got)
-	}
-}
-
-func TestBlockQuoteOnlyNewlines(t *testing.T) {
-	got := build(func(m *Builder) { m.BlockQuote("\n\n") })
-	if got != "" {
-		t.Errorf("BlockQuote(only newlines): expected empty, got %q", got)
-	}
-}
-
-func TestTableExtendRow(t *testing.T) {
-	seq := func(yield func(string) bool) {
-		for _, s := range []string{"alpha", "99"} {
-			if !yield(s) {
-				return
+func TestBuilderLifecycle(t *testing.T) {
+	t.Run("MakeBuilder pre-allocates capacity", func(t *testing.T) {
+		mb := MakeBuilder(64)
+		if mb == nil {
+			t.Fatal("MakeBuilder returned nil")
+		}
+		if mb.Cap() < 64 {
+			t.Errorf("Cap() = %d, want >= 64", mb.Cap())
+		}
+		if mb.Len() != 0 {
+			t.Errorf("Len() = %d, want 0", mb.Len())
+		}
+		mb.H1("hello")
+		if mb.Len() == 0 {
+			t.Error("builder produced no output after H1")
+		}
+	})
+	t.Run("MakeBuilder zero capacity", func(t *testing.T) {
+		mb := MakeBuilder(0)
+		if mb == nil {
+			t.Fatal("MakeBuilder(0) returned nil")
+		}
+		mb.Text("x")
+		if got := mb.String(); got != "x" {
+			t.Errorf("got %q, want %q", got, "x")
+		}
+	})
+	t.Run("Release zeros length", func(t *testing.T) {
+		mb := MakeBuilder(32)
+		mb.Paragraph("content")
+		if mb.Len() == 0 {
+			t.Fatal("expected non-empty builder before Release")
+		}
+		mb.Release()
+		if mb.Len() != 0 {
+			t.Errorf("after Release: Len() = %d, want 0", mb.Len())
+		}
+	})
+	t.Run("Truncate", func(t *testing.T) {
+		for _, c := range []struct {
+			target  int
+			wantLen int
+			wantStr string
+		}{
+			{5, 5, "hello"},
+			{0, 0, ""},
+			{11, 11, "hello world"}, // equal to length — no-op
+			{99, 11, "hello world"}, // beyond length — clamped to len
+			{-1, 0, ""},             // negative — clamped to 0
+		} {
+			var mb Builder
+			mb.Text("hello world")
+			mb.Truncate(c.target)
+			if mb.Len() != c.wantLen {
+				t.Errorf("Truncate(%d): Len()=%d, want %d", c.target, mb.Len(), c.wantLen)
+			}
+			if mb.String() != c.wantStr {
+				t.Errorf("Truncate(%d): got %q, want %q", c.target, mb.String(), c.wantStr)
 			}
 		}
-	}
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
-			ExtendRow(iter.Seq[string](seq)).Build()
 	})
-	if !strings.Contains(got, "alpha") || !strings.Contains(got, "99") {
-		t.Errorf("TableExtendRow: expected row in output, got %q", got)
-	}
+	t.Run("Truncate then write", func(t *testing.T) {
+		var mb Builder
+		mb.Text("hello world")
+		mb.Truncate(5)
+		mb.Text("!")
+		if got := mb.String(); got != "hello!" {
+			t.Errorf("got %q, want %q", got, "hello!")
+		}
+	})
 }
 
-func TestTableCustomTruncMarker(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "T", MaxWidth: 10, TruncMarker: "…"}).
-			Row("this is definitely longer than ten characters").Build()
-	})
-	if !strings.Contains(got, "…") {
-		t.Errorf("TableCustomTruncMarker: expected custom marker in %q", got)
-	}
-}
+// --- Table ---
 
-func TestTableNarrowTruncation(t *testing.T) {
-	// MaxWidth=3 with default marker "..." (len=3): widths[i] is not > len(marker),
-	// so the else branch truncates by slicing without appending the marker.
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "X", MaxWidth: 3}).Row("hello").Build()
+func TestTable(t *testing.T) {
+	t.Run("basic structure", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(
+				Column{Name: "Name"},
+				Column{Name: "Count", RightAlign: true},
+			).Row("Alice", "42").Row("Bob", "7").Build()
+		})
+		lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+		if len(lines) < 4 {
+			t.Fatalf("expected at least 4 lines, got %d:\n%s", len(lines), got)
+		}
+		if !strings.HasPrefix(lines[0], "| Name") {
+			t.Errorf("header = %q", lines[0])
+		}
+		if !strings.Contains(lines[1], "---") {
+			t.Errorf("separator = %q", lines[1])
+		}
+		if !strings.Contains(lines[1], ":") {
+			t.Errorf("right-align separator missing colon: %q", lines[1])
+		}
+		if !strings.Contains(lines[2], "Alice") {
+			t.Errorf("row 0 = %q", lines[2])
+		}
+		if !strings.Contains(lines[3], "Bob") {
+			t.Errorf("row 1 = %q", lines[3])
+		}
 	})
-	lines := strings.Split(got, "\n")
-	dataRow := lines[2]
-	if strings.Contains(dataRow, "hello") {
-		t.Errorf("TableNarrowTruncation: expected cell truncated, got %q", dataRow)
-	}
+	t.Run("pipe escaping", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "Val"}).Row("a|b").Build()
+		})
+		if !strings.Contains(got, `a\|b`) {
+			t.Errorf("pipe not escaped in %q", got)
+		}
+	})
+	t.Run("column alignment", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(
+				Column{Name: "L"},
+				Column{Name: "R", RightAlign: true},
+			).Row("left", "1234").Build()
+		})
+		dataRow := strings.Split(got, "\n")[2]
+		if !strings.Contains(dataRow, "| left") {
+			t.Errorf("left cell not left-aligned in %q", dataRow)
+		}
+		if !strings.Contains(dataRow, "1234 |") {
+			t.Errorf("right cell not right-aligned in %q", dataRow)
+		}
+	})
+	t.Run("MinWidth", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "X", MinWidth: 10}).Row("hi").Build()
+		})
+		parts := strings.Split(strings.Split(got, "\n")[0], "|")
+		if len(parts) < 2 {
+			t.Fatalf("unexpected header %q", got)
+		}
+		if cellWidth := len(parts[1]) - 2; cellWidth < 10 {
+			t.Errorf("column width %d < MinWidth 10", cellWidth)
+		}
+	})
+	t.Run("MaxWidth truncates with default marker", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "T", MaxWidth: 8}).
+				Row("short").
+				Row("this is a very long value").Build()
+		})
+		longRow := strings.Split(got, "\n")[3]
+		if strings.Contains(longRow, "this is a very long value") {
+			t.Errorf("long value not truncated: %q", longRow)
+		}
+		if !strings.Contains(longRow, "...") {
+			t.Errorf("truncated cell missing ellipsis: %q", longRow)
+		}
+	})
+	t.Run("MaxWidth narrow truncation (no marker fits)", func(t *testing.T) {
+		// MaxWidth=3 equals len("..."), so the else branch slices without appending marker.
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "X", MaxWidth: 3}).Row("hello").Build()
+		})
+		if strings.Contains(strings.Split(got, "\n")[2], "hello") {
+			t.Errorf("expected cell truncated, got %q", got)
+		}
+	})
+	t.Run("custom TruncMarker", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "T", MaxWidth: 10, TruncMarker: "…"}).
+				Row("this is definitely longer than ten characters").Build()
+		})
+		if !strings.Contains(got, "…") {
+			t.Errorf("expected custom marker in %q", got)
+		}
+	})
+	t.Run("Rows helper", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
+				Rows([][]string{{"a", "1"}, {"b", "2"}}).Build()
+		})
+		if !strings.Contains(got, "| a") || !strings.Contains(got, "| b") {
+			t.Errorf("expected rows a,b in %q", got)
+		}
+	})
+	t.Run("Extend", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
+				Extend(iter.Seq[[]string](func(yield func([]string) bool) {
+					for _, row := range [][]string{{"x", "10"}, {"y", "20"}} {
+						if !yield(row) {
+							return
+						}
+					}
+				})).Build()
+		})
+		if !strings.Contains(got, "| x") || !strings.Contains(got, "| y") {
+			t.Errorf("expected rows x,y in %q", got)
+		}
+	})
+	t.Run("ExtendRow", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "K"}, Column{Name: "V"}).
+				ExtendRow(iter.Seq[string](func(yield func(string) bool) {
+					for _, s := range []string{"alpha", "99"} {
+						if !yield(s) {
+							return
+						}
+					}
+				})).Build()
+		})
+		if !strings.Contains(got, "alpha") || !strings.Contains(got, "99") {
+			t.Errorf("expected row in output, got %q", got)
+		}
+	})
+	t.Run("empty rows produces no output", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "A"}, Column{Name: "B"}).Build()
+		})
+		if got != "" {
+			t.Errorf("expected empty output, got %q", got)
+		}
+	})
+	t.Run("Row no cells is ignored", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "X"}).Row().Build()
+		})
+		if got != "" {
+			t.Errorf("expected empty output, got %q", got)
+		}
+	})
+	t.Run("ExtendRow empty seq is ignored", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "X"}).
+				ExtendRow(func(yield func(string) bool) {}).Build()
+		})
+		if got != "" {
+			t.Errorf("expected empty output, got %q", got)
+		}
+	})
+	t.Run("ends with newline", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.NewTable(Column{Name: "X"}).Row("v").Build()
+		})
+		if !strings.HasSuffix(got, "\n") {
+			t.Errorf("expected trailing newline, got %q", got)
+		}
+	})
 }
 
 func TestKVTable(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.KVTable(
-			irt.MakeKV("Name", "Count"),
-			func(yield func(string, string) bool) {
-				for _, pair := range [][2]string{{"Alice", "5"}, {"Bob", "3"}} {
-					if !yield(pair[0], pair[1]) {
-						return
+	t.Run("basic", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.KVTable(
+				irt.MakeKV("Name", "Count"),
+				func(yield func(string, string) bool) {
+					for _, pair := range [][2]string{{"Alice", "5"}, {"Bob", "3"}} {
+						if !yield(pair[0], pair[1]) {
+							return
+						}
 					}
-				}
-			},
-		)
-	})
-	if !strings.Contains(got, "Alice") || !strings.Contains(got, "Bob") {
-		t.Errorf("KVTable: expected rows in output, got %q", got)
-	}
-	if !strings.Contains(got, "Name") || !strings.Contains(got, "Count") {
-		t.Errorf("KVTable: expected headers in output, got %q", got)
-	}
-}
-
-// --- Zero/empty inputs for all methods ---
-
-func TestH1Empty(t *testing.T) {
-	got := build(func(m *Builder) { m.H1("") })
-	if got != "# \n\n" {
-		t.Errorf("H1(empty): got %q", got)
-	}
-}
-
-func TestParagraphEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Paragraph("") })
-	if got != "\n\n" {
-		t.Errorf("Paragraph(empty): got %q", got)
-	}
-}
-
-func TestItalicParagraphEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.ItalicParagraph("") })
-	if got != "__\n\n" {
-		t.Errorf("ItalicParagraph(empty): got %q", got)
-	}
-}
-
-func TestKVEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.KV("", "") })
-	if got != "****: \n" {
-		t.Errorf("KV(empty): got %q", got)
-	}
-}
-
-func TestBulletListItemEmpty(t *testing.T) {
-	// BulletListItem writes unconditionally; empty string produces "- \n".
-	got := build(func(m *Builder) { m.BulletListItem("") })
-	if got != "- \n" {
-		t.Errorf("BulletListItem(empty): got %q", got)
-	}
-}
-
-func TestBulletListAllEmpty(t *testing.T) {
-	// BulletList filters zero values via ExtendBulletList/RemoveZeros.
-	got := build(func(m *Builder) { m.BulletList("", "", "") })
-	if got != "" {
-		t.Errorf("BulletList(all empty): expected empty, got %q", got)
-	}
-}
-
-func TestOrderedListItemEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.OrderedListItem("") })
-	if got != "1. \n" {
-		t.Errorf("OrderedListItem(empty): got %q", got)
-	}
-}
-
-func TestFencedCodeEmpty(t *testing.T) {
-	// Empty code: WhenLine fires (len==0), producing a blank line between fences.
-	got := build(func(m *Builder) { m.FencedCode("", "") })
-	if got != "```\n\n```\n\n" {
-		t.Errorf("FencedCode(empty,empty): got %q", got)
-	}
-}
-
-func TestTextEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Text("") })
-	if got != "" {
-		t.Errorf("Text(empty): got %q", got)
-	}
-}
-
-func TestBoldEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Bold("") })
-	if got != "****" {
-		t.Errorf("Bold(empty): got %q", got)
-	}
-}
-
-func TestItalicEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Italic("") })
-	if got != "__" {
-		t.Errorf("Italic(empty): got %q", got)
-	}
-}
-
-func TestPreformattedEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Preformatted("") })
-	if got != "``" {
-		t.Errorf("Preformatted(empty): got %q", got)
-	}
-}
-
-func TestLinkEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Link("", "") })
-	if got != "[]()" {
-		t.Errorf("Link(empty): got %q", got)
-	}
-}
-
-func TestStrikethroughEmpty(t *testing.T) {
-	got := build(func(m *Builder) { m.Strikethrough("") })
-	if got != "~~~~" {
-		t.Errorf("Strikethrough(empty): got %q", got)
-	}
-}
-
-func TestTableRowEmpty(t *testing.T) {
-	// Row with no cells should not append a row; table stays empty and Build returns early.
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "X"}).Row().Build()
-	})
-	if got != "" {
-		t.Errorf("Table.Row(no cells): expected empty output, got %q", got)
-	}
-}
-
-func TestExtendRowEmpty(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.NewTable(Column{Name: "X"}).
-			ExtendRow(func(yield func(string) bool) {}).Build()
-	})
-	if got != "" {
-		t.Errorf("Table.ExtendRow(empty seq): expected empty output, got %q", got)
-	}
-}
-
-func TestKVTableEmpty(t *testing.T) {
-	got := build(func(m *Builder) {
-		m.KVTable(irt.MakeKV("K", "V"), func(yield func(string, string) bool) {})
-	})
-	if got != "" {
-		t.Errorf("KVTable(empty seq): expected empty output, got %q", got)
-	}
-}
-
-// --- runeByteOffset ---
-
-func TestRuneByteOffset(t *testing.T) {
-	b := []byte("F♯ Minor") // ♯ = 3 UTF-8 bytes; total 10 bytes, 8 runes
-	cases := []struct{ n, want int }{
-		{0, 0},
-		{1, 1},   // after "F" (1 byte)
-		{2, 4},   // after "F♯" (1+3 bytes)
-		{8, 10},  // after all 8 runes = end of slice
-		{99, 10}, // n > rune count → len(b)
-	}
-	for _, c := range cases {
-		if got := runeByteOffset(b, c.n); got != c.want {
-			t.Errorf("runeByteOffset(%q, %d) = %d, want %d", b, c.n, got, c.want)
+				},
+			)
+		})
+		if !strings.Contains(got, "Alice") || !strings.Contains(got, "Bob") {
+			t.Errorf("expected rows in output, got %q", got)
 		}
-	}
+		if !strings.Contains(got, "Name") || !strings.Contains(got, "Count") {
+			t.Errorf("expected headers in output, got %q", got)
+		}
+	})
+	t.Run("empty seq produces no output", func(t *testing.T) {
+		got := build(func(m *Builder) {
+			m.KVTable(irt.MakeKV("K", "V"), func(yield func(string, string) bool) {})
+		})
+		if got != "" {
+			t.Errorf("expected empty output, got %q", got)
+		}
+	})
 }
 
 // --- Unicode column widths ---
@@ -669,19 +679,18 @@ func TestRuneByteOffset(t *testing.T) {
 func TestTableUnicodeMusicalSymbols(t *testing.T) {
 	// Regression: column widths were computed from byte length, causing
 	// multi-byte Unicode characters (♯ = 3 UTF-8 bytes, 1 rune) to produce
-	// under-padded cells.  Width must be rune count (visual width).
+	// under-padded cells. Width must be rune count (visual width).
 	//
-	// "F♯ Minor" = 8 runes, 10 bytes.  Column width must be 8, not 10.
+	// "F♯ Minor" = 8 runes, 10 bytes. Column width must be 8, not 10.
 	got := build(func(m *Builder) {
 		m.NewTable(Column{Name: "Key"}).
 			Row("E Minor").  // 7 runes, 7 bytes
 			Row("F♯ Minor"). // 8 runes, 10 bytes — ♯ is 3 UTF-8 bytes
 			Build()
 	})
-	// width = max(runes("Key")=3, 7, 8) = 8
 	want := "| Key      |\n| -------- |\n| E Minor  |\n| F♯ Minor |\n"
 	if got != want {
-		t.Errorf("TableUnicodeMusicalSymbols:\ngot:  %q\nwant: %q", got, want)
+		t.Errorf("got:  %q\nwant: %q", got, want)
 	}
 }
 
@@ -693,10 +702,9 @@ func TestTableUnicodeSmartQuotes(t *testing.T) {
 			Row("Saint\u2019s"). // 7 runes, 9 bytes
 			Build()
 	})
-	// width = max(5, 5, 7) = 7
 	want := "| Title   |\n| ------- |\n| Short   |\n| Saint\u2019s |\n"
 	if got != want {
-		t.Errorf("TableUnicodeSmartQuotes:\ngot:  %q\nwant: %q", got, want)
+		t.Errorf("got:  %q\nwant: %q", got, want)
 	}
 }
 
@@ -712,16 +720,13 @@ func TestTableUnicodeColumnConsistency(t *testing.T) {
 	if len(lines) < 4 {
 		t.Fatalf("expected at least 4 lines, got %d", len(lines))
 	}
-	// Collect visual widths of the second column cell across data rows.
-	colWidths := make([]int, 0, len(lines)-2)
+	var colWidths []int
 	for _, line := range lines[2:] {
 		parts := strings.Split(line, "|")
 		if len(parts) < 3 {
 			continue
 		}
-		// parts[2] is " cell " — strip the two surrounding spaces.
-		cell := parts[2]
-		colWidths = append(colWidths, utf8.RuneCountInString(cell))
+		colWidths = append(colWidths, utf8.RuneCountInString(parts[2]))
 	}
 	for i := 1; i < len(colWidths); i++ {
 		if colWidths[i] != colWidths[0] {
@@ -731,21 +736,19 @@ func TestTableUnicodeColumnConsistency(t *testing.T) {
 	}
 }
 
-// --- WriteTo ---
+// --- runeByteOffset ---
 
-func TestWriteTo(t *testing.T) {
-	var mb Builder
-	mb.H1("Test")
-	var out strings.Builder
-	n, err := mb.WriteTo(&out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := out.String()
-	if got != "# Test\n\n" {
-		t.Errorf("WriteTo: got %q", got)
-	}
-	if int(n) != len(got) {
-		t.Errorf("WriteTo: reported n=%d but len=%d", n, len(got))
+func TestRuneByteOffset(t *testing.T) {
+	b := []byte("F♯ Minor") // ♯ = 3 UTF-8 bytes; total 10 bytes, 8 runes
+	for _, c := range []struct{ n, want int }{
+		{0, 0},
+		{1, 1},   // after "F" (1 byte)
+		{2, 4},   // after "F♯" (1+3 bytes)
+		{8, 10},  // after all 8 runes = end of slice
+		{99, 10}, // n > rune count → len(b)
+	} {
+		if got := runeByteOffset(b, c.n); got != c.want {
+			t.Errorf("runeByteOffset(%q, %d) = %d, want %d", b, c.n, got, c.want)
+		}
 	}
 }
