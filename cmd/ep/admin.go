@@ -67,9 +67,10 @@ func Hacking() *cmdr.Commander {
 func Build() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("build").
+		Aliases("make").
 		SetUsage("project automation and release tools").
 		With(infra.AttachConfiguration).
-		With(infra.WorkerAction(infra.WorkerWithTiming("build-all", release.LocalBuild))).
+		With(infra.WorkerAction(infra.WorkerWithTiming("build", release.LocalBuild))).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("all").
