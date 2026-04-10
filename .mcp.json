@@ -5,7 +5,7 @@
       "command": "gopls",
       "args": ["-remote=unix;/run/user/1000/gopls.socket", "mcp"]
     },
-    "gopls-remote-sockett-tmp": {
+    "gopls-remote-socket-tmp": {
       "type": "stdio",
       "command": "gopls",
       "args": ["-remote=unix;/tmp/gopls.socket", "mcp"]
