@@ -206,11 +206,28 @@ func (m *Builder) ExtendKVany(seq iter.Seq2[string, any]) *Builder {
 	return m
 }
 
+// ExtendKVSeq writes a KV line for each irt.KV[string, string] yielded by seq.
+func (m *Builder) ExtendKVSeq(seq iter.Seq[irt.KV[string, string]]) *Builder {
+	for kv := range seq {
+		m.FromKV(kv)
+	}
+	return m
+}
+
+// ExtendKVanySeq writes a KV line for each irt.KV[string, any] yielded by seq,
+// formatting values with %v.
+func (m *Builder) ExtendKVanySeq(seq iter.Seq[irt.KV[string, any]]) *Builder {
+	for kv := range seq {
+		m.FromKVany(kv)
+	}
+	return m
+}
+
 // BulletListItem writes a single "- item" line. Multiple parts are
 // concatenated directly to form one item's text — they do not produce
 // multiple list items. For multiple items use BulletList.
 func (m *Builder) BulletListItem(item ...string) *Builder {
-	m.Concat("- ")
+	m.PushString("- ")
 	m.Concat(item...)
 	m.Line()
 	return m
@@ -449,6 +466,21 @@ func (m *Builder) PushNLines(n int) *Builder { m.Mutable.NLines(n); return m }
 // PushConcat appends all parts concatenated to the builder and returns the
 // receiver for chaining.
 func (m *Builder) PushConcat(parts ...string) *Builder { m.Mutable.Concat(parts...); return m }
+
+// PushKV writes a **key**: value line followed by a newline and returns the receiver for chaining.
+func (m *Builder) PushKV(key, val string) *Builder { return m.KV(key, val) }
+
+// PushKVany writes a **key**: value line followed by a newline, formatting value with %v,
+// and returns the receiver for chaining.
+func (m *Builder) PushKVany(key string, val any) *Builder { return m.KVany(key, val) }
+
+// PushFromKV writes a **key**: value line from an irt.KV[string, string] followed by a newline
+// and returns the receiver for chaining.
+func (m *Builder) PushFromKV(kv irt.KV[string, string]) *Builder { return m.FromKV(kv) }
+
+// PushFromKVany writes a **key**: value line from an irt.KV[string, any] followed by a newline,
+// formatting the value with %v, and returns the receiver for chaining.
+func (m *Builder) PushFromKVany(kv irt.KV[string, any]) *Builder { return m.FromKVany(kv) }
 
 // Text writes parts concatenated to the builder and returns the receiver for
 // chaining. Use this to intersperse plain text with inline formatting methods:

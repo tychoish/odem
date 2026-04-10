@@ -111,6 +111,18 @@ func TestKVMethods(t *testing.T) {
 				yield("Y", false)
 			})
 		}, "**X**: 99\n**Y**: false\n"},
+		{"ExtendKVSeq", func(m *Builder) {
+			m.ExtendKVSeq(irt.Slice([]irt.KV[string, string]{
+				irt.MakeKV("A", "1"),
+				irt.MakeKV("B", "2"),
+			}))
+		}, "**A**: 1\n**B**: 2\n"},
+		{"ExtendKVanySeq", func(m *Builder) {
+			m.ExtendKVanySeq(irt.Slice([]irt.KV[string, any]{
+				irt.MakeKV[string, any]("X", 99),
+				irt.MakeKV[string, any]("Y", false),
+			}))
+		}, "**X**: 99\n**Y**: false\n"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := build(c.fn); got != c.want {
@@ -353,6 +365,13 @@ func TestPushOps(t *testing.T) {
 		{"PushLine", func(m *Builder) { m.PushString("x").PushLine().PushString("y") }, "x\ny"},
 		{"PushNLines", func(m *Builder) { m.PushString("x").PushNLines(2).PushString("y") }, "x\n\ny"},
 		{"PushConcat", func(m *Builder) { m.PushConcat("a", "b", "c") }, "abc"},
+		{"PushKV", func(m *Builder) { m.PushKV("Name", "Alice") }, "**Name**: Alice\n"},
+		{"PushKVany string", func(m *Builder) { m.PushKVany("Count", 42) }, "**Count**: 42\n"},
+		{"PushFromKV", func(m *Builder) { m.PushFromKV(irt.MakeKV("K", "V")) }, "**K**: V\n"},
+		{"PushFromKVany", func(m *Builder) { m.PushFromKVany(irt.MakeKV[string, any]("N", 7)) }, "**N**: 7\n"},
+		{"PushKV chained", func(m *Builder) {
+			m.PushKV("A", "1").PushKV("B", "2")
+		}, "**A**: 1\n**B**: 2\n"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := build(c.fn); got != c.want {
@@ -612,6 +631,18 @@ func TestTable(t *testing.T) {
 		})
 		if !strings.Contains(got, "alpha") || !strings.Contains(got, "99") {
 			t.Errorf("expected row in output, got %q", got)
+		}
+	})
+	t.Run("NewTableWithColumns", func(t *testing.T) {
+		cols := []Column{{Name: "X"}, {Name: "Y", RightAlign: true}}
+		got := build(func(m *Builder) {
+			m.NewTableWithColumns(cols).Row("foo", "42").Build()
+		})
+		if !strings.Contains(got, "foo") || !strings.Contains(got, "42") {
+			t.Errorf("unexpected output: %q", got)
+		}
+		if !strings.Contains(got, "X") || !strings.Contains(got, "Y") {
+			t.Errorf("missing headers in: %q", got)
 		}
 	})
 	t.Run("empty rows produces no output", func(t *testing.T) {
