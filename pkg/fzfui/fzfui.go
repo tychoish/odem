@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/tychoish/fun/erc"
@@ -26,7 +27,7 @@ func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
 	}
 	grip.Infof("songs led by: %s", singer)
 
-	return renderTable(models.WriteSongTable, conn.MostLedSongs(ctx, singer.Name, 32))
+	return renderTable(models.WriteTable, conn.MostLedSongs(ctx, singer.Name, 32))
 }
 
 func SongAction(ctx context.Context, conn *db.Connection, song string) error {
@@ -63,7 +64,7 @@ func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 	}
 	ec.Push(flush(os.Stdout, &mb))
 	grip.Infoln("top leaders of", s.PageNum)
-	ec.Push(renderTable(models.WriteSongLeadersTable, conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
+	ec.Push(renderTable(models.WriteTable, conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
 
 	return ec.Resolve()
 }
@@ -78,7 +79,7 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 		return err
 	}
 	grip.Info("Lessons:")
-	return renderTable(models.WriteSingingLessonsTable, dbconn.SingingLessons(ctx, singing.SingingName))
+	return renderTable(models.WriteTable, dbconn.SingingLessons(ctx, singing.SingingName))
 }
 
 func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -88,7 +89,7 @@ func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input s
 	}
 	grip.Infof("lead history for: %s", singer.Name)
 
-	return renderTable(models.WriteLessonTable, dbconn.LeaderLeadHistory(ctx, singer.Name, 50000))
+	return renderTable(models.WriteTable, dbconn.LeaderLeadHistory(ctx, singer.Name, 50000))
 }
 
 func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -98,7 +99,7 @@ func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, in
 	}
 	grip.Infof("singings attended by: %s", singer)
 
-	return renderTable(models.WriteLeaderSingingsTable, dbconn.LeaderSingingsAttended(ctx, singer.Name, 0))
+	return renderTable(models.WriteTable, dbconn.LeaderSingingsAttended(ctx, singer.Name, 0))
 }
 
 func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -150,7 +151,7 @@ func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, i
 	}
 
 	grip.Infof("most common songs at singings attended by %s", singer.Name)
-	return renderTable(models.WriteSongTable, dbconn.PopularSongsInOnesExperience(ctx, input, 20))
+	return renderTable(models.WriteTable, dbconn.PopularAsObserved(ctx, input, 20))
 }
 
 func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -160,7 +161,7 @@ func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) e
 	}
 
 	grip.Infof("songs never sung at singing %s was present at", singer.Name)
-	return renderTable(models.WriteSongTable, dbconn.NeverSung(ctx, singer.Name))
+	return renderTable(models.WriteTable, dbconn.NeverSung(ctx, singer.Name))
 }
 
 func NeverLedAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -170,7 +171,7 @@ func NeverLedAction(ctx context.Context, dbconn *db.Connection, input string) er
 	}
 
 	grip.Infof("songs never led by %s", singer.Name)
-	return renderTable(models.WriteSongTable, dbconn.NeverLed(ctx, singer.Name, 40))
+	return renderTable(models.WriteTable, dbconn.NeverLed(ctx, singer.Name, 40))
 }
 
 func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string) error {
@@ -185,7 +186,7 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string
 	}
 
 	grip.Infof("popular songs in a specific location %v", localities)
-	return renderTable(models.WriteSongTable, dbconn.LocallyPopular(ctx, 20, localities...))
+	return renderTable(models.WriteTable, dbconn.LocallyPopular(ctx, 20, localities...))
 }
 
 func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -195,7 +196,7 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input strin
 	}
 
 	grip.Infof("otherwise popular songs less-or-unfamilar to %s", singer.Name)
-	return renderTable(models.WriteSongTable, dbconn.TheUnfamilarHits(ctx, singer.Name, 20))
+	return renderTable(models.WriteTable, dbconn.TheUnfamilarHits(ctx, singer.Name, 20))
 }
 
 func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -243,7 +244,7 @@ func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input str
 
 	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer.Name)
 
-	return renderTable(models.WriteLeaderFootstepTable, dbconn.LeaderFootsteps(ctx, singer.Name, 32))
+	return renderTable(models.WriteTable, dbconn.LeaderFootsteps(ctx, singer.Name, 32))
 }
 
 func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -283,7 +284,13 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 
 	grip.Infof("leaders by total leads in year(s) %v", years)
 
-	return renderTable(models.WriteTopLeadersTable, dbconn.TopLeadersByLeads(ctx, 40, years...))
+	return renderTable(
+		models.WriteTable,
+		irt.Convert2(
+			dbconn.TopLeadersByLeads(ctx, 40, years...),
+			infra.PassErrorThroughConverter(models.TopLeadersWrapper(&atomic.Int64{})),
+		),
+	)
 }
 
 func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg string) error {
@@ -296,7 +303,7 @@ func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg stri
 		year = years[0]
 	}
 	grip.Infof("debut leaders in %d", year)
-	return renderTable(models.WriteLeaderCountTableForCount, dbconn.NewLeadersByYear(ctx, year, 40))
+	return renderTable(writeLeaderCountTable, dbconn.NewLeadersByYear(ctx, year, 40))
 }
 
 func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
@@ -307,12 +314,18 @@ func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) er
 
 	grip.Infof("lessons by key in year(s) %v", years)
 
-	return renderTable(models.WriteSongsByKeyTable, dbconn.SongsByKey(ctx, years...))
+	return renderTable(
+		models.WriteTable,
+		irt.Convert2(
+			dbconn.SongsByKey(ctx, years...),
+			infra.PassErrorThroughConverter(models.WrapSongByKey),
+		),
+	)
 }
 
 func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ string) error {
 	grip.Info("singers ordered by number of top-20 leads")
-	return renderTable(models.WriteLeaderCountTableForCount, dbconn.LeadersByTop20Leads(ctx, 40))
+	return renderTable(writeLeaderCountTable, dbconn.LeadersByTop20Leads(ctx, 40))
 }
 
 func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -344,7 +357,7 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 	}
 
 	grip.Infof("leaders by number of leads in key %q", key)
-	return renderTable(models.WriteLeaderCountTableForCount, dbconn.LeadersByKey(ctx, key, 40))
+	return renderTable(writeLeaderCountTable, dbconn.LeadersByKey(ctx, key, 40))
 }
 
 func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {
@@ -354,7 +367,7 @@ func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key str
 	}
 
 	grip.Infof("popular songs in key %q", key)
-	return renderTable(models.WriteSongTable, dbconn.PopularSongsByKey(ctx, key, 40))
+	return renderTable(models.WriteTable, dbconn.PopularSongsByKey(ctx, key, 40))
 }
 
 func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {
@@ -364,5 +377,5 @@ func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 	}
 
 	grip.Infof("songs by popularity in year(s) %v", years)
-	return renderTable(models.WriteSongTable, dbconn.GloballyPopularForYears(ctx, 20, years...))
+	return renderTable(models.WriteTable, dbconn.GloballyPopularForYears(ctx, 20, years...))
 }

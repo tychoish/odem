@@ -7,6 +7,7 @@ import (
 	"iter"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -29,7 +30,7 @@ func MostLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push))
 		mdtb.WriteLine("```")
 
 		if !ec.Ok() {
@@ -52,7 +53,7 @@ func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongLeadersTable(mdtb, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 
 		if !ec.Ok() {
@@ -74,7 +75,7 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSingingLessonsTable(mdtb, erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -147,7 +148,7 @@ func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -179,7 +180,7 @@ func PopularInYears(ctx context.Context, conn *db.Connection, p models.Params) i
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -205,7 +206,7 @@ func PopularLocally(ctx context.Context, conn *db.Connection, p models.Params) i
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -226,7 +227,7 @@ func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -247,7 +248,7 @@ func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -268,7 +269,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) it
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -315,7 +316,7 @@ func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params)
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriterLeaderIdolsTable(mdtb, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -345,7 +346,12 @@ func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) iter.
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteTopLeadersTable(mdtb, erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push))
+		models.WriteTable(mdtb,
+			irt.Convert(
+				erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push),
+				models.TopLeadersWrapper(&atomic.Int64{}),
+			),
+		)
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -391,7 +397,7 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLessonTable(mdtb, erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -412,7 +418,7 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) i
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLeaderSingingsTable(mdtb, erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -467,7 +473,7 @@ func LeaderDebutsByYear(ctx context.Context, conn *db.Connection, p models.Param
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLeaderCountTable(mdtb, "Leads", erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Leads")))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -499,7 +505,7 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongsByKeyTable(mdtb, erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push))
+		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push), models.WrapSongByKey))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -520,7 +526,7 @@ func Top20Leaders(ctx context.Context, conn *db.Connection, p models.Params) ite
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLeaderCountTable(mdtb, "Top-20 Leads", erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads")))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -567,7 +573,11 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) ite
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteLeaderCountTable(mdtb, "Count", erc.HandleUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, irt.Convert(
+			erc.HandleUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push),
+			models.WrapLeaderSongRank("Count")),
+		)
+
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -588,7 +598,7 @@ func PopularSongsByKey(ctx context.Context, conn *db.Connection, p models.Params
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		models.WriteSongTable(mdtb, erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+		models.WriteTable(mdtb, erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
