@@ -79,6 +79,18 @@ func (m *Builder) H2(text ...string) *Builder { return m.heading(2, text...) }
 // Multiple parts are concatenated directly without a separator.
 func (m *Builder) H3(text ...string) *Builder { return m.heading(3, text...) }
 
+// H4 writes a level-4 heading ("#### text") followed by a blank line.
+// Multiple parts are concatenated directly without a separator.
+func (m *Builder) H4(text ...string) *Builder { return m.heading(4, text...) }
+
+// H5 writes a level-5 heading ("##### text") followed by a blank line.
+// Multiple parts are concatenated directly without a separator.
+func (m *Builder) H5(text ...string) *Builder { return m.heading(5, text...) }
+
+// H6 writes a level-6 heading ("###### text") followed by a blank line.
+// Multiple parts are concatenated directly without a separator.
+func (m *Builder) H6(text ...string) *Builder { return m.heading(6, text...) }
+
 func (m *Builder) heading(level int, text ...string) *Builder {
 	m.Concat(strings.Repeat("#", level), " ")
 	m.Concat(text...)
@@ -110,6 +122,18 @@ func (m *Builder) H2Words(words ...string) *Builder { return m.heading(2, joinSp
 // H3Words writes a level-3 heading with parts joined by a single space,
 // followed by a blank line.
 func (m *Builder) H3Words(words ...string) *Builder { return m.heading(3, joinSpace(words)) }
+
+// H4Words writes a level-4 heading with parts joined by a single space,
+// followed by a blank line.
+func (m *Builder) H4Words(words ...string) *Builder { return m.heading(4, joinSpace(words)) }
+
+// H5Words writes a level-5 heading with parts joined by a single space,
+// followed by a blank line.
+func (m *Builder) H5Words(words ...string) *Builder { return m.heading(5, joinSpace(words)) }
+
+// H6Words writes a level-6 heading with parts joined by a single space,
+// followed by a blank line.
+func (m *Builder) H6Words(words ...string) *Builder { return m.heading(6, joinSpace(words)) }
 
 // ItalicParagraph writes _text_ followed by a blank line. Multiple parts are
 // concatenated directly without a separator before the italic markers are applied.

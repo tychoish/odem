@@ -36,6 +36,12 @@ func TestHeadings(t *testing.T) {
 		{"H1Words none", func(m *Builder) { m.H1Words() }, "# \n\n"},
 		{"H2Words", func(m *Builder) { m.H2Words("Section", "One") }, "## Section One\n\n"},
 		{"H3Words", func(m *Builder) { m.H3Words("Sub", "Section") }, "### Sub Section\n\n"},
+		{"H4", func(m *Builder) { m.H4("Deep") }, "#### Deep\n\n"},
+		{"H5", func(m *Builder) { m.H5("Deeper") }, "##### Deeper\n\n"},
+		{"H6", func(m *Builder) { m.H6("Deepest") }, "###### Deepest\n\n"},
+		{"H4Words", func(m *Builder) { m.H4Words("Deep", "Section") }, "#### Deep Section\n\n"},
+		{"H5Words", func(m *Builder) { m.H5Words("Deeper", "Section") }, "##### Deeper Section\n\n"},
+		{"H6Words", func(m *Builder) { m.H6Words("Deepest", "Section") }, "###### Deepest Section\n\n"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := build(c.fn); got != c.want {
