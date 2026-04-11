@@ -15,6 +15,7 @@ import (
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/srv"
+	_ "modernc.org/sqlite"
 )
 
 type Connection struct {
