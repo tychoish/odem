@@ -7,7 +7,8 @@ import (
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/dt"
-	"github.com/tychoish/fun/ers"
+	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
@@ -18,7 +19,7 @@ import (
 )
 
 type Service struct {
-	signal <-chan struct{}
+	signal func()
 	conf   *odem.Configuration
 	db     *db.Connection
 	ctx    context.Context
@@ -27,32 +28,68 @@ type Service struct {
 
 func NewService(ctx context.Context, conf *odem.Configuration, conn *db.Connection) *Service {
 	grip.Sender().SetPriority(level.Trace)
-
-	return &Service{signal: ctx.Done(), conf: conf, db: conn, ctx: ctx}
+	ctx, cancel := context.WithCancel(ctx)
+	return &Service{signal: cancel, conf: conf, db: conn, ctx: ctx}
 }
 
 func (srv *Service) Start(ctx context.Context) error {
 	dsp := etron.NewDispatcher(srv.conf.Telegram.BotToken, srv.MakeBot)
 	timer := time.NewTimer(0)
 	grip.Info("telegram bot starting")
-	for err, count := dsp.Poll(), int64(0); true; err, count = dsp.Poll(), count+1 {
-		grip.Debug(grip.MPrintf("telegram longpoll loop number: %d", count))
-		grip.Notice(ers.Wrapf(err, "dispatcher loop num %d", count))
+	var count int
+	for {
+		count++
+		select {
+		case err := <-srv.doPoll(ctx, count, dsp):
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
+		if shouldExit, err := srv.checkServiceExit(ctx); shouldExit {
+			return err
+		}
+
 		timer.Reset(5 * time.Second)
 		select {
 		case <-timer.C:
-			if srv.off.Load() {
-				grip.Alert("shutdown triggered")
-				return nil
-			}
 			continue
-		case <-srv.signal:
-			return ctx.Err()
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 	return nil
+}
+
+func (srv *Service) doPoll(ctx context.Context, count int, dsp *etron.Dispatcher) <-chan error {
+	startAt := time.Now()
+	grip.Debug(grip.KV("op", "longpoll").KV("count", count).KV("status", "starting"))
+	ch := make(chan error)
+	go func() {
+		var ec erc.Collector
+		defer close(ch)
+		defer ec.Recover()
+		defer func() { stw.BlockingSend(ch).Ignore(ctx, ec.Resolve()) }()
+		grip.Debug(grip.KV("op", "longpoll").KV("count", count).KV("status", "launching from goroutine").KV("after", time.Since(startAt)))
+		ec.Check(dsp.Poll)
+		grip.Debug(grip.KV("op", "longpoll").KV("count", count).KV("status", "returning from goroutine").KV("after", time.Since(startAt)))
+	}()
+
+	grip.Debug(grip.KV("op", "longpoll").KV("count", count).KV("status", "returning to main loop").KV("after", time.Since(startAt)))
+	return ch
+}
+
+func (srv *Service) checkServiceExit(ctx context.Context) (bool, error) {
+	switch {
+	case srv.off.Load():
+		return true, nil
+	case ctx.Err() != nil:
+		return true, ctx.Err()
+	default:
+		return false, nil
+	}
 }
 
 func (srv *Service) MakeBot(chatID int64) etron.Bot {
