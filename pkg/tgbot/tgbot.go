@@ -166,12 +166,9 @@ func (b *bot) handleArbitraryMessage(msg *etron.Message, fallback func() stateFn
 		if p := recover(); p != nil {
 			resp, err := b.Close()
 			grip.Error(err)
-
-			if resp.Ok {
-				grip.Debug(resp)
-			} else {
-				grip.Warning(resp)
-			}
+			msg := grip.KV("code", p).KV("close", resp)
+			grip.Debug(grip.When(resp.Ok, msg))
+			grip.Warning(grip.When(!resp.Ok, msg))
 
 			switch p {
 			case "exit", "abort", "quit":
