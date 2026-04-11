@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/odem"
 )
 
 //go:embed views.sql
@@ -30,7 +32,7 @@ func Reset() error {
 	return os.RemoveAll(dbPath)
 }
 
-func Init() (err error) {
+func Init(ctx context.Context) (err error) {
 	var ec erc.Collector
 	defer func() { ec.Push(err); err = ec.Resolve() }()
 	dbPath := getDBpath()
@@ -42,7 +44,7 @@ func Init() (err error) {
 		// should rebuild the database. otherwise the database was built with this binary
 		// and we can just run the idempotent index creation (for the 'go run' case) and use
 		// the database otherwise we fall through and set up the local database
-		if odemMtime.IsZero() || dbMtime.After(odemMtime) || os.Getenv("ODEM_DEVLOP") != "" {
+		if odemMtime.IsZero() || dbMtime.After(odemMtime) || os.Getenv("ODEM_DEVLOP") != "" || odem.GetConfiguration(ctx).Settings.ManualReloadDB {
 			db, err := sql.Open("sqlite", dbPath)
 			if err != nil {
 				return err

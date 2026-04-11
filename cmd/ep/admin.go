@@ -39,7 +39,8 @@ func Setup() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("setup").
 		SetUsage("initialize the cached/local database").
-		With(infra.WorkerAction(fnx.MakeWorker(db.Init))).
+		With(infra.AttachConfiguration).
+		With(infra.WorkerAction(db.Init)).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("reset").
