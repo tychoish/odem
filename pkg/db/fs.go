@@ -62,7 +62,7 @@ func Init() (err error) {
 		}
 	}
 
-	grip.Infoln("setting up the local minutes database:", dbPath)
+	grip.Info(grip.MPrintln("setting up the local minutes database:", dbPath))
 	f, err := packaged.Open("fasoladb/minutes.db")
 	if err != nil {
 		return err
@@ -89,10 +89,10 @@ func Init() (err error) {
 
 	grip.Info("applying odem specific modifications")
 	for file := range irt.Args("setup.sql", "views.sql") {
-		grip.Infoln("reading", file)
+		grip.Info(grip.MPrintln("reading", file))
 		setupSql, err := packaged.ReadFile(file)
 		if ec.PushOk(err) {
-			grip.Infoln("applying", file)
+			grip.Info(grip.MPrintln("applying", file))
 			if _, err := db.Exec(string(setupSql)); err != nil {
 				ec.Push(err)
 			}
@@ -124,7 +124,7 @@ func odemBinaryMtime() time.Time {
 		if os.IsNotExist(err) || stat == nil {
 			continue
 		}
-		grip.Noticeln("fallback", p)
+		grip.Notice(grip.MPrintln("fallback", p))
 		return stat.ModTime()
 	}
 

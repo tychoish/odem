@@ -380,12 +380,12 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Description: "exit <181>",
 			Aliases:     []string{"exit", "return", "abort"},
 			Reporter: func(ctx context.Context, conn *db.Connection, params reportui.Params) error {
-				grip.Debugf("input-params", params)
+				grip.Debug(grip.MPrintf("input-params", params))
 				grip.Info("goodbye!")
 				return nil
 			},
 			Fuzz: func(ctx context.Context, conn *db.Connection, args string) error {
-				grip.Debugln("input-args", args)
+				grip.Debug(grip.MPrintln("input-args", args))
 				grip.Info("goodbye!")
 				return nil
 			},

@@ -103,7 +103,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	if artifacts.Len() == 0 {
-		grip.Warningf("no artifacts found in %q", buildDir)
+		grip.Warning(grip.MPrintf("no artifacts found in %q", buildDir))
 		return nil
 	}
 

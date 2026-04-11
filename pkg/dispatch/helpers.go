@@ -33,7 +33,7 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 	// this needs to be in the dispatcher package to avoid a circular dependency, even though it
 	// feels like it wants to be in the fzfui package.
 	arg = strings.ReplaceAll(arg, " ", "-")
-	grip.Debugln("selecting operation to dispatch", arg)
+	grip.Debug(grip.MPrintln("selecting operation to dispatch", arg))
 
 	operation := NewMinutesAppOperation(arg)
 
@@ -44,17 +44,17 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 			return operation
 		}
 		if newop := NewMinutesAppOperation(operation.String()); newop.Ok() {
-			grip.Debugln("succeeded to identify %s on fallback", newop)
+			grip.Debug(grip.MPrintln("succeeded to identify %s on fallback", newop))
 			return newop
 		}
 
 		if err != nil {
-			grip.Warningf("operation %q is not valid, %v, retrying", operation.String(), err)
+			grip.Warning(grip.MPrintf("operation %q is not valid, %v, retrying", operation.String(), err))
 			return MinutesAppOpRetry
 		}
 	}
 
-	grip.Debugln("selected", operation)
+	grip.Debug(grip.MPrintln("selected", operation))
 	return operation
 }
 

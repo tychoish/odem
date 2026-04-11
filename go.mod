@@ -8,10 +8,10 @@ require (
 	github.com/koki-develop/go-fzf v0.15.0
 	github.com/masterminds/semver v1.5.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
-	github.com/tychoish/cmdr v0.5.5
+	github.com/tychoish/cmdr v0.5.6
 	github.com/tychoish/dbx v0.8.0
-	github.com/tychoish/fun v0.14.8
-	github.com/tychoish/grip v0.4.9
+	github.com/tychoish/fun v0.14.9
+	github.com/tychoish/grip v0.5.0
 	github.com/tychoish/jasper v0.1.5
 	github.com/urfave/cli/v3 v3.6.1
 	modernc.org/sqlite v1.47.0

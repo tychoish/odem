@@ -52,7 +52,7 @@ func BuildArtifacts(ctx context.Context) error {
 		} else {
 			binaryName = Name
 		}
-		grip.Debugln(ldFlag)
+		grip.Debug(grip.MPrintln(ldFlag))
 		cmd := jpm.CreateCommand(ctx).
 			ID(binaryPath).
 			AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
@@ -121,7 +121,7 @@ func LocalBuild(ctx context.Context) error {
 		if !util.FileExists(path) {
 			continue
 		}
-		grip.Infoln("building:", "./cmd/odem/.go")
+		grip.Info(grip.MPrintln("building:", "./cmd/odem/.go"))
 		return jasper.Context(ctx).
 			CreateCommand(ctx).
 			AppendArgs("go", "build", "./cmd/odem.go").

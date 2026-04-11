@@ -56,9 +56,9 @@ func Hacking() *cmdr.Commander {
 		SetUsage("hacking and testing").
 		With(infra.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
-			grip.Infoln("🤖 🎶", release.Version.Resolve())
+			grip.Info(grip.MPrintln("🤖 🎶", release.Version.Resolve()))
 			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
-				grip.Infoln(k, "->", fmt.Sprintf("%+v", v))
+				grip.Info(grip.MPrintln(k, "->", fmt.Sprintf("%+v", v)))
 			}
 			return nil
 		})

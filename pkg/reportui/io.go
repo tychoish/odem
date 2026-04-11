@@ -47,4 +47,4 @@ type wrcloselog struct {
 const wrclTmpl = "wrote %q to %s"
 
 func (f *wrcloselog) Write(in []byte) (int, error) { return f.f.Write(in) }
-func (f *wrcloselog) Close() error                 { grip.Infof(wrclTmpl, f.name, f.f.Name()); return f.f.Close() }
+func (f *wrcloselog) Close() error                 { grip.Info(grip.MPrintf(wrclTmpl, f.name, f.f.Name())); return f.f.Close() }

@@ -36,7 +36,7 @@ func (srv *Service) Start(ctx context.Context) error {
 	timer := time.NewTimer(0)
 	grip.Info("telegram bot starting")
 	for err, count := dsp.Poll(), int64(0); true; err, count = dsp.Poll(), count+1 {
-		grip.Debugf("telegram longpoll loop number: %d", count)
+		grip.Debug(grip.MPrintf("telegram longpoll loop number: %d", count))
 		grip.Notice(ers.Wrapf(err, "dispatcher loop num %d", count))
 		timer.Reset(5 * time.Second)
 		select {
@@ -146,7 +146,7 @@ func (b *bot) handleArbitraryMessage(msg *etron.Message, fallback func() stateFn
 		}
 	}()
 
-	grip.Infoln("message", msg.Text)
+	grip.Info(grip.MPrintln("message", msg.Text))
 	switch {
 	case isOrContainsCmd(msg, "exit"):
 		b.sendPlain("ok, exiting!")

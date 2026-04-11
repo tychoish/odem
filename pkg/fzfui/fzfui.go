@@ -25,7 +25,7 @@ func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
 	if err != nil {
 		return err
 	}
-	grip.Infof("songs led by: %s", singer)
+	grip.Info(grip.MPrintf("songs led by: %s", singer))
 
 	return renderTable(models.WriteTable, conn.MostLedSongs(ctx, singer.Name, 32))
 }
@@ -56,14 +56,14 @@ func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 		return ec.Resolve()
 	}
 
-	grip.Infoln("song info for", s.PageNum)
+	grip.Info(grip.MPrintln("song info for", s.PageNum))
 
 	var mb mdwn.Builder
 	for k, v := range infra.IterStruct(s) {
 		mb.KV(k, fmt.Sprint(v))
 	}
 	ec.Push(flush(os.Stdout, &mb))
-	grip.Infoln("top leaders of", s.PageNum)
+	grip.Info(grip.MPrintln("top leaders of", s.PageNum))
 	ec.Push(renderTable(models.WriteTable, conn.TopLeadersOfSong(ctx, s.PageNum, 20)))
 
 	return ec.Resolve()
@@ -87,7 +87,7 @@ func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input s
 	if err != nil {
 		return err
 	}
-	grip.Infof("lead history for: %s", singer.Name)
+	grip.Info(grip.MPrintf("lead history for: %s", singer.Name))
 
 	return renderTable(models.WriteTable, dbconn.LeaderLeadHistory(ctx, singer.Name, 50000))
 }
@@ -97,7 +97,7 @@ func LeaderSingingsAttendedAction(ctx context.Context, dbconn *db.Connection, in
 	if err != nil {
 		return err
 	}
-	grip.Infof("singings attended by: %s", singer)
+	grip.Info(grip.MPrintf("singings attended by: %s", singer))
 
 	return renderTable(models.WriteTable, dbconn.LeaderSingingsAttended(ctx, singer.Name, 0))
 }
@@ -109,7 +109,7 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input stri
 	}
 
 	var ec erc.Collector
-	grip.Infof("singing buddies for %q", singer.Name)
+	grip.Info(grip.MPrintf("singing buddies for %q", singer.Name))
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Shared Singings"),
@@ -130,7 +130,7 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input st
 	}
 
 	var ec erc.Collector
-	grip.Infof("singing strangers for %q", singer)
+	grip.Info(grip.MPrintf("singing strangers for %q", singer))
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Name", "Count"),
@@ -150,7 +150,7 @@ func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, i
 		return err
 	}
 
-	grip.Infof("most common songs at singings attended by %s", singer.Name)
+	grip.Info(grip.MPrintf("most common songs at singings attended by %s", singer.Name))
 	return renderTable(models.WriteTable, dbconn.PopularAsObserved(ctx, input, 20))
 }
 
@@ -160,7 +160,7 @@ func NeverSungAction(ctx context.Context, dbconn *db.Connection, input string) e
 		return err
 	}
 
-	grip.Infof("songs never sung at singing %s was present at", singer.Name)
+	grip.Info(grip.MPrintf("songs never sung at singing %s was present at", singer.Name))
 	return renderTable(models.WriteTable, dbconn.NeverSung(ctx, singer.Name))
 }
 
@@ -170,7 +170,7 @@ func NeverLedAction(ctx context.Context, dbconn *db.Connection, input string) er
 		return err
 	}
 
-	grip.Infof("songs never led by %s", singer.Name)
+	grip.Info(grip.MPrintf("songs never led by %s", singer.Name))
 	return renderTable(models.WriteTable, dbconn.NeverLed(ctx, singer.Name, 40))
 }
 
@@ -185,7 +185,7 @@ func LocallyPopularAction(ctx context.Context, dbconn *db.Connection, arg string
 		}
 	}
 
-	grip.Infof("popular songs in a specific location %v", localities)
+	grip.Info(grip.MPrintf("popular songs in a specific location %v", localities))
 	return renderTable(models.WriteTable, dbconn.LocallyPopular(ctx, 20, localities...))
 }
 
@@ -195,7 +195,7 @@ func UnfamilarHitsAction(ctx context.Context, dbconn *db.Connection, input strin
 		return err
 	}
 
-	grip.Infof("otherwise popular songs less-or-unfamilar to %s", singer.Name)
+	grip.Info(grip.MPrintf("otherwise popular songs less-or-unfamilar to %s", singer.Name))
 	return renderTable(models.WriteTable, dbconn.TheUnfamilarHits(ctx, singer.Name, 20))
 }
 
@@ -206,7 +206,7 @@ func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, input s
 	}
 
 	var ec erc.Collector
-	grip.Infof("leads per key for %q", singer.Name)
+	grip.Info(grip.MPrintf("leads per key for %q", singer.Name))
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Key", "Leads"),
@@ -242,7 +242,7 @@ func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input str
 		return err
 	}
 
-	grip.Infof("songs led by %s, ranked by the most frequent other leader of each song", singer.Name)
+	grip.Info(grip.MPrintf("songs led by %s, ranked by the most frequent other leader of each song", singer.Name))
 
 	return renderTable(models.WriteTable, dbconn.LeaderFootsteps(ctx, singer.Name, 32))
 }
@@ -260,7 +260,7 @@ func LeadersShareOfLeadsAction(ctx context.Context, dbconn *db.Connection, input
 		return err
 	}
 
-	grip.Infof("lead share for %q in year(s) %v", singer.Name, years)
+	grip.Info(grip.MPrintf("lead share for %q in year(s) %v", singer.Name, years))
 	v, err := dbconn.LeaderShareOfLeads(ctx, singer.Name, 16, years...)
 	if err != nil {
 		return err
@@ -282,7 +282,7 @@ func TopLeadersByLeadsAction(ctx context.Context, dbconn *db.Connection, yrs str
 		return err
 	}
 
-	grip.Infof("leaders by total leads in year(s) %v", years)
+	grip.Info(grip.MPrintf("leaders by total leads in year(s) %v", years))
 
 	return renderTable(
 		models.WriteTable,
@@ -302,7 +302,7 @@ func NewLeadersByYearAction(ctx context.Context, dbconn *db.Connection, arg stri
 	if len(years) > 0 && years[0] > 0 {
 		year = years[0]
 	}
-	grip.Infof("debut leaders in %d", year)
+	grip.Info(grip.MPrintf("debut leaders in %d", year))
 	return renderTable(writeLeaderCountTable, dbconn.NewLeadersByYear(ctx, year, 40))
 }
 
@@ -312,7 +312,7 @@ func SongsByKeyAction(ctx context.Context, dbconn *db.Connection, yrs string) er
 		return err
 	}
 
-	grip.Infof("lessons by key in year(s) %v", years)
+	grip.Info(grip.MPrintf("lessons by key in year(s) %v", years))
 
 	return renderTable(
 		models.WriteTable,
@@ -335,7 +335,7 @@ func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, inp
 	}
 
 	var ec erc.Collector
-	grip.Infof("singings per year for %q", singer.Name)
+	grip.Info(grip.MPrintf("singings per year for %q", singer.Name))
 	var mb mdwn.Builder
 	mb.KVTable(
 		irt.MakeKV("Year", "Singings"),
@@ -356,7 +356,7 @@ func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) 
 		return err
 	}
 
-	grip.Infof("leaders by number of leads in key %q", key)
+	grip.Info(grip.MPrintf("leaders by number of leads in key %q", key))
 	return renderTable(writeLeaderCountTable, dbconn.LeadersByKey(ctx, key, 40))
 }
 
@@ -366,7 +366,7 @@ func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key str
 		return err
 	}
 
-	grip.Infof("popular songs in key %q", key)
+	grip.Info(grip.MPrintf("popular songs in key %q", key))
 	return renderTable(models.WriteTable, dbconn.PopularSongsByKey(ctx, key, 40))
 }
 
@@ -376,6 +376,6 @@ func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string
 		return err
 	}
 
-	grip.Infof("songs by popularity in year(s) %v", years)
+	grip.Info(grip.MPrintf("songs by popularity in year(s) %v", years))
 	return renderTable(models.WriteTable, dbconn.GloballyPopularForYears(ctx, 20, years...))
 }

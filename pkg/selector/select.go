@@ -31,7 +31,7 @@ func Leader(ctx context.Context, dbconn *db.Connection, sp *infra.SearchParams) 
 	}
 	match := erc.MustOk(irt.Initial(irt.Ptrs(res)))
 
-	grip.Debugln("resolved leader:", match)
+	grip.Debug(grip.MPrintln("resolved leader:", match))
 
 	return match, nil
 }
@@ -53,7 +53,7 @@ func Singing(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (
 	}
 	match := erc.MustOk(irt.Initial(irt.Ptrs(res)))
 
-	grip.Debugln("resolved singing:", match.MenuFormat())
+	grip.Debug(grip.MPrintln("resolved singing:", match.MenuFormat()))
 
 	return match, nil
 }
@@ -75,7 +75,7 @@ func Song(ctx context.Context, dbconn *db.Connection, sp *infra.SearchParams) (*
 	}
 	match := erc.MustOk(irt.Initial(irt.Ptrs(res)))
 
-	grip.Debugln("resolved song:", match.MenuFormat())
+	grip.Debug(grip.MPrintln("resolved song:", match.MenuFormat()))
 
 	return match, nil
 }
@@ -96,7 +96,7 @@ func Key(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (stri
 		return "", err
 	}
 
-	grip.Debugln("selected key", match)
+	grip.Debug(grip.MPrintln("selected key", match))
 
 	return erc.MustOk(irt.Initial(match)), nil
 }

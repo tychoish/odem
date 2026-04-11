@@ -27,6 +27,6 @@ func mkdirdashp(path string) error {
 	if util.FileExists(path) {
 		return nil
 	}
-	grip.Infof("making directory %q", path)
+	grip.Info(grip.MPrintf("making directory %q", path))
 	return os.MkdirAll(path, 0o766)
 }
