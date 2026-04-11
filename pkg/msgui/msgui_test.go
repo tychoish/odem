@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tychoish/odem/pkg/mdwn"
+	"github.com/tychoish/fun/mdwn"
 )
 
 // --- flush() unit tests ---
@@ -152,30 +152,30 @@ func TestFlushOversizeStopsOnSecondFalse(t *testing.T) {
 
 func TestMessengerSignatures(t *testing.T) {
 	messengers := map[string]Messenger{
-		"MostLed":             MostLed,
-		"Songs":               Songs,
-		"Singings":            Singings,
-		"Buddies":             Buddies,
-		"Strangers":           Strangers,
-		"PopularAsObserved":   PopularAsObserved,
-		"PopularInYears":      PopularInYears,
-		"PopularLocally":      PopularLocally,
-		"NeverSung":           NeverSung,
-		"NeverLed":            NeverLed,
-		"UnfamilarHits":       UnfamilarHits,
-		"Connectedness":       Connectedness,
-		"LeaderRoleModels":    LeaderRoleModels,
-		"TopLeaders":          TopLeaders,
-		"LeaderShare":         LeaderShare,
-		"LeaderLeadHistory":   LeaderLeadHistory,
-		"LeaderSingings":      LeaderSingings,
-		"LeaderFavoriteKey":   LeaderFavoriteKey,
-		"LeaderDebutsByYear":  LeaderDebutsByYear,
-		"SongsByKey":          SongsByKey,
-		"Top20Leaders":        Top20Leaders,
+		"MostLed":               MostLed,
+		"Songs":                 Songs,
+		"Singings":              Singings,
+		"Buddies":               Buddies,
+		"Strangers":             Strangers,
+		"PopularAsObserved":     PopularAsObserved,
+		"PopularInYears":        PopularInYears,
+		"PopularLocally":        PopularLocally,
+		"NeverSung":             NeverSung,
+		"NeverLed":              NeverLed,
+		"UnfamilarHits":         UnfamilarHits,
+		"Connectedness":         Connectedness,
+		"LeaderRoleModels":      LeaderRoleModels,
+		"TopLeaders":            TopLeaders,
+		"LeaderShare":           LeaderShare,
+		"LeaderLeadHistory":     LeaderLeadHistory,
+		"LeaderSingings":        LeaderSingings,
+		"LeaderFavoriteKey":     LeaderFavoriteKey,
+		"LeaderDebutsByYear":    LeaderDebutsByYear,
+		"SongsByKey":            SongsByKey,
+		"Top20Leaders":          Top20Leaders,
 		"LeaderSingingsPerYear": LeaderSingingsPerYear,
-		"LeadersByKey":        LeadersByKey,
-		"PopularSongsByKey":   PopularSongsByKey,
+		"LeadersByKey":          LeadersByKey,
+		"PopularSongsByKey":     PopularSongsByKey,
 	}
 	for name, m := range messengers {
 		if m == nil {

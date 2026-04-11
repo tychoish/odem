@@ -2,7 +2,7 @@ package msgui
 
 import (
 	"github.com/tychoish/fun/ers"
-	"github.com/tychoish/odem/pkg/mdwn"
+	"github.com/tychoish/fun/mdwn"
 )
 
 func flush(md *mdwn.Builder, yield func(*mdwn.Builder, error) bool) {

@@ -26,7 +26,7 @@ type Connection struct {
 func Connect(ctx context.Context) (*Connection, error) {
 	conf := odem.GetConfiguration(ctx)
 	if conf == nil || !conf.Settings.ManualReloadDB {
-		if err := Init(); err != nil {
+		if err := Init(ctx); err != nil {
 			return nil, err
 		}
 	}

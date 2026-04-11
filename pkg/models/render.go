@@ -4,7 +4,7 @@ import (
 	"iter"
 
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/odem/pkg/mdwn"
+	"github.com/tychoish/fun/mdwn"
 )
 
 type TableRender interface {
