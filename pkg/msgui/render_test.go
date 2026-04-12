@@ -1,174 +1,192 @@
 package msgui
 
 import (
+	"iter"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/tychoish/fun/mdwn"
 	"github.com/tychoish/odem/pkg/models"
 )
 
+// fakeRecord is a minimal LineItemer for edge-case tests.
 type fakeRecord struct{ text string }
 
 func (f fakeRecord) LineItem() *mdwn.Builder {
 	return mdwn.MakeBuilder(128).PushString(f.text)
 }
 
-func TestRenderLineItemsPopulated(t *testing.T) {
-	records := []fakeRecord{
-		{text: "first record line item"},
-		{text: "second record line item"},
-		{text: "third record line item"},
-		{text: "fourth record line item"},
-		{text: "fifth record line item"},
-	}
-
-	seq := func(yield func(fakeRecord) bool) {
-		for _, r := range records {
-			if !yield(r) {
+// seqOf wraps variadic items as an iter.Seq.
+func seqOf[T any](items ...T) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, item := range items {
+			if !yield(item) {
 				return
 			}
 		}
 	}
-
-	var builders []*mdwn.Builder
-	var errs []error
-	for b, err := range renderLineItems(seq) {
-		builders = append(builders, b)
-		errs = append(errs, err)
-	}
-
-	if len(builders) == 0 {
-		t.Fatal("expected at least one builder to be yielded, got none")
-	}
-
-	for i, err := range errs {
-		if err != nil {
-			t.Errorf("yield %d: unexpected error: %v", i, err)
-		}
-	}
-
-	for i, b := range builders {
-		if b == nil {
-			t.Errorf("builder %d is nil", i)
-			continue
-		}
-		if b.Len() == 0 {
-			t.Errorf("builder %d has zero length", i)
-		}
-	}
 }
 
-func TestRenderLineItemsEmpty(t *testing.T) {
-	seq := func(yield func(fakeRecord) bool) {
-		// yields nothing
+func TestRenderLineItems(t *testing.T) {
+	counter := &atomic.Int64{}
+
+	tests := []struct {
+		name         string
+		seq          iter.Seq2[*mdwn.Builder, error]
+		wantError    bool
+		wantMultiple bool
+	}{
+		{
+			name:      "empty sequence",
+			seq:       renderLineItems(seqOf[fakeRecord]()),
+			wantError: true,
+		},
+		{
+			name: "chunking/large data",
+			seq: func() iter.Seq2[*mdwn.Builder, error] {
+				recs := make([]fakeRecord, 25)
+				for i := range recs {
+					recs[i] = fakeRecord{text: strings.Repeat("x", 200)}
+				}
+				return renderLineItems(seqOf(recs...))
+			}(),
+			wantMultiple: true,
+		},
+		// One entry per public function, named for the function and record type it uses.
+		{
+			name: "MostLed/PopularAsObserved/PopularInYears/PopularLocally/NeverSung/NeverLed/UnfamilarHits/PopularSongsByKey (LeaderSongRank)",
+			seq: renderLineItems(seqOf(
+				models.LeaderSongRank{Leader: "Alice", NumLeads: "10", PageNum: "123", SongTitle: "Sacred Harp", Key: "G"},
+				models.LeaderSongRank{Leader: "Alice", NumLeads: "8", PageNum: "456", SongTitle: "New Britain", Key: "A"},
+			)),
+		},
+		{
+			name: "Songs (LeaderOfSongInfo)",
+			seq: renderLineItems(seqOf(
+				models.LeaderOfSongInfo{Name: "Alice", Count: 10, NumYears: 5, LedInLastYear: true},
+				models.LeaderOfSongInfo{Name: "Bob", Count: 7, NumYears: 3, LedInLastYear: false},
+			)),
+		},
+		{
+			name: "Singings/LeaderLeadHistory (LessonInfo)",
+			seq: renderLineItems(seqOf(
+				models.LessonInfo{SingerName: "Alice", SongPageNumber: "123", SongName: "Sacred Harp", SongKey: "G", SingingName: "Shape Note Singing"},
+				models.LessonInfo{SingerName: "Bob", SongPageNumber: "456", SongName: "New Britain", SongKey: "A", SingingName: "Convention"},
+			)),
+		},
+		{
+			name: "Buddies (SingingBuddy)",
+			seq: renderLineItems(seqOf(
+				models.SingingBuddy{Name: "Bob", SharedSingings: 5},
+				models.SingingBuddy{Name: "Carol", SharedSingings: 3},
+			)),
+		},
+		{
+			name: "Strangers (SingingStranger)",
+			seq: renderLineItems(seqOf(
+				models.SingingStranger{Name: "Dave", MutualConnections: 4},
+			)),
+		},
+		{
+			name: "Connectedness (LeaderConnectedness)",
+			seq: renderLineItems(seqOf(
+				models.LeaderConnectedness{Name: "Alice", Connectedness: 0.042},
+				models.LeaderConnectedness{Name: "Bob", Connectedness: 0.031},
+			)),
+		},
+		{
+			name: "LeaderRoleModels (LeaderFootstep)",
+			seq: renderLineItems(seqOf(
+				models.LeaderFootstep{LeaderName: "Bob", SongTitle: "Sacred Harp", SongPage: "123", SongKeys: "G", SelfLeadCount: 5, TheirLeadCount: 20, TheirLastLeadYear: 2023},
+			)),
+		},
+		{
+			name: "TopLeaders (models.TopLeaders)",
+			seq: renderLineItems(seqOf(
+				models.TopLeadersWrapper(counter)(models.LeaderLeadCount{Name: "Alice", Count: 42, LastLeadYear: 2023, Percentage: 0.025, RunningTotal: 0.025}),
+				models.TopLeadersWrapper(counter)(models.LeaderLeadCount{Name: "Bob", Count: 38, LastLeadYear: 2022, Percentage: 0.020, RunningTotal: 0.045}),
+			)),
+		},
+		{
+			name: "LeaderSingings (LeaderSingingAttendance)",
+			seq: renderLineItems(seqOf(
+				models.LeaderSingingAttendance{SingingName: "Big Singing", SingingState: "AL", SingingCity: "Birmingham", LeaderLeadCount: 5, NumberOfLeaders: 20},
+			)),
+		},
+		{
+			name: "LeaderFavoriteKey (LeaderKeyCount)",
+			seq: renderLineItems(seqOf(
+				models.LeaderKeyCount{Key: "G", Leads: 15},
+				models.LeaderKeyCount{Key: "A", Leads: 10},
+			)),
+		},
+		{
+			name: "LeaderDebutsByYear/Top20Leaders/LeadersByKey (LeaderRankingFor)",
+			seq: renderLineItems(seqOf(
+				models.WrapLeaderSongRank("Leads")(models.LeaderSongRank{Leader: "Alice", NumLeads: "10", PageNum: "123", SongTitle: "Sacred Harp", Key: "G"}),
+				models.WrapLeaderSongRank("Leads")(models.LeaderSongRank{Leader: "Bob", NumLeads: "7", PageNum: "456", SongTitle: "New Britain", Key: "A"}),
+			)),
+		},
+		{
+			name: "SongsByKey (SongByKey)",
+			seq: renderLineItems(seqOf(
+				models.WrapSongByKey(models.LeaderSongRank{Key: "G", NumLeads: "42", Ratio: 0.15}),
+				models.WrapSongByKey(models.LeaderSongRank{Key: "A", NumLeads: "31", Ratio: 0.11}),
+			)),
+		},
+		{
+			name: "LeaderSingingsPerYear (LeaderSingingsInYear)",
+			seq: renderLineItems(seqOf(
+				models.LeaderSingingsInYear{Year: "2023", Singings: 3},
+				models.LeaderSingingsInYear{Year: "2022", Singings: 5},
+			)),
+		},
 	}
 
-	var builders []*mdwn.Builder
-	var errs []error
-	for b, err := range renderLineItems(seq) {
-		builders = append(builders, b)
-		errs = append(errs, err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var builders []*mdwn.Builder
+			var errs []error
+			for b, err := range tt.seq {
+				builders = append(builders, b)
+				errs = append(errs, err)
+			}
 
-	if len(builders) == 0 {
-		t.Fatal("expected at least one yield (error yield from flush), got none")
-	}
+			if len(builders) == 0 {
+				t.Fatal("no yields from renderLineItems")
+			}
 
-	hasNonNilError := false
-	for _, err := range errs {
-		if err != nil {
-			hasNonNilError = true
-			break
-		}
-	}
-	if !hasNonNilError {
-		t.Error("expected a non-nil error from flush for empty results, but all errors were nil")
-	}
-}
-
-func TestRenderLineItemsChunking(t *testing.T) {
-	// Each record has ~200 characters; 25 records = ~5000 bytes total, exceeding 4000 byte chunk size.
-	longText := strings.Repeat("x", 200)
-	const numRecords = 25
-	records := make([]fakeRecord, numRecords)
-	for i := range records {
-		records[i] = fakeRecord{text: longText}
-	}
-
-	seq := func(yield func(fakeRecord) bool) {
-		for _, r := range records {
-			if !yield(r) {
+			if tt.wantError {
+				for _, err := range errs {
+					if err != nil {
+						return
+					}
+				}
+				t.Error("expected at least one error but got none")
 				return
 			}
-		}
-	}
 
-	var builders []*mdwn.Builder
-	for b := range renderLineItems(seq) {
-		if b != nil {
-			builders = append(builders, b)
-		}
-	}
-
-	if len(builders) <= 1 {
-		t.Errorf("expected more than one builder (chunking), got %d", len(builders))
-	}
-
-	for i, b := range builders {
-		if b == nil {
-			t.Errorf("builder %d is nil", i)
-		}
-	}
-}
-
-func TestMostLedRenderLineItemsBehavior(t *testing.T) {
-	records := []models.LeaderSongRank{
-		{Rank: 1, Leader: "Alice", NumLeads: "10", PageNum: "123", SongTitle: "Sacred Harp", Key: "G"},
-		{Rank: 2, Leader: "Bob", NumLeads: "8", PageNum: "456", SongTitle: "New Britain", Key: "A"},
-		{Rank: 3, Leader: "Carol", NumLeads: "6", PageNum: "789", SongTitle: "Idumea", Key: "D"},
-	}
-
-	seq := func(yield func(models.LeaderSongRank) bool) {
-		for _, r := range records {
-			if !yield(r) {
-				return
+			for i, err := range errs {
+				if err != nil {
+					t.Errorf("unexpected error at yield %d: %v", i, err)
+				}
 			}
-		}
-	}
 
-	var builders []*mdwn.Builder
-	var errs []error
-	for b, err := range renderLineItems(seq) {
-		builders = append(builders, b)
-		errs = append(errs, err)
-	}
+			hasContent := false
+			for _, b := range builders {
+				if b != nil && b.Len() > 0 {
+					hasContent = true
+					break
+				}
+			}
+			if !hasContent {
+				t.Error("expected at least one non-empty builder")
+			}
 
-	if len(builders) == 0 {
-		t.Fatal("expected at least one builder to be yielded, got none")
-	}
-
-	hasNonNilBuilder := false
-	for _, b := range builders {
-		if b != nil && b.Len() > 0 {
-			hasNonNilBuilder = true
-			break
-		}
-	}
-	if !hasNonNilBuilder {
-		t.Error("expected at least one non-nil builder with non-zero length")
-	}
-
-	for i, err := range errs {
-		if err != nil {
-			t.Logf("yield %d returned error: %v (may be expected from flush)", i, err)
-		}
-	}
-
-	// With valid data (3 records, well under 4000 bytes), flush should not return an error.
-	for i, err := range errs {
-		if err != nil {
-			t.Errorf("unexpected error at yield %d: %v", i, err)
-		}
+			if tt.wantMultiple && len(builders) <= 1 {
+				t.Errorf("expected multiple builders for chunking case, got %d", len(builders))
+			}
+		})
 	}
 }
