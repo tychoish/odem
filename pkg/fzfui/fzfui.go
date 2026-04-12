@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -108,19 +107,8 @@ func SingingBuddiesAction(ctx context.Context, dbconn *db.Connection, input stri
 		return err
 	}
 
-	var ec erc.Collector
 	grip.Info(grip.MPrintf("singing buddies for %q", singer.Name))
-	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingBuddies(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
-			return k, strconv.Itoa(v)
-		}),
-	)
-	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
-		return ec.Resolve()
-	}
-	return nil
+	return renderTable(models.WriteTable, dbconn.SingingBuddies(ctx, singer.Name, 20))
 }
 
 func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -129,19 +117,8 @@ func SingingStrangersAction(ctx context.Context, dbconn *db.Connection, input st
 		return err
 	}
 
-	var ec erc.Collector
 	grip.Info(grip.MPrintf("singing strangers for %q", singer))
-	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Name", "Count"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.SingingStrangers(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
-			return k, strconv.Itoa(v)
-		}),
-	)
-	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
-		return ec.Resolve()
-	}
-	return nil
+	return renderTable(models.WriteTable, dbconn.SingingStrangers(ctx, singer.Name, 20))
 }
 
 func PopularInOnesExperienceAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -205,35 +182,13 @@ func LeaderFavoriteKeyAction(ctx context.Context, dbconn *db.Connection, input s
 		return err
 	}
 
-	var ec erc.Collector
 	grip.Info(grip.MPrintf("leads per key for %q", singer.Name))
-	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Key", "Leads"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderFavoriteKey(ctx, singer.Name, 20), ec.Push)), func(k string, v int) (string, string) {
-			return k, strconv.Itoa(v)
-		}),
-	)
-	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
-		return ec.Resolve()
-	}
-	return nil
+	return renderTable(models.WriteTable, dbconn.LeaderFavoriteKey(ctx, singer.Name, 20))
 }
 
 func SingersByConnectednessAction(ctx context.Context, dbconn *db.Connection) error {
-	var ec erc.Collector
 	grip.Info("singers ranked by connectedness ratio")
-	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Name", "Connectedness"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.AllLeaderConnectedness(ctx, 32), ec.Push)), func(k string, v float64) (string, string) {
-			return k, fmt.Sprintf("%.4f", v)
-		}),
-	)
-	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
-		return ec.Resolve()
-	}
-	return nil
+	return renderTable(models.WriteTable, dbconn.AllLeaderConnectedness(ctx, 32))
 }
 
 func LeaderFootstepsAction(ctx context.Context, dbconn *db.Connection, input string) error {
@@ -334,19 +289,8 @@ func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, inp
 		return err
 	}
 
-	var ec erc.Collector
 	grip.Info(grip.MPrintf("singings per year for %q", singer.Name))
-	var mb mdwn.Builder
-	mb.KVTable(
-		irt.MakeKV("Year", "Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(dbconn.LeaderSingingsPerYear(ctx, singer.Name), ec.Push)), func(k string, v int) (string, string) {
-			return k, strconv.Itoa(v)
-		}),
-	)
-	if !ec.Ok() || !ec.PushOk(flush(os.Stdout, &mb)) {
-		return ec.Resolve()
-	}
-	return nil
+	return renderTable(models.WriteTable, dbconn.LeaderSingingsPerYear(ctx, singer.Name))
 }
 
 func LeadersByKeyAction(ctx context.Context, dbconn *db.Connection, key string) error {

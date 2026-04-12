@@ -136,10 +136,7 @@ func Buddies(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singing Buddies: %s", singer.Name))
-	mb.KVTable(
-		irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer.Name, cmp.Or(p.Limit, 24)), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingBuddies(ctx, singer.Name, cmp.Or(p.Limit, 24)), ec.Push))
 	mb.Line()
 
 	ec.Push(flush(w, &mb))
@@ -162,10 +159,7 @@ func Strangers(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singing Strangers: %s", singer.Name))
-	mb.KVTable(
-		irt.MakeKV("Name", "Mutual Connections"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer.Name, cmp.Or(p.Limit, 24)), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingStrangers(ctx, singer.Name, cmp.Or(p.Limit, 24)), ec.Push))
 	mb.Line()
 
 	ec.Push(flush(w, &mb))
@@ -323,10 +317,7 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p Params) (err 
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Leads by Key: %s", record.Name))
-	mb.KVTable(
-		irt.MakeKV("Key", "Leads"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderFavoriteKey(ctx, record.Name, cmp.Or(p.Limit, 20)), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.LeaderFavoriteKey(ctx, record.Name, cmp.Or(p.Limit, 20)), ec.Push))
 	mb.Line()
 
 	ec.Push(flush(w, &mb))
@@ -344,10 +335,7 @@ func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
 	var mb mdwn.Builder
 
 	mb.H2("Leaders by Connectedness")
-	mb.KVTable(
-		irt.MakeKV("Name", "Connectedness"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push)), fmtPercentKVs),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push))
 	mb.Line()
 
 	ec.Push(flush(w, &mb))
@@ -567,10 +555,7 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p Params) (
 	var mb mdwn.Builder
 
 	mb.H2(fmt.Sprintf("Singings Per Year: %s", singer.Name))
-	mb.KVTable(
-		irt.MakeKV("Year", "Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderSingingsPerYear(ctx, singer.Name), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.LeaderSingingsPerYear(ctx, singer.Name), ec.Push))
 	mb.Line()
 
 	ec.Push(flush(w, &mb))

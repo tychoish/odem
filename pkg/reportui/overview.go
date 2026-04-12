@@ -58,10 +58,7 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.H2("Most Led Songs")
 	models.WriteTable(&mb, erc.HandleAll(conn.MostLedSongs(ctx, singer.Name, 24), ec.Push))
 	mb.H2("Favorite Keys")
-	mb.KVTable(
-		irt.MakeKV("Count", "Key"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.LeaderFavoriteKey(ctx, singer.Name, 100), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.LeaderFavoriteKey(ctx, singer.Name, 100), ec.Push))
 	mb.Line()
 
 	mb.H2("Popular Songs, as Observed")
@@ -70,17 +67,12 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 	mb.H2("Singing Buddies")
 	mb.Paragraph("The people that have been the most singings that ", singer.Name, " was at.")
-	mb.KVTable(irt.MakeKV("Name", "Shared Singings"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingBuddies(ctx, singer.Name, 24), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingBuddies(ctx, singer.Name, 24), ec.Push))
 	mb.Line()
 
 	mb.H2("Singing Strangers")
 	mb.Paragraph("People that ", singer.Name, " has never sung with who share many connections.")
-	mb.KVTable(
-		irt.MakeKV("Name", "Mutual Connections"),
-		irt.Convert2(irt.KVsplit(erc.HandleAll(conn.SingingStrangers(ctx, singer.Name, 24), ec.Push)), intValToStr),
-	)
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingStrangers(ctx, singer.Name, 24), ec.Push))
 	mb.Line()
 
 	mb.H2("Singing Role Models")

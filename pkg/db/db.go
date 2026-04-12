@@ -178,7 +178,7 @@ ORDER BY minutes_id DESC;`
 	return dbx.Query[models.SingingInfo](ctx, conn.db.QueryContext, query)
 }
 
-func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
+func (conn *Connection) SingingBuddies(ctx context.Context, name string, limit int) iter.Seq2[models.SingingBuddy, error] {
 	const query = `
 SELECT COALESCE(lna2.name, l2.name) AS key, COUNT(*) AS value
 FROM leader_singings AS ls_me
@@ -193,7 +193,7 @@ AND inv.name IS NULL
 GROUP BY ls_other.leader_id
 ORDER BY value DESC
 LIMIT ?;`
-	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
+	return dbx.Query[models.SingingBuddy](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) PopularAsObserved(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
@@ -209,7 +209,7 @@ LIMIT ?;`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
-func (conn *Connection) SingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[irt.KV[string, int], error] {
+func (conn *Connection) SingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[models.SingingStranger, error] {
 	const query = `
 WITH target AS (SELECT id FROM leaders WHERE name = ?),
 my_network AS (
@@ -237,10 +237,10 @@ LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL
 ORDER BY value DESC
 LIMIT ?;`
-	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
+	return dbx.Query[models.SingingStranger](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
-func (conn *Connection) LeaderFavoriteKey(ctx context.Context, leader string, limit int) iter.Seq2[irt.KV[string, int], error] {
+func (conn *Connection) LeaderFavoriteKey(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderKeyCount, error] {
 	const query = `
 SELECT bsj.keys AS key, COUNT(*) AS value
 FROM song_leader_joins AS slj
@@ -251,10 +251,10 @@ WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 GROUP BY bsj.keys
 ORDER BY value DESC
 LIMIT ?;`
-	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 20))
+	return dbx.Query[models.LeaderKeyCount](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 20))
 }
 
-func (conn *Connection) AllLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[irt.KV[string, float64], error] {
+func (conn *Connection) AllLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[models.LeaderConnectedness, error] {
 	const query = `
 SELECT
         COALESCE(lna.name, l.name) AS key,
@@ -267,7 +267,7 @@ WHERE inv.name IS NULL
 GROUP BY l.id
 ORDER BY value DESC
 LIMIT ?;`
-	return dbx.Query[irt.KV[string, float64]](ctx, conn.db.QueryContext, query, cmp.Or(limit, 32))
+	return dbx.Query[models.LeaderConnectedness](ctx, conn.db.QueryContext, query, cmp.Or(limit, 32))
 }
 
 func (conn *Connection) SingersConnectedness(ctx context.Context, name string) (*float64, error) {
@@ -652,7 +652,7 @@ LIMIT ?`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, cmp.Or(limit, 40))
 }
 
-func (conn *Connection) LeaderSingingsPerYear(ctx context.Context, name string) iter.Seq2[irt.KV[string, int], error] {
+func (conn *Connection) LeaderSingingsPerYear(ctx context.Context, name string) iter.Seq2[models.LeaderSingingsInYear, error] {
 	const query = `
 SELECT CAST(m.Year AS TEXT) AS key, COUNT(DISTINCT slj.minutes_id) AS value
 FROM song_leader_joins AS slj
@@ -664,7 +664,7 @@ WHERE inv.name IS NULL
 AND CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 GROUP BY m.Year
 ORDER BY m.Year ASC`
-	return dbx.Query[irt.KV[string, int]](ctx, conn.db.QueryContext, query, name)
+	return dbx.Query[models.LeaderSingingsInYear](ctx, conn.db.QueryContext, query, name)
 }
 
 func (conn *Connection) AllKeys(ctx context.Context) iter.Seq2[string, error] {

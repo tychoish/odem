@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -96,12 +95,7 @@ func Buddies(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		mdtb.KVTable(
-			irt.MakeKV("Name", "Shared Singings"),
-			irt.Convert2(irt.KVsplit(erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)), func(k string, v int) (string, string) {
-				return k, strconv.Itoa(v)
-			}),
-		)
+		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -122,12 +116,7 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		mdtb.KVTable(
-			irt.MakeKV("Name", "Mutual Connections"),
-			irt.Convert2(irt.KVsplit(erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)), func(k string, v int) (string, string) {
-				return k, strconv.Itoa(v)
-			}),
-		)
+		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -290,12 +279,7 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) it
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		mdtb.KVTable(
-			irt.MakeKV("Name", "Connectedness"),
-			irt.Convert2(irt.KVsplit(erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push)), func(k string, v float64) (string, string) {
-				return k, fmt.Sprintf("%.4f%%", v*100)
-			}),
-		)
+		models.WriteTable(mdtb, erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -439,12 +423,7 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		mdtb.KVTable(
-			irt.MakeKV("Key", "Leads"),
-			irt.Convert2(irt.KVsplit(erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)), func(k string, v int) (string, string) {
-				return k, strconv.Itoa(v)
-			}),
-		)
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
@@ -547,12 +526,7 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Pa
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
 		mdtb.WriteLine("```")
-		mdtb.KVTable(
-			irt.MakeKV("Year", "Singings"),
-			irt.Convert2(irt.KVsplit(erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push)), func(k string, v int) (string, string) {
-				return k, strconv.Itoa(v)
-			}),
-		)
+		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push))
 		mdtb.WriteLine("```")
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())

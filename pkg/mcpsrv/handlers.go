@@ -144,7 +144,7 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) (*Conte
 	}, nil
 }
 
-func Buddies(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+func Buddies(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.SingingBuddy], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
@@ -155,13 +155,13 @@ func Buddies(ctx context.Context, conn *db.Connection, p models.Params) (*Contex
 		return nil, err
 	}
 
-	return &ContextualSequence[string, irt.KV[string, int]]{
+	return &ContextualSequence[string, models.SingingBuddy]{
 		Results: results,
 		Context: leader.Name,
 	}, nil
 }
 
-func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.SingingStranger], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*Cont
 		return nil, err
 	}
 
-	return &ContextualSequence[string, irt.KV[string, int]]{
+	return &ContextualSequence[string, models.SingingStranger]{
 		Results: results,
 		Context: leader.Name,
 	}, nil
@@ -240,7 +240,7 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) (*
 	}, nil
 }
 
-func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderKeyCount], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
@@ -251,24 +251,24 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params
 		return nil, err
 	}
 
-	return &ContextualSequence[string, irt.KV[string, int]]{
+	return &ContextualSequence[string, models.LeaderKeyCount]{
 		Results: results,
 		Context: leader.Name,
 	}, nil
 }
 
-func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, float64]], error) {
+func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderConnectedness], error) {
 	results, err := erc.FromIteratorUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)))
 	if err != nil {
 		return nil, err
 	}
 
-	return &ContextualSequence[string, irt.KV[string, float64]]{
+	return &ContextualSequence[string, models.LeaderConnectedness]{
 		Results: results,
 	}, nil
 }
 
-func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, irt.KV[string, int]], error) {
+func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSingingsInYear], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Pa
 		return nil, err
 	}
 
-	return &ContextualSequence[string, irt.KV[string, int]]{
+	return &ContextualSequence[string, models.LeaderSingingsInYear]{
 		Results: results,
 		Context: leader.Name,
 	}, nil

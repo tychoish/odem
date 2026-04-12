@@ -227,7 +227,7 @@ func TestSingingStrangersVariesByInput(t *testing.T) {
 			if err != nil {
 				t.Fatalf("SingingStrangers(%q): %v", name, err)
 			}
-			if s.Key == target {
+			if s.Name == target {
 				return true
 			}
 		}
@@ -409,8 +409,8 @@ func TestLeaderFavoriteKey(t *testing.T) {
 		if kv.Key == "" {
 			t.Errorf("LeaderFavoriteKey(%q): expected non-empty key", testLeader)
 		}
-		if kv.Value <= 0 {
-			t.Errorf("LeaderFavoriteKey(%q): expected positive count for key %q, got %d", testLeader, kv.Key, kv.Value)
+		if kv.Leads <= 0 {
+			t.Errorf("LeaderFavoriteKey(%q): expected positive count for key %q, got %d", testLeader, kv.Key, kv.Leads)
 		}
 		count++
 	}
@@ -512,11 +512,11 @@ func TestLeaderSingingsPerYear(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if kv.Key == "" {
+		if kv.Year == "" {
 			t.Errorf("LeaderSingingsPerYear(%q): expected non-empty year key", testLeader)
 		}
-		if kv.Value <= 0 {
-			t.Errorf("LeaderSingingsPerYear(%q): expected positive count for year %q, got %d", testLeader, kv.Key, kv.Value)
+		if kv.Singings <= 0 {
+			t.Errorf("LeaderSingingsPerYear(%q): expected positive count for year %q, got %d", testLeader, kv.Year, kv.Singings)
 		}
 		count++
 	}
@@ -596,8 +596,8 @@ func TestAllLeaderConnectedness(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if kv.Value < 0 || kv.Value > 1 {
-			t.Errorf("AllLeaderConnectedness: ratio out of range for %q: %v", kv.Key, kv.Value)
+		if kv.Connectedness < 0 || kv.Connectedness > 1 {
+			t.Errorf("AllLeaderConnectedness: ratio out of range for %q: %v", kv.Name, kv.Connectedness)
 		}
 		count++
 		break // unbounded — only check first result

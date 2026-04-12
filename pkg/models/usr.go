@@ -385,3 +385,95 @@ func (lf LeaderFootstep) LineItem() *mdwn.Builder {
 	mb.Text(").")
 	return mb
 }
+
+type SingingBuddy struct {
+	Name          string `db:"key"`
+	SharedSingings int   `db:"value"`
+}
+
+func (SingingBuddy) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Name"}, {Name: "Shared Singings", RightAlign: true}}
+}
+func (r SingingBuddy) RowValues() []string { return []string{r.Name, strconv.Itoa(r.SharedSingings)} }
+
+// 🎶 **Name**: N shared singings.
+func (r SingingBuddy) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("🎶 ").Bold(r.Name).Text(": ")
+	mb.PushInt(r.SharedSingings)
+	return mb.TextWords("shared singings.")
+}
+
+type SingingStranger struct {
+	Name             string `db:"key"`
+	MutualConnections int   `db:"value"`
+}
+
+func (SingingStranger) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Name"}, {Name: "Mutual Connections", RightAlign: true}}
+}
+func (r SingingStranger) RowValues() []string {
+	return []string{r.Name, strconv.Itoa(r.MutualConnections)}
+}
+
+// 👤 **Name**: N mutual connections.
+func (r SingingStranger) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("👤 ").Bold(r.Name).Text(": ")
+	mb.PushInt(r.MutualConnections)
+	return mb.TextWords("mutual connections.")
+}
+
+type LeaderKeyCount struct {
+	Key   string `db:"key"`
+	Leads int    `db:"value"`
+}
+
+func (LeaderKeyCount) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Key"}, {Name: "Leads", RightAlign: true}}
+}
+func (r LeaderKeyCount) RowValues() []string { return []string{r.Key, strconv.Itoa(r.Leads)} }
+
+// 🗝️ **Key**: N leads.
+func (r LeaderKeyCount) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("🗝️ ").Bold(r.Key).Text(": ")
+	mb.PushInt(r.Leads)
+	return mb.TextWords("leads.")
+}
+
+type LeaderConnectedness struct {
+	Name          string  `db:"key"`
+	Connectedness float64 `db:"value"`
+}
+
+func (LeaderConnectedness) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Name"}, {Name: "Connectedness", RightAlign: true}}
+}
+func (r LeaderConnectedness) renderConnectedness() string {
+	return fmt.Sprintf("%.4f%%", r.Connectedness*100)
+}
+func (r LeaderConnectedness) RowValues() []string {
+	return []string{r.Name, r.renderConnectedness()}
+}
+
+// 🌐 **Name**: 0.1234%
+func (r LeaderConnectedness) LineItem() *mdwn.Builder {
+	return mdwn.MakeBuilder(1042).PushString("🌐 ").Bold(r.Name).Text(": ", r.renderConnectedness(), ".")
+}
+
+type LeaderSingingsInYear struct {
+	Year    string `db:"key"`
+	Singings int   `db:"value"`
+}
+
+func (LeaderSingingsInYear) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Year", RightAlign: true}, {Name: "Singings", RightAlign: true}}
+}
+func (r LeaderSingingsInYear) RowValues() []string {
+	return []string{r.Year, strconv.Itoa(r.Singings)}
+}
+
+// 📅 **Year**: N singings.
+func (r LeaderSingingsInYear) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("📅 ").Bold(r.Year).Text(": ")
+	mb.PushInt(r.Singings)
+	return mb.TextWords("singings.")
+}
