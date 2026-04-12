@@ -16,15 +16,21 @@ import (
 
 func (b *bot) discoverNext() stateFn {
 	if b.state.entry.Requires == nil {
-		grip.Info(grip.KV("state", "discoverNext").KV("status", "requirements nil; rendering off the bat").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").
+			KV("status", "requirements nil; rendering off the bat").
+			KV("op", b.state.entry.Command))
 		return b.renderResults()
 	}
 	if b.state.entry == nil {
-		grip.Info(grip.KV("state", "discoverNext").KV("status", "entry nil; retry keyboard").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").
+			KV("status", "entry nil; retry keyboard").
+			KV("op", b.state.entry.Command))
 		return b.selectOperationKeyboard()
 	}
 	if b.state.inProgress && b.state.has == nil {
-		grip.Info(grip.KV("state", "discoverNext").KV("status", "requirements Set undefined; rendering").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").
+			KV("status", "requirements Set undefined; rendering").
+			KV("op", b.state.entry.Command))
 		return b.renderResults()
 	}
 	for requirement := range b.state.entry.Requires.Iterator() {
@@ -80,7 +86,7 @@ func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 	b.state.entry = stw.Ptr(b.state.op.Registry())
 	b.state.has = &dt.Set[dispatch.MinutesAppQueryType]{}
 	b.state.inProgress = true
-	b.sendMarkdown(joinstr("ok, lets find **", b.state.entry.Command, "** ... 🎶"))
+	b.sendMarkdown(joinstr("🎶 ok, lets find **", b.state.entry.Command, "** ... 🎶"))
 	return b.discoverNext()
 }
 
