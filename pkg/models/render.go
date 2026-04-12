@@ -10,6 +10,7 @@ import (
 type TableRender interface {
 	ColumnNames() []mdwn.Column
 	RowValues() []string
+	LineItem() *mdwn.Builder
 }
 
 func getRow[T TableRender](t T) []string           { return t.RowValues() }

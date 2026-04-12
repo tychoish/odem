@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/tychoish/odem/pkg/mdwn"
+	"github.com/tychoish/fun/mdwn"
 )
 
 type LeaderSongRank struct {
@@ -35,6 +35,13 @@ func (lsr LeaderSongRank) RowValues() []string {
 		lsr.SongTitle,
 		lsr.Key,
 	}
+}
+
+func (lsr LeaderSongRank) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("📃")
+	mb.Text(lsr.PageNum, " ").Italic(lsr.SongTitle).Text("(", lsr.Key, "): ")
+	mb.Text("Led **", lsr.NumLeads, "** times.")
+	return mb
 }
 
 type LeaderRankingFor struct {
@@ -73,8 +80,17 @@ func (s SongByKey) RowValues() []string {
 	return []string{
 		s.Key,
 		s.NumLeads,
-		fmt.Sprintf("%.1f%%", s.Ratio*100),
+		s.renderPercent(),
 	}
+}
+
+func (s SongByKey) renderPercent() string { return fmt.Sprintf("%.1f%%", s.Ratio*100) }
+
+func (s SongByKey) LineItem() *mdwn.Builder {
+	return mdwn.MakeBuilder(1042).
+		PushString("🗝️").
+		Bold("Key").Text(": ", s.Key, "; ").
+		Bold("Count").Text(": ", s.NumLeads, "(", s.renderPercent(), ")")
 }
 
 type LeaderBackground struct {
@@ -109,6 +125,19 @@ func (r LeaderOfSongInfo) RowValues() []string {
 	}
 }
 
+func (r LeaderOfSongInfo) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("✋")
+	mb.Bold(r.Name).Text(": ").PushInt(r.Count)
+	mb.Text(" leads, over ").PushInt(r.NumYears)
+	mb.PushString(" years")
+	if r.LedInLastYear {
+		mb.Text(", including last year.")
+	} else {
+		mb.PushString(".")
+	}
+	return mb.Text(" last year.")
+}
+
 type LessonInfo struct {
 	SingerName     string   `db:"singer_name"`
 	SongPageNumber string   `db:"song_page_number"`
@@ -137,6 +166,18 @@ func (r LessonInfo) RowValues() []string {
 		r.SongPageNumber,
 		r.SongKey,
 	}
+}
+
+// 📅 *Song Name* (Key, p.123) at Singing Name, State on Date by Singer
+func (r LessonInfo) LineItem() *mdwn.Builder {
+	md := mdwn.MakeBuilder(1042).
+		TextWords("🎺:").
+		Bold(r.SongPageNumber).Text(":").
+		Italic(r.SongName).
+		Text(" (", r.SongKey, ")").
+		TextWords(" at ", r.SingingName, " on ", r.SingingDate.Time().Format("Monday Janurary 2, 2006"), ".")
+	md.ReplaceAllString("\\n", "; ")
+	return md
 }
 
 type SingingLessionInfo struct {
@@ -168,6 +209,14 @@ func (r SingingLessionInfo) RowValues() []string {
 	}
 }
 
+// 🎵 Lesson 5: Singer led *Song Name* (Key, p.123)
+func (r SingingLessionInfo) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("🎵")
+	mb.PushInt(r.SequenceNumber)
+	mb.TextWords(":", r.SingerName, "led", r.SongPageNumber, "(").Italic(r.SongName).TextWords(";", r.SongKey, ").")
+	return mb
+}
+
 type LeaderLeadCount struct {
 	Name         string  `db:"name"`
 	Count        int     `db:"count"`
@@ -191,9 +240,22 @@ func (r LeaderLeadCount) RowValues() []string {
 		r.Name,
 		strconv.Itoa(r.Count),
 		strconv.Itoa(r.LastLeadYear),
-		fmt.Sprintf("%.2f%%", r.Percentage*100),
-		fmt.Sprintf("%.2f%%", r.RunningTotal*100),
+		r.renderPercentage(),
+		r.renderRunningTotal(),
 	}
+}
+
+func (r LeaderLeadCount) renderPercentage() string { return fmt.Sprintf("%.2f%%", r.Percentage*100) }
+func (r LeaderLeadCount) renderRunningTotal() string {
+	return fmt.Sprintf("%.2f%%", r.RunningTotal*100)
+}
+
+// ✋ **Name**: 42 leads (2.50%), last in 2023
+func (r LeaderLeadCount) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("✋ ").Bold(r.Name).Text(": ")
+	mb.PushInt(r.Count)
+	mb.TextWords(" leads or", r.renderPercentage(), "of total leads with the last in").PushInt(r.LastLeadYear)
+	return mb.Text(".")
 }
 
 type TopLeaders struct {
@@ -219,6 +281,16 @@ func (tl TopLeaders) RowValues() []string {
 		[]string{strconv.FormatInt(tl.ct.Add(1), 10)},
 		tl.LeaderLeadCount.RowValues()...,
 	)
+}
+
+// 🏆 #1 **Name**: 42 leads (2.50%), last in 2023
+func (tl TopLeaders) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("🏆 #")
+	mb.PushInt64(tl.ct.Add(1), 10)
+	mb.Text(" ").Bold(tl.Name).Text(": ")
+	mb.PushInt(tl.Count)
+	mb.TextWords(" leads or", tl.renderPercentage(), "of total leads with the last in ").PushInt(tl.LastLeadYear)
+	return mb.Text(".")
 }
 
 // LeaderSingingAttendance represents a singing a leader attended, with their
@@ -252,6 +324,18 @@ func (r LeaderSingingAttendance) RowValues() []string {
 		strconv.Itoa(r.LeaderLeadCount),
 		strconv.Itoa(r.NumberOfLeaders),
 	}
+}
+
+// 🎶: Singing Name (City, State) on Monday January 2, 2006. N lessons by N leaders.
+func (r LeaderSingingAttendance) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("🎶: ").
+		Text(r.SingingName, " (", r.SingingCity, ", ", r.SingingState, ") on", r.SingingDate.Time().Format("Monday January 2, 2006"), ". ")
+	mb.PushInt(r.LeaderLeadCount)
+	mb.Text(" lessons by ")
+	mb.PushInt(r.NumberOfLeaders)
+	mb.Text(" leaders.")
+	mb.ReplaceAllString("\\n", "; ")
+	return mb
 }
 
 // LeaderFootstep represents a song the queried singer has led, paired with
@@ -288,4 +372,16 @@ func (lf LeaderFootstep) RowValues() []string {
 		strconv.Itoa(lf.TheirLastLeadYear),
 		strconv.Itoa(lf.SelfLeadCount),
 	}
+}
+
+// 👣 **123**, *Song Title* (Key) led N times. The top leader for 123 was *LeaderName* (N leads, last in YYYY).
+func (lf LeaderFootstep) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1042).PushString("👣").Bold(lf.SongPage).Text(", ").Italic(lf.SongTitle).Text(" (", lf.SongKeys, ") led")
+	mb.PushInt(lf.SelfLeadCount)
+	mb.TextWords("times. The top leader for", lf.SongPage, " was").Italic(lf.LeaderName).Text(" (")
+	mb.PushInt(lf.TheirLeadCount)
+	mb.TextWords("leads, last in")
+	mb.PushInt(lf.TheirLastLeadYear)
+	mb.Text(").")
+	return mb
 }
