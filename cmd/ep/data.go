@@ -28,7 +28,6 @@ func MCP() *cmdr.Commander {
 		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
 		Flags(cmdr.FlagBuilder("127.0.0.1").SetName("addr").SetUsage("address/interface to listen for requests").Flag()).
 		Flags(cmdr.FlagBuilder(1844).SetName("port").SetUsage("set the port to run the http service on").Flag()).
-		With(infra.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
 		}))
@@ -38,7 +37,6 @@ func Telegram() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("telegram").Aliases("tg").
 		SetUsage("telegram chat bot service").
-		With(infra.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return tgbot.NewService(ctx, odem.GetConfiguration(ctx), conn).Start(ctx)
 		}))

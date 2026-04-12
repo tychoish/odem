@@ -108,7 +108,6 @@ func Build() *cmdr.Commander {
 							SetRequired(true).
 							SetValidate(release.ValidateVersion).
 							Flag()).
-						With(infra.AttachConfiguration).
 						With(infra.Operation(release.UploadArtifacts)),
 				),
 		)
