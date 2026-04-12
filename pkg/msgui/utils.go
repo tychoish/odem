@@ -1,9 +1,29 @@
 package msgui
 
 import (
+	"iter"
+
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/mdwn"
 )
+
+func renderLineItems[T interface{ LineItem() *mdwn.Builder }](records iter.Seq[T]) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		mdtb := mdwn.MakeBuilder(4096)
+		for record := range records {
+			line := record.LineItem()
+			lineLen := line.Len()
+			if mdtb.Len() >= 4000 || mdtb.Len()+lineLen >= 4000 {
+				if !yield(mdtb, nil) {
+					return
+				}
+				mdtb = mdwn.MakeBuilder(4096)
+			}
+			(&mdtb.Mutable).Push(&line.Mutable)
+		}
+		flush(mdtb, yield)
+	}
+}
 
 func flush(md *mdwn.Builder, yield func(*mdwn.Builder, error) bool) {
 	switch {

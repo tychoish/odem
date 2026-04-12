@@ -38,7 +38,7 @@ func (lsr LeaderSongRank) RowValues() []string {
 }
 
 func (lsr LeaderSongRank) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("📃")
+	mb := mdwn.MakeBuilder(1024).PushString("📃")
 	mb.Text(lsr.PageNum, " ").Italic(lsr.SongTitle).Text("(", lsr.Key, "): ")
 	mb.Text("Led **", lsr.NumLeads, "** times.")
 	return mb
@@ -53,6 +53,13 @@ func WrapLeaderSongRank(name string) func(LeaderSongRank) LeaderRankingFor {
 	return func(lsr LeaderSongRank) LeaderRankingFor {
 		return LeaderRankingFor{Name: name, LeaderSongRank: lsr}
 	}
+}
+
+// 📊 **Name**: N times.
+func (lrf LeaderRankingFor) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(1024).PushString("📊 ").Bold(lrf.Leader).Text(": ")
+	mb.PushString(lrf.NumLeads)
+	return mb.Text(".")
 }
 
 func (lrf LeaderRankingFor) ColumnNames() []mdwn.Column {
@@ -87,7 +94,7 @@ func (s SongByKey) RowValues() []string {
 func (s SongByKey) renderPercent() string { return fmt.Sprintf("%.1f%%", s.Ratio*100) }
 
 func (s SongByKey) LineItem() *mdwn.Builder {
-	return mdwn.MakeBuilder(1042).
+	return mdwn.MakeBuilder(1024).
 		PushString("🗝️").
 		Bold("Key").Text(": ", s.Key, "; ").
 		Bold("Count").Text(": ", s.NumLeads, "(", s.renderPercent(), ")")
@@ -126,7 +133,7 @@ func (r LeaderOfSongInfo) RowValues() []string {
 }
 
 func (r LeaderOfSongInfo) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("✋")
+	mb := mdwn.MakeBuilder(1024).PushString("✋")
 	mb.Bold(r.Name).Text(": ").PushInt(r.Count)
 	mb.Text(" leads, over ").PushInt(r.NumYears)
 	mb.PushString(" years")
@@ -170,7 +177,7 @@ func (r LessonInfo) RowValues() []string {
 
 // 📅 *Song Name* (Key, p.123) at Singing Name, State on Date by Singer
 func (r LessonInfo) LineItem() *mdwn.Builder {
-	md := mdwn.MakeBuilder(1042).
+	md := mdwn.MakeBuilder(1024).
 		TextWords("🎺:").
 		Bold(r.SongPageNumber).Text(":").
 		Italic(r.SongName).
@@ -211,7 +218,7 @@ func (r SingingLessionInfo) RowValues() []string {
 
 // 🎵 Lesson 5: Singer led *Song Name* (Key, p.123)
 func (r SingingLessionInfo) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("🎵")
+	mb := mdwn.MakeBuilder(1024).PushString("🎵")
 	mb.PushInt(r.SequenceNumber)
 	mb.TextWords(":", r.SingerName, "led", r.SongPageNumber, "(").Italic(r.SongName).TextWords(";", r.SongKey, ").")
 	return mb
@@ -252,7 +259,7 @@ func (r LeaderLeadCount) renderRunningTotal() string {
 
 // ✋ **Name**: 42 leads (2.50%), last in 2023
 func (r LeaderLeadCount) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("✋ ").Bold(r.Name).Text(": ")
+	mb := mdwn.MakeBuilder(1024).PushString("✋ ").Bold(r.Name).Text(": ")
 	mb.PushInt(r.Count)
 	mb.TextWords(" leads or", r.renderPercentage(), "of total leads with the last in").PushInt(r.LastLeadYear)
 	return mb.Text(".")
@@ -285,7 +292,7 @@ func (tl TopLeaders) RowValues() []string {
 
 // 🏆 #1 **Name**: 42 leads (2.50%), last in 2023
 func (tl TopLeaders) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("🏆 #")
+	mb := mdwn.MakeBuilder(1024).PushString("🏆 #")
 	mb.PushInt64(tl.ct.Add(1), 10)
 	mb.Text(" ").Bold(tl.Name).Text(": ")
 	mb.PushInt(tl.Count)
@@ -328,7 +335,7 @@ func (r LeaderSingingAttendance) RowValues() []string {
 
 // 🎶: Singing Name (City, State) on Monday January 2, 2006. N lessons by N leaders.
 func (r LeaderSingingAttendance) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("🎶: ").
+	mb := mdwn.MakeBuilder(1024).PushString("🎶: ").
 		Text(r.SingingName, " (", r.SingingCity, ", ", r.SingingState, ") on", r.SingingDate.Time().Format("Monday January 2, 2006"), ". ")
 	mb.PushInt(r.LeaderLeadCount)
 	mb.Text(" lessons by ")
@@ -376,7 +383,7 @@ func (lf LeaderFootstep) RowValues() []string {
 
 // 👣 **123**, *Song Title* (Key) led N times. The top leader for 123 was *LeaderName* (N leads, last in YYYY).
 func (lf LeaderFootstep) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("👣").Bold(lf.SongPage).Text(", ").Italic(lf.SongTitle).Text(" (", lf.SongKeys, ") led")
+	mb := mdwn.MakeBuilder(1024).PushString("👣").Bold(lf.SongPage).Text(", ").Italic(lf.SongTitle).Text(" (", lf.SongKeys, ") led")
 	mb.PushInt(lf.SelfLeadCount)
 	mb.TextWords("times. The top leader for", lf.SongPage, " was").Italic(lf.LeaderName).Text(" (")
 	mb.PushInt(lf.TheirLeadCount)
@@ -387,37 +394,53 @@ func (lf LeaderFootstep) LineItem() *mdwn.Builder {
 }
 
 type SingingBuddy struct {
-	Name          string `db:"key"`
-	SharedSingings int   `db:"value"`
+	Name           string `db:"key"`
+	SharedSingings int    `db:"value"`
 }
 
 func (SingingBuddy) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Name"}, {Name: "Shared Singings", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Name"},
+		{Name: "Shared Singings", RightAlign: true},
+	}
 }
-func (r SingingBuddy) RowValues() []string { return []string{r.Name, strconv.Itoa(r.SharedSingings)} }
+
+func (r SingingBuddy) RowValues() []string {
+	return []string{
+		r.Name,
+		strconv.Itoa(r.SharedSingings),
+	}
+}
 
 // 🎶 **Name**: N shared singings.
 func (r SingingBuddy) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("🎶 ").Bold(r.Name).Text(": ")
+	mb := mdwn.MakeBuilder(1024).PushString("🎶 ").Bold(r.Name).Text(": ")
 	mb.PushInt(r.SharedSingings)
 	return mb.TextWords("shared singings.")
 }
 
 type SingingStranger struct {
-	Name             string `db:"key"`
-	MutualConnections int   `db:"value"`
+	Name              string `db:"key"`
+	MutualConnections int    `db:"value"`
 }
 
 func (SingingStranger) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Name"}, {Name: "Mutual Connections", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Name"},
+		{Name: "Mutual Connections", RightAlign: true},
+	}
 }
+
 func (r SingingStranger) RowValues() []string {
-	return []string{r.Name, strconv.Itoa(r.MutualConnections)}
+	return []string{
+		r.Name,
+		strconv.Itoa(r.MutualConnections),
+	}
 }
 
 // 👤 **Name**: N mutual connections.
 func (r SingingStranger) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("👤 ").Bold(r.Name).Text(": ")
+	mb := mdwn.MakeBuilder(1024).PushString("👤 ").Bold(r.Name).Text(": ")
 	mb.PushInt(r.MutualConnections)
 	return mb.TextWords("mutual connections.")
 }
@@ -428,13 +451,22 @@ type LeaderKeyCount struct {
 }
 
 func (LeaderKeyCount) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Key"}, {Name: "Leads", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Key"},
+		{Name: "Leads", RightAlign: true},
+	}
 }
-func (r LeaderKeyCount) RowValues() []string { return []string{r.Key, strconv.Itoa(r.Leads)} }
+
+func (r LeaderKeyCount) RowValues() []string {
+	return []string{
+		r.Key,
+		strconv.Itoa(r.Leads),
+	}
+}
 
 // 🗝️ **Key**: N leads.
 func (r LeaderKeyCount) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("🗝️ ").Bold(r.Key).Text(": ")
+	mb := mdwn.MakeBuilder(1024).PushString("🗝️ ").Bold(r.Key).Text(": ")
 	mb.PushInt(r.Leads)
 	return mb.TextWords("leads.")
 }
@@ -445,35 +477,50 @@ type LeaderConnectedness struct {
 }
 
 func (LeaderConnectedness) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Name"}, {Name: "Connectedness", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Name"},
+		{Name: "Connectedness", RightAlign: true},
+	}
 }
+
 func (r LeaderConnectedness) renderConnectedness() string {
 	return fmt.Sprintf("%.4f%%", r.Connectedness*100)
 }
+
 func (r LeaderConnectedness) RowValues() []string {
-	return []string{r.Name, r.renderConnectedness()}
+	return []string{
+		r.Name,
+		r.renderConnectedness(),
+	}
 }
 
 // 🌐 **Name**: 0.1234%
 func (r LeaderConnectedness) LineItem() *mdwn.Builder {
-	return mdwn.MakeBuilder(1042).PushString("🌐 ").Bold(r.Name).Text(": ", r.renderConnectedness(), ".")
+	return mdwn.MakeBuilder(1024).PushString("🌐 ").Bold(r.Name).TextWords(":", r.renderConnectedness(), " connected.")
 }
 
 type LeaderSingingsInYear struct {
-	Year    string `db:"key"`
-	Singings int   `db:"value"`
+	Year     string `db:"key"`
+	Singings int    `db:"value"`
 }
 
 func (LeaderSingingsInYear) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Year", RightAlign: true}, {Name: "Singings", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Year", RightAlign: true},
+		{Name: "Singings", RightAlign: true},
+	}
 }
+
 func (r LeaderSingingsInYear) RowValues() []string {
-	return []string{r.Year, strconv.Itoa(r.Singings)}
+	return []string{
+		r.Year,
+		strconv.Itoa(r.Singings),
+	}
 }
 
 // 📅 **Year**: N singings.
 func (r LeaderSingingsInYear) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1042).PushString("📅 ").Bold(r.Year).Text(": ")
+	mb := mdwn.MakeBuilder(1024).PushString("📅 ").Bold(r.Year).Text(": ")
 	mb.PushInt(r.Singings)
 	return mb.TextWords("singings.")
 }

@@ -28,10 +28,20 @@ func MostLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 
 		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push))
-		mdtb.WriteLine("```")
+		var lastLineLength int
+		for record := range erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push) {
+			line := record.LineItem()
+			lastLineLength = line.Len()
 
+			if mdtb.Len() >= 4000 || mdtb.Len()+lastLineLength >= 4000 {
+				if !yield(mdtb, nil) {
+					return
+				}
+				mdtb = mdwn.MakeBuilder(4096)
+				lastLineLength = 0
+			}
+			(&mdtb.Mutable).Push(&line.Mutable)
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
 			return
@@ -49,17 +59,15 @@ func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
-
+		for md, err := range renderLineItems(erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -71,16 +79,15 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -92,16 +99,15 @@ func Buddies(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -113,16 +119,15 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -134,16 +139,15 @@ func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -166,16 +170,15 @@ func PopularInYears(ctx context.Context, conn *db.Connection, p models.Params) i
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -192,16 +195,15 @@ func PopularLocally(ctx context.Context, conn *db.Connection, p models.Params) i
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -213,16 +215,15 @@ func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -234,16 +235,15 @@ func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -255,16 +255,15 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) it
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -276,16 +275,15 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) it
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -297,16 +295,15 @@ func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params)
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -327,21 +324,15 @@ func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) iter.
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb,
-			irt.Convert(
-				erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push),
-				models.TopLeadersWrapper(&atomic.Int64{}),
-			),
-		)
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push), models.TopLeadersWrapper(&atomic.Int64{}))) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -378,16 +369,15 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -399,16 +389,15 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) i
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -420,16 +409,15 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -449,16 +437,15 @@ func LeaderDebutsByYear(ctx context.Context, conn *db.Connection, p models.Param
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Leads")))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Leads"))) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -481,16 +468,15 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push), models.WrapSongByKey))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push), models.WrapSongByKey)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -502,16 +488,15 @@ func Top20Leaders(ctx context.Context, conn *db.Connection, p models.Params) ite
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, irt.Convert(erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads")))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -523,16 +508,15 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Pa
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -544,20 +528,17 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) ite
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, irt.Convert(
+		for md, err := range renderLineItems(irt.Convert(
 			erc.HandleUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push),
-			models.WrapLeaderSongRank("Count")),
-		)
-
-		mdtb.WriteLine("```")
+			models.WrapLeaderSongRank("Count"))) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
 
@@ -569,15 +550,14 @@ func PopularSongsByKey(ctx context.Context, conn *db.Connection, p models.Params
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		mdtb.WriteLine("```")
-		models.WriteTable(mdtb, erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
-		mdtb.WriteLine("```")
+		for md, err := range renderLineItems(erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-		flush(mdtb, yield)
 	}
 }
