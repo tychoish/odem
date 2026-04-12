@@ -10,9 +10,8 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/tychoish/cmdr v0.6.0
 	github.com/tychoish/dbx v0.8.0
-	github.com/tychoish/fun v0.14.9
+	github.com/tychoish/fun v0.14.10-0.20260412163309-89bdf0567054
 	github.com/tychoish/grip v0.5.0
-	github.com/tychoish/jasper v0.1.5
 	github.com/urfave/cli/v3 v3.6.1
 	modernc.org/sqlite v1.47.0
 )
@@ -33,7 +32,6 @@ require (
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

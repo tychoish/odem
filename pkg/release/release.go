@@ -15,12 +15,13 @@ import (
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/ers"
+	"github.com/tychoish/fun/exc"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
-	"github.com/tychoish/jasper"
-	"github.com/tychoish/jasper/util"
+	"github.com/tychoish/grip/send"
 	"github.com/tychoish/odem"
+	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/logger"
 )
 
@@ -44,9 +45,8 @@ func IsPrerelease(version string) bool {
 
 func GitDescribe() string {
 	b := new(bytes.Buffer)
-	buf := util.NewLocalBuffer(b)
 
-	err := jasper.NewCommand().AppendArgs("git", "describe").SetOutputWriter(buf).Run(context.TODO())
+	err := new(exc.Command).WithName("git").WithArgs("describe").WithStdOutput(b).Run(context.TODO())
 	grip.Warning(ers.Wrap(err, "git describe for release versioning"))
 
 	return cmp.Or(string(bytes.TrimSpace(b.Bytes())), "<UNKNOWN>")
@@ -64,7 +64,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	buildDir := filepath.Join(conf.Build.Path, conf.Build.Tag)
-	if !util.FileExists(buildDir) {
+	if !infra.FileExists(buildDir) {
 		return fmt.Errorf("build directory %q does not exist", buildDir)
 	}
 
@@ -88,16 +88,16 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	}); err != nil {
 		return err
 	}
-	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); util.FileExists(zw) {
+	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); infra.FileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
-	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); util.FileExists(zw) {
+	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); infra.FileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
-	if zw := filepath.Join(buildDir, joinstr(Name, "32")); util.FileExists(zw) {
+	if zw := filepath.Join(buildDir, joinstr(Name, "32")); infra.FileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) linux-32bit: ", zw))
 	}
-	if zw := filepath.Join(buildDir, joindot(Name, ".app")); util.FileExists(zw) {
+	if zw := filepath.Join(buildDir, joindot(Name, ".app")); infra.FileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) macOS : ", zw))
 	}
 
@@ -114,8 +114,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		KV("num", artifacts.Len()).
 		KV("args", args))
 
-	return jasper.Context(ctx).CreateCommand(ctx).
-		Add(args).
-		SetCombinedSender(level.Info, logger.Plain(ctx).Sender()).
-		Run(ctx)
+	w := send.MakeWriterSender(logger.Plain(ctx).Sender())
+	w.Store(level.Info)
+	return new(exc.Command).WithName(args[0]).WithArgs(args[1:]...).WithStdOutput(w).WithStdError(w).Run(ctx)
 }

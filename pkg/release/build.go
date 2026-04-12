@@ -9,18 +9,31 @@ import (
 
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/erc"
+	"github.com/tychoish/fun/exc"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/wpa"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
-	"github.com/tychoish/jasper"
-	"github.com/tychoish/jasper/util"
+	"github.com/tychoish/grip/send"
 	"github.com/tychoish/odem"
+	"github.com/tychoish/odem/pkg/home"
+	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/logger"
 )
 
 const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
+
+func makeBaseCommand(ctx context.Context) *exc.Command {
+	stderr := send.MakeWriterSender(logger.Plain(ctx).Sender())
+	stderr.Store(level.Error)
+	stdout := send.MakeWriterSender(logger.Plain(ctx).Sender())
+	stderr.Store(level.Info)
+
+	return new(exc.Command).
+		WithStdOutput(stdout).
+		WithStdError(stderr)
+}
 
 // BuildArtifacts builds release binaries for all configured targets,
 // optionally compresses them with upx, generates sha256 checksums, and
@@ -32,12 +45,12 @@ func BuildArtifacts(ctx context.Context) error {
 	ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
 
 	var ec erc.Collector
-	jpm := jasper.Context(ctx)
 	var jobs dt.List[fnx.Worker]
 
 	namePart := fmt.Sprintf("%s-v%s", Name, versionString)
 	versionBuildPath := filepath.Join(conf.Build.Path, namePart)
 
+	basecmd := makeBaseCommand(ctx)
 	for build := range irt.Slice(conf.Build.Targets) {
 		buildName := joindash(build.GOOS, build.GOARCH)
 		binaryPath := filepath.Join(versionBuildPath, buildName)
@@ -52,17 +65,17 @@ func BuildArtifacts(ctx context.Context) error {
 		} else {
 			binaryName = Name
 		}
-		grip.Debug(grip.MPrintln(ldFlag))
-		cmd := jpm.CreateCommand(ctx).
-			ID(binaryPath).
-			AppendArgs("go", "build", ldFlag, "-o", filepath.Join(binaryPath, binaryName), "./cmd/odem.go").
-			AddEnv("GOOS", build.GOOS).
-			AddEnv("GOARCH", build.GOARCH).
-			RedirectOutputToError(true).
-			SetOutputSender(level.Debug, logger.Plain(ctx).Sender()).
-			SetErrorSender(level.Error, logger.Plain(ctx).Sender())
 
-		cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
+		binPath := filepath.Join(binaryPath, binaryName)
+
+		steps := []*exc.Command{
+			basecmd.Clone().
+				WithName("go").
+				WithArgs("build", ldFlag, "-o", binPath, "./cmd/odem.go").
+				SetEnvVar("GOOS", build.GOOS).
+				SetEnvVar("GOARCH", build.GOARCH),
+			basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", binPath, filepath.Join(versionBuildPath, artifactName))),
+		}
 
 		if !conf.Build.DisableCompression {
 			zpath := joindot(binaryPath, "lzma")
@@ -70,43 +83,69 @@ func BuildArtifacts(ctx context.Context) error {
 				ec.Push(mkdirdashp(zpath))
 			}
 			zbin := filepath.Join(zpath, binaryName)
+
+			upxcmd := basecmd.Clone().WithName("upx")
 			if build.GOOS == "darwin" {
-				cmd.AppendArgs("upx", "--force-macos", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+				upxcmd.WithArgs("--force-macos", "-q", "--lzma", binPath, "-o", zbin)
 			} else {
-				cmd.AppendArgs("upx", "-q", "--lzma", filepath.Join(binaryPath, binaryName), "-o", zbin)
+				upxcmd.WithArgs("-q", "--lzma", binPath, "-o", zbin)
 			}
-			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.lzma.sha256", filepath.Join(binaryPath, binaryName), filepath.Join(versionBuildPath, artifactName)))
+			steps = append(steps,
+				upxcmd,
+				basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.lzma.sha256", binPath, filepath.Join(versionBuildPath, artifactName))),
+			)
+
 			if build.GOARCH == "386" {
 				bin32 := filepath.Join(versionBuildPath, joinstr(Name, "32"))
-				cmd.AppendArgs("cp", zbin, bin32)
-				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", bin32, bin32))
+				steps = append(steps,
+					basecmd.Clone().WithName("cp").WithArgs(zbin, bin32),
+					basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", bin32, bin32)),
+				)
 			}
 
 			if build.GOOS == "darwin" && build.GOARCH == "arm64" {
 				binapp := filepath.Join(versionBuildPath, joindot(Name, "app"))
-				cmd.AppendArgs("cp", filepath.Join(binaryPath, binaryName), binapp)
-				cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", binapp, binapp))
-
+				steps = append(steps,
+					basecmd.Clone().WithName("cp").WithArgs(binPath, binapp),
+					basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", binapp, binapp)),
+				)
 			}
-
 		}
+
 		switch build.GOOS {
 		case "windows":
 			zipball := filepath.Join(versionBuildPath, joindot(artifactName, "zip"))
-			cmd.AppendArgs("zip", "-j", zipball, filepath.Join(binaryPath, binaryName))
-			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball))
+			steps = append(steps,
+				basecmd.Clone().WithName("zip").WithArgs("-j", zipball, binPath),
+				basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", zipball, zipball)),
+			)
 		default:
 			tarball := filepath.Join(versionBuildPath, joindot(artifactName, "tar.gz"))
-			cmd.AppendArgs("tar", "czvf", tarball, "-C", binaryPath, binaryName)
-			cmd.Sh(fmt.Sprintf("sha256sum %s > %s.sha256", tarball, tarball))
+			steps = append(steps,
+				basecmd.Clone().WithName("tar").WithArgs("czvf", tarball, "-C", binaryPath, binaryName),
+				basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", tarball, tarball)),
+			)
 		}
 
 		if conf.Runtime.DryRun {
-			grip.Info(cmd.String())
+			for _, step := range steps {
+				grip.Info(grip.KV("cmd", step.Name).KV("args", step.Args).KV("cmd", step))
+			}
 			continue
+		} else {
+			jobs.PushBack(func(ctx context.Context) error {
+				for _, step := range steps {
+					if err := step.Run(ctx); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
 		}
 
-		jobs.PushBack(cmd.Worker())
+	}
+	if conf.Runtime.DryRun {
+		return ec.Resolve()
 	}
 
 	ec.Push(wpa.RunWithPool(jobs.IteratorFront(), wpa.WorkerGroupConfDefaults()).Run(ctx))
@@ -116,17 +155,16 @@ func BuildArtifacts(ctx context.Context) error {
 func LocalBuild(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 	pwd := erc.Must(os.Getwd())
-	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, util.TryExpandHomedir("~/src/odemp/"), pwd), util.FileExists) {
+	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odemp/"), pwd), infra.FileExists) {
 		path := filepath.Join(basepath, "cmd", "odem.go")
-		if !util.FileExists(path) {
+		if !infra.FileExists(path) {
 			continue
 		}
-		grip.Info(grip.MPrintln("building:", "./cmd/odem/.go"))
-		return jasper.Context(ctx).
-			CreateCommand(ctx).
-			AppendArgs("go", "build", "./cmd/odem.go").
-			SetCombinedSender(level.Info, logger.Plain(ctx).Sender()).
-			Run(ctx)
+		grip.Info(grip.MPrintln("building:", "./cmd/odem.go"))
+
+		w := send.MakeWriterSender(logger.Plain(ctx).Sender())
+		w.Store(level.Info)
+		return makeBaseCommand(ctx).WithName("go").WithArgs("build", "./cmd/odem.go").WithStdOutput(w).WithStdError(w).Run(ctx)
 	}
 	return erc.Errorf("no odem checkout discoverable: %s", pwd)
 }

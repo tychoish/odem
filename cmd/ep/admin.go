@@ -4,13 +4,12 @@ package ep
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/tychoish/cmdr"
+	"github.com/tychoish/fun/exc"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/message"
-	"github.com/tychoish/jasper"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -59,7 +58,7 @@ func Hacking() *cmdr.Commander {
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Info(grip.MPrintln("🤖 🎶", release.Version.Resolve()))
 			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
-				grip.Info(grip.MPrintln(k, "->", fmt.Sprintf("%+v", v)))
+				grip.Info(grip.MPrintf("%s -> %+v", k, v))
 			}
 			return nil
 		})
@@ -70,16 +69,16 @@ func Build() *cmdr.Commander {
 		SetName("build").
 		Aliases("make").
 		SetUsage("project automation and release tools").
+		Flags(cmdr.FlagBuilder(false).
+			SetName("dry-run", "n").
+			SetUsage("disables all (most?) write operations for some (admin) operations").
+			Flag()).
 		With(infra.AttachConfiguration).
 		With(infra.WorkerAction(infra.WorkerWithTiming("build", release.LocalBuild))).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("all").
 				SetUsage("build artifacts for odem release; must run inside of the odem git repository").
-				Flags(cmdr.FlagBuilder(false).
-					SetName("dry-run", "n").
-					SetUsage("disables all (most?) write operations for some (admin) operations").
-					Flag()).
 				With(infra.WorkerAction(infra.WorkerWithTiming("build-all", release.BuildArtifacts))),
 			cmdr.MakeCommander().
 				SetName("release").
@@ -94,10 +93,7 @@ func Build() *cmdr.Commander {
 							SetRequired(true).
 							SetUsage("name of new tag, should start with a V").Flag()).
 						SetAction(func(ctx context.Context, cc *cli.Command) error {
-							return jasper.Context(ctx).
-								CreateCommand(ctx).
-								AppendArgs("git", "tag", "--annotate", "--edit", cmdr.GetFlag[string](cc, "tag")).
-								Run(ctx)
+							return new(exc.Command).WithName("git").WithArgs("tag", "--annotate", "--edit", cmdr.GetFlag[string](cc, "tag")).Run(ctx)
 						}),
 					cmdr.MakeCommander().
 						SetName("upload").

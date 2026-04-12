@@ -3,15 +3,12 @@ package infra
 import (
 	"context"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/fnx"
-	"github.com/tychoish/fun/srv"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/jasper"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/logger"
@@ -93,17 +90,10 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 		SetAppOptions(cmdr.AppOptions{Name: name, Usage: "🚩 🌞 🔲 💎 stats application", Version: release.Version.Resolve().String()}).
 		Middleware(logger.Setup).
 		Middleware(withCanceler).
-		Middleware(JasperSetup).
 		EnableCompletionCmd().
 		With(RootHelpAction).
 		Subcommanders(cmdrs...),
 	)
-}
-
-func JasperSetup(ctx context.Context) context.Context {
-	jpm := jasper.NewManager(jasper.ManagerOptionDefaults(), jasper.ManagerOptionMaxProcs(runtime.NumCPU()))
-	srv.AddCleanup(ctx, jpm.Close)
-	return jasper.WithManager(ctx, jpm)
 }
 
 func RootHelpAction(cmd *cmdr.Commander) {

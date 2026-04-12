@@ -9,7 +9,6 @@ import (
 
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
 	"github.com/tychoish/odem/pkg/selector"
@@ -70,7 +69,7 @@ func (params Params) getWriter(tags ...string) (io.WriteCloser, error) {
 		return nil, ers.New("must specify a file name for the report")
 	}
 
-	if len(params.PathPrefix) != 0 && !util.FileExists(params.PathPrefix) {
+	if len(params.PathPrefix) != 0 && !infra.FileExists(params.PathPrefix) {
 		if err := os.MkdirAll(params.PathPrefix, 0o755); err != nil {
 			return nil, err
 		}

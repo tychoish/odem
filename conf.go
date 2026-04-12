@@ -11,7 +11,7 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip/level"
-	"github.com/tychoish/jasper/util"
+	"github.com/tychoish/odem/pkg/home"
 )
 
 type Configuration struct {
@@ -58,7 +58,7 @@ type Configuration struct {
 
 func ReadConfiguration(paths ...string) (_ *Configuration, err error) {
 	pwd := erc.Must(os.Getwd())
-	home := util.GetHomedir()
+	home := home.GetDirectory()
 	var ec erc.Collector
 	defer func() { err = ec.Resolve() }()
 
@@ -73,7 +73,7 @@ func ReadConfiguration(paths ...string) (_ *Configuration, err error) {
 			filepath.Join(home, ".config", "odem", "conf.yml"),
 			filepath.Join(home, ".config", "odem", "conf.yaml"),
 			filepath.Join(home, ".config", "odem", "conf.json")),
-	)), util.FileExists) {
+	)), fileExists) {
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, err
@@ -120,4 +120,9 @@ func newDecoderForFile(path string) func(io.Reader) interface{ Decode(any) error
 	default:
 		panic(erc.NewInvariantError("cannot resolve decoder for", path))
 	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }

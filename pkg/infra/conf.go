@@ -12,8 +12,8 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
-	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
+	"github.com/tychoish/odem/pkg/home"
 	"github.com/urfave/cli/v3"
 )
 
@@ -44,7 +44,7 @@ func confCmdrFlags(c *cmdr.Commander) *cmdr.Commander {
 
 func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 	return cmdr.SpecBuilder(func(ctx context.Context, cc *cli.Command) (*odem.Configuration, error) {
-		conf, err := odem.ReadConfiguration(util.TryExpandHomedir(cmdr.GetFlag[string](cc, "conf")))
+		conf, err := odem.ReadConfiguration(home.TryExpandDirectory(cmdr.GetFlag[string](cc, "conf")))
 		if err != nil {
 			return nil, err
 		}
