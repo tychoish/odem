@@ -219,7 +219,7 @@ func (b *bot) handleArbitraryMessage(msg *etron.Message, fallback func() stateFn
 }
 
 func (b *bot) sendMarkdown(msg string) {
-	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.MarkdownV2}))
+	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown}))
 }
 
 func (b *bot) sendPlain(msg string) {

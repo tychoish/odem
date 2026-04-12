@@ -12,14 +12,13 @@ func renderLineItems[T interface{ LineItem() *mdwn.Builder }](records iter.Seq[T
 		mdtb := mdwn.MakeBuilder(4096)
 		for record := range records {
 			line := record.LineItem()
-			lineLen := line.Len()
-			if mdtb.Len() >= 4000 || mdtb.Len()+lineLen >= 4000 {
+			if mdtb.Len() >= 4000 || mdtb.Len()+line.Len() >= 4000 {
 				if !yield(mdtb, nil) {
 					return
 				}
 				mdtb = mdwn.MakeBuilder(4096)
 			}
-			(&mdtb.Mutable).Push(&line.Mutable)
+			(&mdtb.Mutable).WriteMutableLine(line.Mutable)
 		}
 		flush(mdtb, yield)
 	}

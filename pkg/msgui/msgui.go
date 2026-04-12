@@ -26,28 +26,15 @@ func MostLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 			return
 		}
 
-		mdtb := mdwn.MakeBuilder(4096)
 		var ec erc.Collector
-		var lastLineLength int
-		for record := range erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push) {
-			line := record.LineItem()
-			lastLineLength = line.Len()
-
-			if mdtb.Len() >= 4000 || mdtb.Len()+lastLineLength >= 4000 {
-				if !yield(mdtb, nil) {
-					return
-				}
-				mdtb = mdwn.MakeBuilder(4096)
-				lastLineLength = 0
+		for md, err := range renderLineItems(erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push)) {
+			if !yield(md, err) {
+				return
 			}
-			(&mdtb.Mutable).Push(&line.Mutable)
 		}
 		if !ec.Ok() {
 			yield(nil, ec.Resolve())
-			return
 		}
-
-		flush(mdtb, yield)
 	}
 }
 
