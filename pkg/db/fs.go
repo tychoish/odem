@@ -37,6 +37,8 @@ func Init(ctx context.Context) (err error) {
 	defer func() { ec.Push(err); err = ec.Resolve() }()
 	dbPath := getDBpath()
 	// if the database exists, in /tmp we can just use it as a timesaving measure.
+	conf := odem.GetConfiguration(ctx)
+	grip.Warning(grip.When(conf == nil, "configuration is nil!"))
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
 		odemMtime := odemBinaryMtime()
 		dbMtime := odemTempDBMtime()
@@ -44,7 +46,7 @@ func Init(ctx context.Context) (err error) {
 		// should rebuild the database. otherwise the database was built with this binary
 		// and we can just run the idempotent index creation (for the 'go run' case) and use
 		// the database otherwise we fall through and set up the local database
-		if odemMtime.IsZero() || dbMtime.After(odemMtime) || os.Getenv("ODEM_DEVLOP") != "" || odem.GetConfiguration(ctx).Settings.ManualReloadDB {
+		if (conf != nil && !conf.Settings.ManualReloadDB) || os.Getenv("ODEM_DEVLOP") != "" && (dbMtime.After(odemMtime) || odemMtime.IsZero()) {
 			db, err := sql.Open("sqlite", dbPath)
 			if err != nil {
 				return err

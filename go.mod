@@ -8,7 +8,7 @@ require (
 	github.com/koki-develop/go-fzf v0.15.0
 	github.com/masterminds/semver v1.5.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
-	github.com/tychoish/cmdr v0.5.6
+	github.com/tychoish/cmdr v0.5.7-0.20260412030350-af7ae4dc1538
 	github.com/tychoish/dbx v0.8.0
 	github.com/tychoish/fun v0.14.9
 	github.com/tychoish/grip v0.5.0

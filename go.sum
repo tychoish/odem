@@ -106,6 +106,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tychoish/cmdr v0.5.6 h1:mXn80rUJeY7Vbqx4Ig300rUEHAuq1C/FYx5VRovtEFE=
 github.com/tychoish/cmdr v0.5.6/go.mod h1:DIm/M4rwvUlgFxbAmUp23JAsas2fgL6ZvZLAMpvjpc4=
+github.com/tychoish/cmdr v0.5.7-0.20260412030350-af7ae4dc1538 h1:rhm3INMCLktANZPshXqIOjXyCdVCQxUnupDo7aFR+70=
+github.com/tychoish/cmdr v0.5.7-0.20260412030350-af7ae4dc1538/go.mod h1:DIm/M4rwvUlgFxbAmUp23JAsas2fgL6ZvZLAMpvjpc4=
 github.com/tychoish/dbx v0.8.0 h1:sYzg8QDDVm1B86NOkKWfudsx0o/OC7mIdo6VgCtZyoA=
 github.com/tychoish/dbx v0.8.0/go.mod h1:kNeFEaMw4g3Fl7XQKFc3VWfcOQ+66lefsvqlS9Wtffk=
 github.com/tychoish/fun v0.14.9 h1:Uq7nkeCkccqnDWzTkbQYDgr2QAtCXA0JP/H7EIz5upM=

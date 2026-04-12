@@ -49,6 +49,8 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 			return nil, err
 		}
 
+		defer grip.Info("loaded configuration")
+
 		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
 		conf.Runtime.DryRun = cmdr.GetFlag[bool](cc, "dry-run")
 		conf.Settings.Level = cmp.Or(level.FromString(cmdr.GetFlag[string](cc, "level")), conf.Settings.Level, level.Info)

@@ -47,7 +47,7 @@ func DBOperationSpecWith[T any](
 	action func(context.Context, *db.Connection, T) error,
 ) func(*cmdr.Commander) {
 	return func(cc *cmdr.Commander) {
-		cc.With(AttachConfiguration).With(cmdr.SpecBuilder(
+		cc.With(cmdr.SpecBuilder(
 			func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
 				conn, err := db.Connect(ctx)
 				if err != nil {
@@ -61,7 +61,7 @@ func DBOperationSpecWith[T any](
 
 func MakeDBOperationSpec[T cmdr.FlagTypes](argName string, action func(context.Context, *db.Connection, T) error) func(cc *cmdr.Commander) {
 	return func(cc *cmdr.Commander) {
-		cc.With(AttachConfiguration).With(cmdr.SpecBuilder(
+		cc.With(cmdr.SpecBuilder(
 			func(ctx context.Context, cc *cli.Command) (*WithInput[T], error) {
 				conn, err := db.Connect(ctx)
 				if err != nil {
