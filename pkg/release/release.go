@@ -21,7 +21,6 @@ import (
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/send"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/logger"
 )
 
@@ -64,7 +63,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	buildDir := filepath.Join(conf.Build.Path, conf.Build.Tag)
-	if !infra.FileExists(buildDir) {
+	if !fileExists(buildDir) {
 		return fmt.Errorf("build directory %q does not exist", buildDir)
 	}
 
@@ -88,16 +87,16 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	}); err != nil {
 		return err
 	}
-	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); infra.FileExists(zw) {
+	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); fileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
-	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); infra.FileExists(zw) {
+	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); fileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
-	if zw := filepath.Join(buildDir, joinstr(Name, "32")); infra.FileExists(zw) {
+	if zw := filepath.Join(buildDir, joinstr(Name, "32")); fileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) linux-32bit: ", zw))
 	}
-	if zw := filepath.Join(buildDir, joindot(Name, ".app")); infra.FileExists(zw) {
+	if zw := filepath.Join(buildDir, joindot(Name, ".app")); fileExists(zw) {
 		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) macOS : ", zw))
 	}
 

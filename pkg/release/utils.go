@@ -7,7 +7,6 @@ import (
 	"github.com/masterminds/semver"
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/odem/pkg/infra"
 )
 
 func ValidateVersion(tag string) error {
@@ -24,9 +23,14 @@ func joindot(s ...string) string              { return strings.Join(s, ".") }
 func joindash(s ...string) string             { return strings.Join(s, "-") }
 
 func mkdirdashp(path string) error {
-	if infra.FileExists(path) {
+	if fileExists(path) {
 		return nil
 	}
 	grip.Info(grip.MPrintf("making directory %q", path))
 	return os.MkdirAll(path, 0o766)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }

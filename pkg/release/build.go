@@ -18,7 +18,6 @@ import (
 	"github.com/tychoish/grip/send"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/home"
-	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/logger"
 )
 
@@ -155,9 +154,9 @@ func BuildArtifacts(ctx context.Context) error {
 func LocalBuild(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 	pwd := erc.Must(os.Getwd())
-	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odemp/"), pwd), infra.FileExists) {
+	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odemp/"), pwd), fileExists) {
 		path := filepath.Join(basepath, "cmd", "odem.go")
-		if !infra.FileExists(path) {
+		if !fileExists(path) {
 			continue
 		}
 		grip.Info(grip.MPrintln("building:", "./cmd/odem.go"))
