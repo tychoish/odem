@@ -17,7 +17,6 @@ import (
 	"github.com/tychoish/fun/mdwn"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/models"
 	"github.com/tychoish/odem/pkg/selector"
@@ -28,7 +27,7 @@ const defaultN = 25
 func LeaderJobs(conn *db.Connection, basePath string, leaders []string) iter.Seq[fnx.Worker] {
 	return irt.Convert(irt.Slice(leaders), func(leader string) fnx.Worker {
 		return func(ctx context.Context) error {
-			grip.Info(message.NewKV().KV("leader", leader).KV("op", "batch-report"))
+			grip.Info(grip.KV("leader", leader).KV("op", "batch-report"))
 			return Leader(ctx, conn, Params{
 				SuppressInteractivity: true,
 				PathPrefix:            basePath,
@@ -460,7 +459,7 @@ func NewLeadersByYear(ctx context.Context, conn *db.Connection, p Params) (err e
 	case len(years) <= 0:
 		return ers.New("not found")
 	case len(years) > 1:
-		grip.Warning(message.NewKV().KV("op", "got more than ").KV("size", len(years)))
+		grip.Warning(grip.KV("op", "got more than ").KV("size", len(years)))
 	}
 
 	year := years[0]

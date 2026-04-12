@@ -13,7 +13,6 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/grip/message"
 )
 
 func IterStruct(foo any) iter.Seq2[string, any] {
@@ -188,7 +187,7 @@ func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) strin
 			return FuzzySearchWithFallback(narrowed, toString, sp.ClearInput(), resolver)
 		}
 		if sp.DisableInteraction {
-			grip.Error(message.NewKV().
+			grip.Error(grip.
 				KV("op", "fuzzy-search").
 				KV("interactivity", !sp.DisableInteraction).
 				KV("input", sp.Input).
@@ -218,7 +217,7 @@ func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) strin
 
 	res, err := search.FindOne()
 	if err != nil {
-		grip.Error(message.NewKV().KV("op", "fuzzy-search").KV("err", err))
+		grip.Error(grip.KV("op", "fuzzy-search").KV("err", err))
 		return irt.Zero[B](), err
 	}
 

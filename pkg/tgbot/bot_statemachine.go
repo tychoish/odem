@@ -11,26 +11,25 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem/pkg/dispatch"
 )
 
 func (b *bot) discoverNext() stateFn {
 	if b.state.entry.Requires == nil {
-		grip.Info(message.NewKV().KV("state", "discoverNext").KV("status", "requirements nil; rendering off the bat").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").KV("status", "requirements nil; rendering off the bat").KV("op", b.state.entry.Command))
 		return b.renderResults()
 	}
 	if b.state.entry == nil {
-		grip.Info(message.NewKV().KV("state", "discoverNext").KV("status", "entry nil; retry keyboard").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").KV("status", "entry nil; retry keyboard").KV("op", b.state.entry.Command))
 		return b.selectOperationKeyboard()
 	}
 	if b.state.inProgress && b.state.has == nil {
-		grip.Info(message.NewKV().KV("state", "discoverNext").KV("status", "requirements Set undefined; rendering").KV("op", b.state.entry.Command))
+		grip.Info(grip.KV("state", "discoverNext").KV("status", "requirements Set undefined; rendering").KV("op", b.state.entry.Command))
 		return b.renderResults()
 	}
 	for requirement := range b.state.entry.Requires.Iterator() {
 		if !b.state.has.Check(requirement) {
-			grip.Debug(message.NewKV().
+			grip.Debug(grip.
 				KV("state", "discoverNext").
 				KV("status", "discovering next value").
 				KV("requirement", requirement).
@@ -39,7 +38,7 @@ func (b *bot) discoverNext() stateFn {
 			return b.selectFor(requirement)
 		}
 	}
-	grip.Debug(message.NewKV().
+	grip.Debug(grip.
 		KV("state", "discoverNext").
 		KV("status", "rendering").
 		KV("op", b.state.entry.Command),
@@ -73,7 +72,7 @@ func (b *bot) captureInputAsYears(value string) stateFn {
 }
 
 func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
-	grip.Debug(message.NewKV().KV("type", "callback").KV("body", kbdValue))
+	grip.Debug(grip.KV("type", "callback").KV("body", kbdValue))
 	b.state.op = stw.Ptr(dispatch.NewMinutesAppOperation(kbdValue))
 	if !b.state.op.Ok() {
 		return b.selectOperationKeyboard()
@@ -86,11 +85,11 @@ func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 }
 
 func (b *bot) renderResults() stateFn {
-	grip.Info(message.NewKV().KV("status", "rendering now...").KV("state", b.state.params).KV("command", b.state.op.String()))
+	grip.Info(grip.KV("status", "rendering now...").KV("state", b.state.params).KV("command", b.state.op.String()))
 
 	for msg, err := range b.state.entry.Messenger(b.ctx, b.db, b.state.params) {
 		if err != nil {
-			grip.Alert(message.NewKV().KV("op", b.state.entry.Command).KV("outcome", "overflow").KV("len", msg.Len()).KV("query", b.state.params))
+			grip.Alert(grip.KV("op", b.state.entry.Command).KV("outcome", "overflow").KV("len", msg.Len()).KV("query", b.state.params))
 			b.sendPlain(fmt.Sprintf("❗got error producing results: %v", err))
 			break
 		} else {

@@ -18,7 +18,6 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
-	"github.com/tychoish/grip/message"
 	"github.com/tychoish/jasper"
 	"github.com/tychoish/jasper/util"
 	"github.com/tychoish/odem"
@@ -109,8 +108,7 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 
 	args := irt.Collect(irt.Chain(irt.Args(irt.Args("gh", "release", "upload", releaseID, "--clobber"), artifacts.Iterator())))
 
-	grip.Info(message.NewKV().
-		KV("op", "upload artifacts").
+	grip.Info(grip.KV("op", "upload artifacts").
 		KV("release", releaseID).
 		KV("tag", conf.Build.Tag).
 		KV("num", artifacts.Len()).

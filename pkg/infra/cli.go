@@ -11,7 +11,6 @@ import (
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/srv"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/grip/message"
 	"github.com/tychoish/jasper"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
@@ -91,7 +90,7 @@ func MainCLI(name string, cmdrs ...*cmdr.Commander) {
 
 	cmdr.Main(ctx, cmdr.MakeRootCommander().
 		SetName(name).
-		SetAppOptions(cmdr.AppOptions{Name: name, Usage: "🚩 🌞 🔲 stats application", Version: release.Version.Resolve().String()}).
+		SetAppOptions(cmdr.AppOptions{Name: name, Usage: "🚩 🌞 🔲 💎 stats application", Version: release.Version.Resolve().String()}).
 		Middleware(logger.Setup).
 		Middleware(withCanceler).
 		Middleware(JasperSetup).
@@ -124,7 +123,7 @@ func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
 func WorkerWithTiming(name string, op fnx.Worker) fnx.Worker {
 	return fnx.Worker(func(ctx context.Context) error {
 		startAt := time.Now()
-		defer func() { grip.Info(message.NewKV().KV("name", name).KV("duration", time.Since(startAt))) }()
+		defer func() { grip.Info(grip.KV("name", name).KV("duration", time.Since(startAt))) }()
 		return op(ctx)
 	})
 }

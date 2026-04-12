@@ -22,6 +22,11 @@ type Configuration struct {
 	Telegram struct {
 		BotToken string `bson:"bot_token" json:"bot_token" yaml:"bot_token"`
 		Quiet    bool   `bson:"quiet" json:"quiet" yaml:"quiet"`
+		Webhook  struct {
+			Enabled bool   `bson:"enabled" json:"enabled" yaml:"enabled"`
+			URL     string `bson:"url" json:"url" yaml:"url"`
+			Listen  string `bson:"listen" json:"listen" yaml:"listen"`
+		} `bson:"webhook" json:"webhook" yaml:"webhook"`
 	} `bson:"telegram" json:"telegram" yaml:"telegram"`
 	Reports struct {
 		BasePath string `bson:"base_path" json:"base_path" yaml:"base_path"`

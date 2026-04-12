@@ -49,7 +49,8 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 			return nil, err
 		}
 
-		defer grip.Info("loaded configuration")
+		defer grip.Sender().SetPriority(conf.Settings.Level)
+		defer grip.Debug("loaded configuration")
 
 		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
 		conf.Runtime.DryRun = cmdr.GetFlag[bool](cc, "dry-run")
@@ -70,7 +71,10 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 			})
 		}
 
-		grip.Sender().SetPriority(conf.Settings.Level)
+		conf.Telegram.Webhook.Enabled = cmp.Or(cmdr.GetFlag[bool](cc, "webhook.enabled"), conf.Telegram.Webhook.Enabled)
+		conf.Telegram.Webhook.URL = cmp.Or(cmdr.GetFlag[string](cc, "webhook.url"), conf.Telegram.Webhook.URL)
+		conf.Telegram.Webhook.Listen = cmp.Or(cmdr.GetFlag[string](cc, "webhook.listen"), conf.Telegram.Webhook.Listen)
+
 		return conf, nil
 	}).SetMiddleware(odem.WithConfiguration)
 }

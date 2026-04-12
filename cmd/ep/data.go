@@ -38,6 +38,20 @@ func Telegram() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("telegram").Aliases("tg").
 		SetUsage("telegram chat bot service").
+		Flags(
+			cmdr.FlagBuilder(false).
+				SetName("webhook.enabled").
+				SetUsage("enable webhook mode (default: long polling)").
+				Flag(),
+			cmdr.FlagBuilder("").
+				SetName("webhook.url").
+				SetUsage("public URL Telegram will call, e.g. https://bot.example.com:443/path (overrides config)").
+				Flag(),
+			cmdr.FlagBuilder("").
+				SetName("webhook.listen").
+				SetUsage("local address to listen on for webhook updates, e.g. :8080 (default: port from webhook URL)").
+				Flag(),
+		).
 		With(infra.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return tgbot.NewService(ctx, odem.GetConfiguration(ctx), conn).Start(ctx)
