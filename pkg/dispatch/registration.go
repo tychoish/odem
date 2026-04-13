@@ -6,7 +6,6 @@ import (
 	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
 	"github.com/tychoish/odem/pkg/msgui"
 )
@@ -21,15 +20,17 @@ func init() {
 	aliases.addCommands()
 	aliases.addAlaises()
 	aliases.addFallback()
-	aliases.andWithoutSpaces()
+	aliases.withJoinedWords()
+	aliases.withSpacedWords()
 }
+
 func getAliases(mao MinutesAppOperation) []string { return mao.Aliases() }
 func (am *aliasMap) addFallback()                 { am.Store("", MinutesAppOpInvalid) }
-func (am *aliasMap) addAlaises()                  { am.Extend(infra.ReverseMapping(AllMinutesAppAliases())) }
+func (am *aliasMap) addAlaises()                  { am.Extend(MinutesAppAliasMapping()) }
 func (am *aliasMap) addCommands()                 { am.Extend(AllMinutesAppCommands()) }
-func (am *aliasMap) andWithoutSpaces() {
-	am.Extend(irt.Convert2(infra.ReverseMapping(AllMinutesAppAliases()), removeSpaceFromAliases))
-}
+func (am *aliasMap) with(f aliasFilter)           { am.Extend(irt.Convert2(MinutesAppAliasMapping(), f)) }
+func (am *aliasMap) withJoinedWords()             { am.with(joinKebabs) }
+func (am *aliasMap) withSpacedWords()             { am.with(replaceKebabsWithSpace) }
 
 type MinutesAppRegistration struct {
 	ID          MinutesAppOperation

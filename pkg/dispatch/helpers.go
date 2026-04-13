@@ -63,8 +63,14 @@ func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(infra.DBOperationSpec(mao.FuzzyDispatcher().Op))
 }
 
-func removeSpaceFromAliases(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
-	return strings.ReplaceAll(k, " ", ""), v
+type aliasFilter func(string, MinutesAppOperation) (string, MinutesAppOperation)
+
+func joinKebabs(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
+	return strings.ReplaceAll(k, "-", ""), v
+}
+
+func replaceKebabsWithSpace(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
+	return strings.ReplaceAll(k, "-", " "), v
 }
 
 func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {

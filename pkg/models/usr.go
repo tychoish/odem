@@ -103,7 +103,7 @@ func (s SongByKey) renderPercent() string { return fmt.Sprintf("%.1f%%", s.Ratio
 func (s SongByKey) LineItem() *mdwn.Builder {
 	return mdwn.MakeBuilder(1024).
 		PushString("🗝️ ").
-		Bold("Key:").Text(" ", s.Key, "; ").
+		Bold("Key: ").Text(s.Key, "; ").
 		Bold("Count:").Text(" ", s.NumLeads, " (", s.renderPercent(), ")")
 }
 
