@@ -195,7 +195,7 @@ func (r LessonInfo) LineItem() *mdwn.Builder {
 		Bold(withPaddingToFive(r.SongPageNumber)).
 		Italic(r.SongName).
 		Text(" (", r.SongKey, ") ").
-		TextWords("at", r.SingingName, "on", r.SingingDate.Time().Format("Monday Janurary 2, 2006")).Text(".")
+		TextWords("at", r.SingingName, "on", r.SingingDate.Time().Format("Monday January 2, 2006")).Text(".")
 	md.ReplaceAllString("\\n", "; ")
 	return md
 }
