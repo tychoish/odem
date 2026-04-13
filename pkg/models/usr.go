@@ -488,7 +488,7 @@ func (r LeaderKeyCount) RowValues() []string {
 
 // 🗝️ **Key**: N leads.
 func (r LeaderKeyCount) LineItem() *mdwn.Builder {
-	mb := mdwn.MakeBuilder(1024).PushString("🗝️ ").Bold(r.Key)
+	mb := mdwn.MakeBuilder(1024).PushString("🗝️ ").Bold(r.Key, ": ")
 	mb.PushInt(r.Leads)
 	return mb.TextWords(" leads.")
 }
