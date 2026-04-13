@@ -24,14 +24,12 @@ import (
 const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
 
 func makeBaseCommand(ctx context.Context) *exc.Command {
-	stderr := send.MakeWriterSender(logger.Plain(ctx).Sender())
-	stderr.Store(level.Error)
-	stdout := send.MakeWriterSender(logger.Plain(ctx).Sender())
-	stderr.Store(level.Info)
+	o := send.MakeWriterSender(logger.Plain(ctx).Sender())
+	o.Store(level.Info)
+	e := send.MakeWriterSender(logger.Plain(ctx).Sender())
+	e.Store(level.Error)
 
-	return new(exc.Command).
-		WithStdOutput(stdout).
-		WithStdError(stderr)
+	return new(exc.Command).WithStdError(e).WithStdOutput(o)
 }
 
 // BuildArtifacts builds release binaries for all configured targets,
@@ -161,9 +159,9 @@ func LocalBuild(ctx context.Context) error {
 		}
 		grip.Info(grip.MPrintln("building:", "./cmd/odem.go"))
 
-		w := send.MakeWriterSender(logger.Plain(ctx).Sender())
-		w.Store(level.Info)
-		return makeBaseCommand(ctx).WithName("go").WithArgs("build", "./cmd/odem.go").WithStdOutput(w).WithStdError(w).Run(ctx)
+		return makeBaseCommand(ctx).
+			WithName("go").WithArgs("build", "./cmd/odem.go").
+			Run(ctx)
 	}
 	return erc.Errorf("no odem checkout discoverable: %s", pwd)
 }
