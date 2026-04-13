@@ -2,7 +2,9 @@ package tgbot
 
 import (
 	"encoding/json"
+	"fmt"
 	"iter"
+	"strconv"
 	"strings"
 
 	etron "github.com/NicoNex/echotron/v3"
@@ -22,8 +24,32 @@ func getBotCommands() iter.Seq[etron.BotCommand] {
 }
 
 func joinstr(args ...string) string { return strings.Join(args, "") }
-func isOrContainsCmd(msg *etron.Message, str string) bool {
-	return msg.Text == str || strings.HasPrefix(msg.Text, "/exit")
+func isOrContainsCmd(msg *etron.Message, strs ...string) bool {
+	for _, str := range strs {
+		switch {
+		case msg.Text == str:
+			return true
+		case strings.HasPrefix(msg.Text, fmt.Sprint("/", str)):
+			return true
+		case strings.HasPrefix(msg.Text, str):
+			return true
+		case strings.Contains(msg.Text, str):
+			return true
+		}
+	}
+	return false
+}
+
+// extractNumber scans the words in text and returns the first one that
+// parses as a positive integer, along with true. Returns 0, false if none
+// is found.
+func extractNumber(text string) (int, bool) {
+	for _, word := range strings.Fields(text) {
+		if n, err := strconv.Atoi(word); err == nil && n > 0 {
+			return n, true
+		}
+	}
+	return 0, false
 }
 
 func toJson(val any) *strut.Mutable {

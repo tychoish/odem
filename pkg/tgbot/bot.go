@@ -1,6 +1,7 @@
 package tgbot
 
 import (
+	"cmp"
 	"context"
 	"sync/atomic"
 
@@ -18,6 +19,7 @@ type stateFn func(*etron.Update) stateFn
 
 type bot struct {
 	chatID       int64
+	threadID     int
 	stateMachine stateFn // current state; replaced after every update
 	etron.API
 	ctx   context.Context
@@ -58,8 +60,10 @@ func (b *bot) Update(update *etron.Update) {
 func (b *bot) handleMessage(u *etron.Update) stateFn {
 	switch {
 	case u.Message != nil:
-		return b.dispatchMessage(u.Message, b.selectOperationKeyboard)
+		b.threadID = cmp.Or(b.threadID, u.Message.ThreadID)
+		return b.dispatchMessage(u.Message)
 	case u.CallbackQuery != nil:
+		b.threadID = cmp.Or(b.threadID, u.CallbackQuery.Message.ThreadID)
 		return b.handleKeyboardResponse(u.CallbackQuery.Data)
 	default:
 		mut := toJson(u)
@@ -70,11 +74,11 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 }
 
 func (b *bot) sendMarkdown(msg string) {
-	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown}))
+	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown, MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) sendPlain(msg string) {
-	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{}))
+	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {

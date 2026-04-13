@@ -4,7 +4,6 @@ import (
 	"iter"
 	"time"
 
-	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/fun/irt"
 )
@@ -13,8 +12,6 @@ func ErrWorker(err error) fnx.Worker { return fnx.MakeWorker(func() error { retu
 
 func YearSelectorRange(earliest int) iter.Seq[int] {
 	currentYear := time.Now().Year()
-
-	erc.InvariantOk(earliest < 0 || earliest > currentYear, "year range must be greater than 0 and less than the current year:", earliest)
 
 	return irt.Chain(
 		irt.Args(

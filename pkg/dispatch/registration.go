@@ -17,11 +17,19 @@ type aliasMap struct {
 
 var aliases aliasMap
 
-func init()                                       { aliases.addCommands(); aliases.addAlaises(); aliases.addFallback() }
+func init() {
+	aliases.addCommands()
+	aliases.addAlaises()
+	aliases.addFallback()
+	aliases.andWithoutSpaces()
+}
 func getAliases(mao MinutesAppOperation) []string { return mao.Aliases() }
 func (am *aliasMap) addFallback()                 { am.Store("", MinutesAppOpInvalid) }
 func (am *aliasMap) addAlaises()                  { am.Extend(infra.ReverseMapping(AllMinutesAppAliases())) }
 func (am *aliasMap) addCommands()                 { am.Extend(AllMinutesAppCommands()) }
+func (am *aliasMap) andWithoutSpaces() {
+	am.Extend(irt.Convert2(infra.ReverseMapping(AllMinutesAppAliases()), removeSpaceFromAliases))
+}
 
 type MinutesAppRegistration struct {
 	ID          MinutesAppOperation

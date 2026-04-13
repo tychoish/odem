@@ -12,6 +12,8 @@ import (
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/dispatch"
+	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/selector"
 )
 
 func (b *bot) discoverNext() stateFn {
@@ -77,6 +79,60 @@ func (b *bot) captureInputAsYears(value string) stateFn {
 	return b.discoverNext()
 }
 
+func (b *bot) searchParams(input string) *infra.SearchParams {
+	return (&infra.SearchParams{}).With(input).WithoutInteractive().UseFirstResult()
+}
+
+func (b *bot) captureLeader(value string) stateFn {
+	leader, err := selector.Leader(b.ctx, b.db, b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find leader for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureLeader, b.discoverNext)
+	}
+	b.state.params.Name = leader.Name
+	return b.discoverNext()
+}
+
+func (b *bot) captureSong(value string) stateFn {
+	song, err := selector.Song(b.ctx, b.db, b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find song for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureSong, b.discoverNext)
+	}
+	b.state.params.Name = song.PageNum
+	return b.discoverNext()
+}
+
+func (b *bot) captureSinging(value string) stateFn {
+	singing, err := selector.Singing(b.ctx, b.db, b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find singing for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureSinging, b.discoverNext)
+	}
+	b.state.params.Name = singing.SingingName
+	return b.discoverNext()
+}
+
+func (b *bot) captureKey(value string) stateFn {
+	key, err := selector.Key(b.ctx, b.db, b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find key for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureKey, b.discoverNext)
+	}
+	b.state.params.Name = key
+	return b.discoverNext()
+}
+
+func (b *bot) captureYears(value string) stateFn {
+	years, err := selector.Years(b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find years for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureYears, b.discoverNext)
+	}
+	b.state.params.Years = years
+	return b.discoverNext()
+}
+
 func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 	grip.Debug(grip.KV("type", "callback").KV("body", kbdValue))
 	b.state.op = stw.Ptr(dispatch.NewMinutesAppOperation(kbdValue))
@@ -95,7 +151,7 @@ func (b *bot) renderResults() stateFn {
 
 	for msg, err := range b.state.entry.Messenger(b.ctx, b.db, b.state.params) {
 		if err != nil {
-			grip.Alert(grip.KV("op", b.state.entry.Command).KV("outcome", "overflow").KV("len", msg.Len()).KV("query", b.state.params))
+			grip.Alert(grip.KV("op", b.state.entry.Command).KV("outcome", "overflow").KV("query", b.state.params))
 			b.sendPlain(fmt.Sprintf("❗got error producing results: %v", err))
 			break
 		} else {

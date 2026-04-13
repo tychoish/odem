@@ -27,14 +27,15 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 	case dispatch.MinutesAppQueryTypeLocality:
 		return b.selectLocality()
 	case dispatch.MinutesAppQueryTypeInvalid:
-		b.sendMarkdown(fmt.Sprintf("invalid option: `%s`: %s", requirement, requirement.Validate()))
-		return b.selectOperationKeyboard()
+		b.sendMarkdown(fmt.Sprintf("❗invalid option: `%s`: %s. Let's start over! ⏪", requirement, requirement.Validate()))
+		return b.resetState()
 	case dispatch.MinutesAppQueryTypeUnknown:
-		b.sendMarkdown("unknown operation")
-		return b.selectOperationKeyboard()
+		b.sendPlain("❗Sorry, something went wrong: we need to start over... 😞")
+		b.setOperationSelectorButtons()
+		return b.resetState()
 	default:
-		b.sendMarkdown(fmt.Sprintf("invalid option: `%s`: %s", requirement, requirement.Validate()))
-		return b.selectOperationKeyboard()
+		b.sendMarkdown(fmt.Sprintf("Sorry, got an invalid option(`%s`: %s) and need to start over 😥", requirement, requirement.Validate()))
+		return b.resetState()
 	}
 }
 
@@ -49,6 +50,7 @@ func (b *bot) selectOperationKeyboard() stateFn {
 	)
 
 	b.handleSendMessage(b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
+		MessageThreadID: int64(b.threadID),
 		ReplyMarkup: etron.InlineKeyboardMarkup{
 			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
 		},
@@ -75,28 +77,28 @@ func (b *bot) selectSinger() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeLeader)
 	grip.Debug("selecting singer")
 	b.sendMarkdown("which singer are you looking for?")
-	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
+	return b.wrapInputAsHandler(b.captureLeader, b.discoverNext)
 }
 
 func (b *bot) selectSong() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeSong)
 	grip.Debug("selecting song")
-	b.sendMarkdown("which song (page number) are you looking for?")
-	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
+	b.sendMarkdown("which song (title or page number) are you looking for?")
+	return b.wrapInputAsHandler(b.captureSong, b.discoverNext)
 }
 
 func (b *bot) selectSinging() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeSinging)
 	grip.Debug("selecting singing")
-	b.sendMarkdown("which singing are you looking for (the match on this is dodgy/rough, apologies)?")
-	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
+	b.sendMarkdown("which singing are you looking for?")
+	return b.wrapInputAsHandler(b.captureSinging, b.discoverNext)
 }
 
 func (b *bot) selectYear() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeYear)
 	grip.Debug("selecting year")
 	b.sendMarkdown("which year would you like to filter by?")
-	return b.wrapInputAsHandler(b.captureInputAsYears, b.discoverNext)
+	return b.wrapInputAsHandler(b.captureYears, b.discoverNext)
 }
 
 func (b *bot) selectLocality() stateFn {
@@ -109,6 +111,6 @@ func (b *bot) selectLocality() stateFn {
 func (b *bot) selectKey() stateFn {
 	defer b.state.has.Add(dispatch.MinutesAppQueryTypeKey)
 	grip.Debug("selecting key")
-	b.sendMarkdown("what key would you like to filter by (accidentals are hard)?")
-	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
+	b.sendMarkdown("what key would you like to filter by?")
+	return b.wrapInputAsHandler(b.captureKey, b.discoverNext)
 }

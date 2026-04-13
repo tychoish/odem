@@ -63,6 +63,10 @@ func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(infra.DBOperationSpec(mao.FuzzyDispatcher().Op))
 }
 
+func removeSpaceFromAliases(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
+	return strings.ReplaceAll(k, " ", ""), v
+}
+
 func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	i := mao.GetInfo()
 	return cmdr.MakeCommander().SetName(i.Key).SetUsage(i.Value).With(ReportOperationSpec(mao.ReportDispatcher()))
