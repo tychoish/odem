@@ -144,6 +144,6 @@ func odemTempDBMtime() time.Time {
 	return stat.ModTime()
 }
 
-func getDBpath() string             { return filepath.Join(os.TempDir(), "minutes.db") }
+func getDBpath() string { return dbpath }
 func pwd() string                   { v, _ := os.Getwd(); return v }
 func lookInPath(name string) string { v, _ := exec.LookPath(name); return v }

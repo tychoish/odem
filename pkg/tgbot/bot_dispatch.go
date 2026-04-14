@@ -57,7 +57,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 			KV("discription", b.queryState.entry.Description).
 			KV("selection", b.queryState.params.Name).
 			KV("limit", strconv.Itoa(b.queryState.params.Limit)).
-			KV("years", fmt.Sprintf("(if relevant) %s", b.queryState.params.Years))
+			KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years))
 		defer mb.Release()
 
 		b.sendMarkdown(mb.String())

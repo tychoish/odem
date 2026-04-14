@@ -3,10 +3,12 @@ package db
 import (
 	"context"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/tychoish/fun/srv"
+	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/models"
 	_ "modernc.org/sqlite"
 )
@@ -18,9 +20,21 @@ const (
 	testSinging      = "Liberty Church"
 )
 
+var (
+	dbInitOnce sync.Once
+	dbInitErr  error
+)
+
 func testConn(t *testing.T) (*Connection, context.Context) {
 	t.Helper()
+	dbInitOnce.Do(func() {
+		dbInitErr = Init(context.Background())
+	})
+	if dbInitErr != nil {
+		t.Fatalf("Init: %v", dbInitErr)
+	}
 	ctx, cancel := context.WithCancel(srv.WithCleanup(context.Background()))
+	ctx = odem.WithConfiguration(ctx, &odem.Configuration{})
 	t.Cleanup(cancel)
 	conn, err := Connect(ctx)
 	if err != nil {

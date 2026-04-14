@@ -34,6 +34,8 @@ func flush(md *mdwn.Builder, yield func(*mdwn.Builder, error) bool) {
 			return
 		}
 		yield(nil, ers.New("oversize abort builder"))
+	case md.Len() <= 4:
+		yield(nil, ers.New("empty results"))
 	default:
 		yield(md, nil)
 	}
