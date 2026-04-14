@@ -320,7 +320,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:    reportui.TopLeader,
 			Fuzz:        fzfui.TopLeadersByLeadsAction,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
-			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 			Messenger:   msgui.TopLeaders,
 		}
 	case MinutesAppOpLeaderFavoriteKey:
@@ -385,7 +385,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "top20-leaders",
-			Description: "leaders ordered by number of top-20 leads",
+			Description: "leaders ordered by number of songs for which they are the top-20 leaders",
 			Aliases: []string{
 				"top-twenty",
 				"top20-leaders", "top20", "top-20-leaders", "top-20",
@@ -393,7 +393,6 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Reporter:  reportui.LeadersByTop20Leads,
 			Fuzz:      fzfui.LeadersByTop20LeadsAction,
 			MCP:       mcpsrv.NewTool(mcpsrv.LeadersByTop20Leads).Register,
-			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 			Messenger: msgui.Top20Leaders,
 		}
 	case MinutesAppOpLeaderSingingsPerYear:

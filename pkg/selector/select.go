@@ -144,8 +144,13 @@ func Concordance(ctx context.Context, conn *db.Connection, sp *infra.SearchParam
 		}
 	})
 
-	fs := infra.NewFuzzySearch[string](irt.Unique(lyrics))
-	fs.Prompt("concordance")
-
-	return fs.FindOne()
+	res, err := infra.FuzzySearchWithFallback(
+		irt.Collect(irt.Unique(lyrics)),
+		noop,
+		sp.WithPrompt("concordance"),
+		noop)
+	if err != nil {
+		return "", err
+	}
+	return erc.MustOk(irt.Initial(res)), nil
 }

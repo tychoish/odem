@@ -26,6 +26,8 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 		return b.selectKey()
 	case dispatch.MinutesAppQueryTypeLocality:
 		return b.selectLocality()
+	case dispatch.MinutesAppQueryTypeWord:
+		return b.selectWord()
 	case dispatch.MinutesAppQueryTypeInvalid:
 		b.sendMarkdown(fmt.Sprintf("❗invalid option: `%s`: %s. Let's start over! ⏪", requirement, requirement.Validate()))
 		return b.resetState()
@@ -127,4 +129,11 @@ func (b *bot) selectKey() stateFn {
 	grip.Debug("selecting key")
 	b.sendMarkdown("what key would you like to filter by?")
 	return b.wrapInputAsHandler(b.captureKey, b.discoverNext)
+}
+
+func (b *bot) selectWord() stateFn {
+	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeWord)
+	grip.Debug("selecting word")
+	b.sendMarkdown("what word would you like to find?")
+	return b.wrapInputAsHandler(b.captureWord, b.discoverNext)
 }

@@ -123,6 +123,16 @@ func (b *bot) captureKey(value string) stateFn {
 	return b.discoverNext()
 }
 
+func (b *bot) captureWord(value string) stateFn {
+	word, err := selector.Concordance(b.ctx, b.db, b.searchParams(value))
+	if err != nil {
+		b.sendMarkdown(fmt.Sprintf("couldn't find a word for `%s`: please try again", value))
+		return b.wrapInputAsHandler(b.captureWord, b.discoverNext)
+	}
+	b.queryState.params.Name = word
+	return b.discoverNext()
+}
+
 func (b *bot) captureYears(value string) stateFn {
 	years, err := selector.Years(b.searchParams(value))
 	if err != nil {
