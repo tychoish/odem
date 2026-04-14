@@ -116,15 +116,7 @@ func Years(sp *infra.SearchParams) ([]int, error) {
 	return irt.Collect(years), nil
 }
 
-// concordanceLine is a single lyric line with its display context.
-type concordanceLine struct {
-	display string
-	line    string
-}
-
-// Concordance presents all song lyric lines via fuzzy search and returns the
-// selected line text, which can then be used as a word/phrase to search for
-// in conn.SongsByWord.
+// Concordance provides a selector for a unique list of allwords (less some amount of stemming.)
 func Concordance(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (string, error) {
 	songTexts, err := erc.FromIteratorAll(conn.AllSongTexts(ctx))
 	if err != nil {
@@ -132,22 +124,27 @@ func Concordance(ctx context.Context, conn *db.Connection, sp *infra.SearchParam
 	}
 	lyrics := irt.Unique(irt.Chain(irt.Convert(irt.Slice(songTexts), func(sl models.SongLyrics) iter.Seq[string] { return strings.SplitSeq(sl.Text, "\n") })))
 	lyrics = irt.Unique(irt.Chain(irt.Convert(lyrics, func(in string) iter.Seq[string] { return strings.SplitSeq(in, " ") })))
-	lyrics = irt.Convert(lyrics, func(in string) string { return strings.Trim(in, " \t\n.,;:") })
-	lyrics = irt.Convert(lyrics, strings.ToLower)
+	lyrics = irt.Convert(lyrics, func(in string) string { return strings.Trim(in, " \t\n'\",‘’“”!?.;:[]{}/\\") })
+	lyrics = irt.Convert(irt.RemoveZeros(lyrics), strings.ToLower)
 
 	lyrics = irt.Keep(lyrics, func(in string) bool {
 		switch in {
-		case "a", "to", "the", "has", "is", "then", "there", "i", "of", "an", "or", "it", "my", "on":
+		case "a", "s":
 			return false
-		case ";", ",", ".", "-":
+		case "as", "or", "it", "by", "my", "on", "is", "in", "of", "i", "an":
+			return false
+		case "the", "has", "you", "for":
+			return false
+		case "from", "then", "there", "mine":
+			return false
+		case ";", ",", ".", "-", "?", "!":
 			return false
 		default:
 			return true
 		}
 	})
-	lyrics = irt.RemoveZeros(lyrics)
 
-	fs := infra.NewFuzzySearch[string](lyrics)
+	fs := infra.NewFuzzySearch[string](irt.Unique(lyrics))
 	fs.Prompt("concordance")
 
 	return fs.FindOne()
