@@ -17,6 +17,7 @@ const (
 	MinutesAppQueryTypeYear
 	MinutesAppQueryTypeKey
 	MinutesAppQueryTypeOperation
+	MinutesAppQueryTypeWord
 	MinutesAppQueryTypeInvalid
 )
 
@@ -52,6 +53,8 @@ func (maqt MinutesAppQueryType) String() string {
 		return "key"
 	case MinutesAppQueryTypeOperation:
 		return "operation"
+	case MinutesAppQueryTypeWord:
+		return "word"
 	case MinutesAppQueryTypeInvalid:
 		return "invalid"
 	default:

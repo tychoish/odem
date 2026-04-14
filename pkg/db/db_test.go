@@ -29,6 +29,58 @@ func testConn(t *testing.T) (*Connection, context.Context) {
 	return conn, ctx
 }
 
+func TestSongsByWord(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for result, err := range conn.SongsByWord(ctx, "canaan", 10) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.PageNum == "" {
+			t.Error("SongsByWord: empty page_num")
+		}
+		if result.MatchLine == "" {
+			t.Errorf("SongsByWord: no matching line found for %q in page %s", "canaan", result.PageNum)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("SongsByWord(\"canaan\"): expected at least one result")
+	}
+}
+
+func TestSongLyrics(t *testing.T) {
+	conn, ctx := testConn(t)
+	sl, err := conn.SongLyrics(ctx, testSong)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sl.PageNum == "" {
+		t.Errorf("SongLyrics(%q): empty page_num", testSong)
+	}
+	if sl.Text == "" {
+		t.Errorf("SongLyrics(%q): empty text/lyrics", testSong)
+	}
+}
+
+func TestAllSongTexts(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for row, err := range conn.AllSongTexts(ctx) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.PageNum == "" {
+			t.Error("AllSongTexts: empty page_num")
+		}
+		count++
+		break // unbounded query — only check first result
+	}
+	if count == 0 {
+		t.Error("AllSongTexts: expected at least one result")
+	}
+}
+
 func TestAllSongDetails(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0

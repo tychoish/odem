@@ -546,3 +546,40 @@ func (r LeaderSingingsInYear) LineItem() *mdwn.Builder {
 	mb.PushInt(r.Singings)
 	return mb.Text(" singing(s)")
 }
+
+// SongWordMatch is one result row from a lyrics word/phrase search.
+type SongWordMatch struct {
+	PageNum   string `db:"page_num"`
+	SongTitle string `db:"song_title"`
+	MatchLine string `db:"match_line"`
+}
+
+func (SongWordMatch) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{
+		{Name: "Page"},
+		{Name: "Title"},
+		{Name: "Matching Line"},
+	}
+}
+
+func (r SongWordMatch) RowValues() []string {
+	return []string{r.PageNum, r.SongTitle, r.MatchLine}
+}
+
+// 📃 **82t** *Bound for Canaan*: matching line
+func (r SongWordMatch) LineItem() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(len(r.PageNum) + len(r.SongTitle) + len(r.MatchLine) + 16)
+	mb.PushString("📃 ").Preformatted(r.PageNum).Text(" ").Italic(r.SongTitle).Text(": ").Text(r.MatchLine)
+	return mb
+}
+
+// SongLyrics holds all metadata and the full text for one Denson-book entry.
+type SongLyrics struct {
+	PageNum          string `db:"page_num"`
+	SongTitle        string `db:"song_title"`
+	SongMeter        string `db:"song_meter"`
+	MusicAttribution string `db:"music_attribution"`
+	WordsAttribution string `db:"words_attribution"`
+	Keys             string `db:"keys"`
+	Text             string `db:"text"`
+}

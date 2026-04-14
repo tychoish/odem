@@ -59,6 +59,72 @@ func MostLed(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	return ec.Resolve()
 }
 
+func SongsByWord(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	if p.Name == "" {
+		return ers.New("a search word or phrase is required")
+	}
+
+	results, err := erc.FromIteratorUntil(conn.SongsByWord(ctx, p.Name, cmp.Or(p.Limit, 50)))
+	if err != nil {
+		return err
+	}
+	if len(results) == 0 {
+		return erc.Errorf("no songs found containing %q", p.Name)
+	}
+
+	w, err := p.getWriter("songs-containing", p.Name)
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(err, w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Songs Containing: %q", p.Name))
+	models.WriteTable(&mb, irt.Slice(results))
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func SongLyrics(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	sg, err := selector.Song(ctx, conn, p.Search())
+	if err != nil {
+		return err
+	}
+
+	sl, err := conn.SongLyrics(ctx, stw.DerefZ(sg).PageNum)
+	if err != nil {
+		return err
+	}
+	if sl.PageNum == "" {
+		return ers.ErrNotFound
+	}
+
+	wr, err := p.getWriter(sl.PageNum, "lyrics")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(err, wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H1("Lyrics:", sl.PageNum, " (", sl.SongTitle, ") ")
+	mb.KV("Page", sl.PageNum)
+	mb.KV("Title", sl.SongTitle)
+	mb.KV("Music", sl.MusicAttribution)
+	mb.KV("Words", sl.WordsAttribution)
+	mb.KV("Meter", sl.SongMeter)
+	mb.KV("Key", sl.Keys)
+	mb.Line()
+	mb.Paragraph(sl.Text)
+
+	ec.Push(flush(wr, &mb))
+	return ec.Resolve()
+}
+
 func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	sg, err := selector.Song(ctx, conn, p.Search())
 	if err != nil {

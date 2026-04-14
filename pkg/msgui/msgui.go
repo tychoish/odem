@@ -38,6 +38,60 @@ func MostLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 	}
 }
 
+func SongsByWord(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		results, err := erc.FromIteratorUntil(conn.SongsByWord(ctx, p.Name, cmp.Or(p.Limit, 20)))
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		if len(results) == 0 {
+			yield(nil, fmt.Errorf("no songs found containing %q", p.Name))
+			return
+		}
+
+		md := mdwn.MakeBuilder(len(p.Name) + 32)
+		md.Concat("Songs containing **", p.Name, "**:")
+		if !yield(md, nil) {
+			return
+		}
+
+		var ec erc.Collector
+		for md, err := range renderLineItems(irt.Slice(results)) {
+			if !yield(md, err) {
+				return
+			}
+		}
+		if !ec.Ok() {
+			yield(nil, ec.Resolve())
+		}
+	}
+}
+
+func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		sl, err := conn.SongLyrics(ctx, p.Name)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+
+		header := mdwn.MakeBuilder(256)
+		header.Bold(sl.PageNum, " — ", sl.SongTitle)
+		header.KV("Music", sl.MusicAttribution)
+		header.KV("Words", sl.WordsAttribution)
+		header.KV("Meter", sl.SongMeter)
+		header.KV("Key", sl.Keys)
+		if !yield(header, nil) {
+			return
+		}
+
+		body := mdwn.MakeBuilder(len(sl.Text) + 16)
+		body.Paragraph(sl.Text)
+		yield(body, nil)
+	}
+}
+
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
 		md := mdwn.MakeBuilder(len(p.Name) + 20)

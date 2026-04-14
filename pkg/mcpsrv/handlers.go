@@ -110,6 +110,33 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) (
 	}, nil
 }
 
+func SongsByWord(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.SongWordMatch], error) {
+	results, err := erc.FromIteratorUntil(conn.SongsByWord(ctx, p.Name, cmp.Or(p.Limit, 50)))
+	if err != nil {
+		return nil, err
+	}
+	return &ContextualSequence[string, models.SongWordMatch]{
+		Context: p.Name,
+		Results: results,
+	}, nil
+}
+
+func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SongLyrics, string], error) {
+	sg, err := selector.Song(ctx, conn, searchParams(p))
+	if err != nil {
+		return nil, err
+	}
+
+	sl, err := conn.SongLyrics(ctx, sg.PageNum)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[models.SongLyrics, string]{
+		Context: sl,
+	}, nil
+}
+
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SongDetail, models.LeaderOfSongInfo], error) {
 	sg, err := selector.Song(ctx, conn, searchParams(p))
 	if err != nil {

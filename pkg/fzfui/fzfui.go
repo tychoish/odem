@@ -29,6 +29,60 @@ func LeaderAction(ctx context.Context, conn *db.Connection, arg string) error {
 	return renderTable(models.WriteTable, conn.MostLedSongs(ctx, singer.Name, 32))
 }
 
+func SongsByWordAction(ctx context.Context, conn *db.Connection, word string) error {
+	if word == "" {
+		var err error
+		word, err = selector.Concordance(ctx, conn, new(infra.SearchParams).WithPrompt("concordance"))
+		if err != nil {
+			return err
+		}
+	}
+	grip.Info(grip.MPrintf("songs containing %q", word))
+	return renderTable(models.WriteTable, conn.SongsByWord(ctx, word, 50))
+}
+
+func SongLyricsAction(ctx context.Context, conn *db.Connection, song string) error {
+	var s *models.SongDetail
+	var ec erc.Collector
+
+	if song != "" {
+		sg, err := conn.GetSong(ctx, song)
+		ec.Push(err)
+		s = &sg
+	}
+
+	if s == nil {
+		sg, err := infra.NewFuzzySearch[models.SongDetail](
+			irt.Collect(erc.HandleAll(conn.AllSongDetails(ctx), ec.Push)),
+		).WithToString(func(in models.SongDetail) string {
+			return fmt.Sprintf("pg %s -- %s", in.PageNum, in.SongTitle)
+		}).Prompt("songs").FindOne()
+
+		ec.Push(err)
+		s = &sg
+	}
+
+	ec.When(s == nil, "no matching song found")
+	if !ec.Ok() {
+		return ec.Resolve()
+	}
+
+	sl, err := conn.SongLyrics(ctx, s.PageNum)
+	if ec.PushOk(err) {
+		var mb mdwn.Builder
+		mb.H1(sl.PageNum, " — ", sl.SongTitle)
+		mb.KV("Page", sl.PageNum)
+		mb.KV("Music", sl.MusicAttribution)
+		mb.KV("Words", sl.WordsAttribution)
+		mb.KV("Meter", sl.SongMeter)
+		mb.KV("Key", sl.Keys)
+		mb.Line()
+		mb.Paragraph(sl.Text)
+		ec.Push(flush(os.Stdout, &mb))
+	}
+	return ec.Resolve()
+}
+
 func SongAction(ctx context.Context, conn *db.Connection, song string) error {
 	var s *models.SongDetail
 	var ec erc.Collector

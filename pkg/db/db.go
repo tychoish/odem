@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"iter"
+	"strings"
 	"time"
 
 	"github.com/tychoish/dbx"
@@ -43,6 +44,72 @@ func Connect(ctx context.Context) (*Connection, error) {
 func (conn *Connection) AllSongDetails(ctx context.Context) iter.Seq2[models.SongDetail, error] {
 	const query = `SELECT * FROM song_details;`
 	return dbx.Query[models.SongDetail](ctx, conn.db.QueryContext, query)
+}
+
+func (conn *Connection) SongLyrics(ctx context.Context, pageNum string) (models.SongLyrics, error) {
+	const query = `
+SELECT sd.page_num, sd.song_title, sd.song_meter, sd.music_attribution, sd.words_attribution, sd.keys,
+       COALESCE(bsj.text, '') AS text
+FROM song_details sd
+JOIN book_song_joins bsj ON bsj.song_id = sd.song_id AND bsj.book_id = 2
+WHERE sd.page_num = ?
+LIMIT 1;`
+	return dbx.QueryRow[models.SongLyrics](ctx, conn.db.QueryContext, query, pageNum)
+}
+
+type songTextRow struct {
+	PageNum   string `db:"page_num"`
+	SongTitle string `db:"song_title"`
+	Text      string `db:"text"`
+}
+
+func songsByWordMatchLine(text, word string) string {
+	lower := strings.ToLower(word)
+	for _, line := range strings.Split(text, "\n") {
+		if strings.Contains(strings.ToLower(line), lower) {
+			return strings.TrimSpace(line)
+		}
+	}
+	return ""
+}
+
+func (conn *Connection) SongsByWord(ctx context.Context, word string, limit int) iter.Seq2[models.SongWordMatch, error] {
+	const query = `
+SELECT sd.page_num, sd.song_title, COALESCE(bsj.text, '') AS text
+FROM song_details sd
+JOIN book_song_joins bsj ON bsj.song_id = sd.song_id AND bsj.book_id = 2
+WHERE bsj.text LIKE '%' || ? || '%'
+LIMIT ?;`
+	cur, err := conn.db.QueryContext(ctx, query, word, cmp.Or(limit, 50))
+	if err != nil {
+		return irt.Two(models.SongWordMatch{}, err)
+	}
+	return irt.Convert2(
+		dbx.Cursor[songTextRow](cur),
+		func(row songTextRow, err error) (models.SongWordMatch, error) {
+			if err != nil {
+				return models.SongWordMatch{}, err
+			}
+			return models.SongWordMatch{
+				PageNum:   row.PageNum,
+				SongTitle: row.SongTitle,
+				MatchLine: songsByWordMatchLine(row.Text, word),
+			}, nil
+		},
+	)
+}
+
+func (conn *Connection) AllSongTexts(ctx context.Context) iter.Seq2[models.SongLyrics, error] {
+	const query = `
+SELECT sd.page_num, sd.song_title, COALESCE(bsj.text, '') AS text
+FROM song_details sd
+JOIN book_song_joins bsj ON bsj.song_id = sd.song_id AND bsj.book_id = 2
+ORDER BY sd.page_num`
+	cur, err := conn.db.QueryContext(ctx, query)
+	if err != nil {
+		return irt.Two(models.SongLyrics{}, err)
+	}
+	return dbx.Cursor[models.SongLyrics](cur)
 }
 
 func (conn *Connection) AllLeaderProfiles(ctx context.Context) iter.Seq2[models.LeaderProfile, error] {

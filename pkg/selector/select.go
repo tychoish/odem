@@ -2,7 +2,9 @@ package selector
 
 import (
 	"context"
+	"iter"
 	"strconv"
+	"strings"
 
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
@@ -112,4 +114,41 @@ func Years(sp *infra.SearchParams) ([]int, error) {
 		return nil, err
 	}
 	return irt.Collect(years), nil
+}
+
+// concordanceLine is a single lyric line with its display context.
+type concordanceLine struct {
+	display string
+	line    string
+}
+
+// Concordance presents all song lyric lines via fuzzy search and returns the
+// selected line text, which can then be used as a word/phrase to search for
+// in conn.SongsByWord.
+func Concordance(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (string, error) {
+	songTexts, err := erc.FromIteratorAll(conn.AllSongTexts(ctx))
+	if err != nil {
+		return "", err
+	}
+	lyrics := irt.Unique(irt.Chain(irt.Convert(irt.Slice(songTexts), func(sl models.SongLyrics) iter.Seq[string] { return strings.SplitSeq(sl.Text, "\n") })))
+	lyrics = irt.Unique(irt.Chain(irt.Convert(lyrics, func(in string) iter.Seq[string] { return strings.SplitSeq(in, " ") })))
+	lyrics = irt.Convert(lyrics, func(in string) string { return strings.Trim(in, " \t\n.,;:") })
+	lyrics = irt.Convert(lyrics, strings.ToLower)
+
+	lyrics = irt.Keep(lyrics, func(in string) bool {
+		switch in {
+		case "a", "to", "the", "has", "is", "then", "there", "i", "of", "an", "or", "it", "my", "on":
+			return false
+		case ";", ",", ".", "-":
+			return false
+		default:
+			return true
+		}
+	})
+	lyrics = irt.RemoveZeros(lyrics)
+
+	fs := infra.NewFuzzySearch[string](lyrics)
+	fs.Prompt("concordance")
+
+	return fs.FindOne()
 }

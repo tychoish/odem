@@ -44,6 +44,8 @@ const (
 	MinutesAppOpTopLeadersByKey
 	MinutesAppOpLeaderDebutes
 	MinutesAppOpLeaderSingingsPerYear
+	MinutesAppOpSongLyrics
+	MinutesAppOpSongsByWord
 	MinutesAppOpInvalid
 	MinutesAppOpRetry
 	MinutesAppOpExit = 181
@@ -420,6 +422,30 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			MCP:       mcpsrv.NewTool(mcpsrv.LeadersByKey).Register,
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeKey)),
 			Messenger: msgui.LeadersByKey,
+		}
+	case MinutesAppOpSongsByWord:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "songs-by-word",
+			Description: "search song lyrics for a word or phrase; returns page number, title, and the matching line.",
+			Aliases:     []string{"word", "find-word", "lyrics-search", "search-lyrics", "by-word", "contains"},
+			Reporter:    reportui.SongsByWord,
+			Fuzz:        fzfui.SongsByWordAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.SongsByWord).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeWord)),
+			Messenger:   msgui.SongsByWord,
+		}
+	case MinutesAppOpSongLyrics:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "lyrics",
+			Description: "render the full text/lyrics of a song with its page number, title, music author, words author, meter, and key.",
+			Aliases:     []string{"lyrics", "song-lyrics", "tune-lyrics", "words", "text"},
+			Reporter:    reportui.SongLyrics,
+			Fuzz:        fzfui.SongLyricsAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.SongLyrics).Register,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeSong)),
+			Messenger:   msgui.SongLyrics,
 		}
 	case MinutesAppOpPopularSongsByKey:
 		return MinutesAppRegistration{
