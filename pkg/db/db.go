@@ -75,7 +75,10 @@ func songsByWordMatchLine(text, word string) string {
 
 func (conn *Connection) SongsByWord(ctx context.Context, word string, limit int) iter.Seq2[models.SongWordMatch, error] {
 	const query = `
-SELECT sd.page_num, sd.song_title, COALESCE(bsj.text, '') AS text
+SELECT
+       sd.page_num,
+       sd.song_title,
+       COALESCE(bsj.text, '') AS text
 FROM song_details sd
 JOIN book_song_joins bsj ON bsj.song_id = sd.song_id AND bsj.book_id = 2
 WHERE bsj.text LIKE '%' || ? || '%'
@@ -714,6 +717,25 @@ FROM leaders AS l
 LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
 LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
 WHERE inv.name IS NULL AND l.top20_count > 0
+ORDER BY count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, cmp.Or(limit, 40))
+}
+
+func (conn *Connection) Top20LeadersActiveInLastYear(ctx context.Context, limit int) iter.Seq2[models.LeaderSongRank, error] {
+	const query = `
+SELECT CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
+       l.top20_count AS count
+FROM leaders AS l
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL AND l.top20_count > 0
+AND l.id IN (
+    SELECT slj.leader_id
+    FROM song_leader_joins AS slj
+    JOIN minutes AS m ON slj.minutes_id = m.id
+    WHERE m.Year >= (SELECT MAX(Year) FROM minutes) - 1
+)
 ORDER BY count DESC
 LIMIT ?`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, cmp.Or(limit, 40))

@@ -541,6 +541,26 @@ func Top20Leaders(ctx context.Context, conn *db.Connection, p models.Params) ite
 	}
 }
 
+func Top20LeadersActiveInLastYear(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		md := mdwn.MakeBuilder(48)
+		md.Concat("Top-20 leaders active in the last year:")
+		if !yield(md, nil) {
+			return
+		}
+
+		var ec erc.Collector
+		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.Top20LeadersActiveInLastYear(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
+			if !yield(md, err) {
+				return
+			}
+		}
+		if !ec.Ok() {
+			yield(nil, ec.Resolve())
+		}
+	}
+}
+
 func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
 		md := mdwn.MakeBuilder(len(p.Name) + 30)

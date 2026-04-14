@@ -557,6 +557,23 @@ func TestLeadersByTop20Leads(t *testing.T) {
 	}
 }
 
+func TestTop20LeadersActiveInLastYear(t *testing.T) {
+	conn, ctx := testConn(t)
+	count := 0
+	for row, err := range conn.Top20LeadersActiveInLastYear(ctx, 20) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.NumLeads == "" || row.NumLeads == "0" {
+			t.Errorf("Top20LeadersActiveInLastYear: expected count > 0, got %q for %q", row.NumLeads, row.Leader)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Error("Top20LeadersActiveInLastYear: expected at least one result")
+	}
+}
+
 func TestLeaderSingingsPerYear(t *testing.T) {
 	conn, ctx := testConn(t)
 	count := 0

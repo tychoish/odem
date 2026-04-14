@@ -46,6 +46,7 @@ const (
 	MinutesAppOpLeaderSingingsPerYear
 	MinutesAppOpSongLyrics
 	MinutesAppOpSongsByWord
+	MinutesAppOpTop20LeadersActiveInLastYear
 	MinutesAppOpInvalid
 	MinutesAppOpRetry
 	MinutesAppOpExit = 181
@@ -385,7 +386,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 		return MinutesAppRegistration{
 			ID:          mao,
 			Command:     "top20-leaders",
-			Description: "leaders ordered by number of songs for which they are the top-20 leaders",
+			Description: "leaders ordered by number of songs for which they are the top-20 leads",
 			Aliases: []string{
 				"top-twenty",
 				"top20-leaders", "top20", "top-20-leaders", "top-20",
@@ -458,6 +459,21 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Fuzz:      fzfui.PopularSongsByKeyAction,
 			MCP:       mcpsrv.NewTool(mcpsrv.PopularSongsByKey).Register,
 			Messenger: msgui.PopularSongsByKey,
+		}
+	case MinutesAppOpTop20LeadersActiveInLastYear:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "top20-active",
+			Description: "leaders ordered by number of top-20 songs who have led at least once in the last year",
+			Aliases: []string{
+				"top20-active", "top-twenty-active", "top20-last-year", "active-top20",
+				"recent-top20", "top-20-active",
+			},
+			Reporter:  reportui.Top20LeadersActiveInLastYear,
+			Fuzz:      fzfui.Top20LeadersActiveInLastYearAction,
+			MCP:       mcpsrv.NewTool(mcpsrv.Top20LeadersActiveInLastYear).Register,
+			Messenger: msgui.Top20LeadersActiveInLastYear,
+			Requires:  &dt.Set[MinutesAppQueryType]{},
 		}
 	case MinutesAppOpExit:
 		return MinutesAppRegistration{

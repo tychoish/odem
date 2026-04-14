@@ -396,6 +396,18 @@ func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p models.Para
 	}, nil
 }
 
+// Top20LeadersActiveInLastYear returns leaders ordered by top-20 count, filtered to those active in the last year.
+func Top20LeadersActiveInLastYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
+	results, err := erc.FromIteratorUntil(conn.Top20LeadersActiveInLastYear(ctx, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderSongRank]{
+		Results: results,
+	}, nil
+}
+
 // LeadersByKey returns every key, and the top leader of songs in that key.
 func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
 	results, err := erc.FromIteratorUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 40)))

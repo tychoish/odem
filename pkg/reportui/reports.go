@@ -604,6 +604,28 @@ func LeadersByTop20Leads(ctx context.Context, conn *db.Connection, p Params) (er
 	return ec.Resolve()
 }
 
+func Top20LeadersActiveInLastYear(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "top20-leaders-last-year")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2("Top-20 Leaders Active in the Last Year")
+	models.WriteTable(&mb,
+		irt.Convert(
+			erc.HandleAll(conn.Top20LeadersActiveInLastYear(ctx, cmp.Or(p.Limit, 40)), ec.Push),
+			models.WrapLeaderSongRank("Top-20 Leads"),
+		),
+	)
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
 func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	singer, err := selector.Leader(ctx, conn, p.Search())
 	if err != nil {

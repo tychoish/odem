@@ -337,6 +337,11 @@ func LeadersByTop20LeadsAction(ctx context.Context, dbconn *db.Connection, _ str
 	return renderTable(writeLeaderCountTable, dbconn.LeadersByTop20Leads(ctx, 40))
 }
 
+func Top20LeadersActiveInLastYearAction(ctx context.Context, dbconn *db.Connection, _ string) error {
+	grip.Info("top-20 leaders who have led a song in the last year")
+	return renderTable(writeLeaderCountTable, dbconn.Top20LeadersActiveInLastYear(ctx, 40))
+}
+
 func LeaderSingingsPerYearAction(ctx context.Context, dbconn *db.Connection, input string) error {
 	singer, err := selector.Leader(ctx, dbconn, new(infra.SearchParams).With(input).WithPrompt("leader"))
 	if err != nil {
