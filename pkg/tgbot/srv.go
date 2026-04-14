@@ -3,6 +3,7 @@ package tgbot
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/grip"
@@ -56,8 +57,10 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 		conf:   srv.conf,
 		off:    &srv.off,
 	}
-
+	b.setLastUpdated(time.Now())
 	b.setOperationSelectorButtons()
+
 	grip.Info(grip.KV("op", "starting new bot tracking chat").KV("chatID", chatID).KV("count", srv.count.Add(1)))
+
 	return b
 }
