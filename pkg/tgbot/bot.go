@@ -30,21 +30,24 @@ type bot struct {
 	recv        atomic.Int64
 	sent        atomic.Int64
 	lastUpdated time.Time
-	state       struct {
+	queryState  struct {
 		has        *dt.Set[dispatch.MinutesAppQueryType]
 		entry      *dispatch.MinutesAppRegistration
 		op         *dispatch.MinutesAppOperation
 		inProgress bool
 		params     models.Params
 	}
+	state struct {
+		toDelete dt.List[int]
+	}
 }
 
 func (b *bot) resetState() stateFn {
-	b.state.entry = nil
-	b.state.op = nil
-	b.state.inProgress = false
-	b.state.has = &dt.Set[dispatch.MinutesAppQueryType]{}
-	b.state.params = models.Params{
+	b.queryState.entry = nil
+	b.queryState.op = nil
+	b.queryState.inProgress = false
+	b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
+	b.queryState.params = models.Params{
 		Limit: 10,
 		Years: []int{2025, 2026},
 	}

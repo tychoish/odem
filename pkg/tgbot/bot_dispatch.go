@@ -50,56 +50,56 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		b.sendPlain("restarting...")
 		return b.resetState()
 	case isOrContainsCmd(msg, "state", "status"):
-		if !b.state.inProgress {
+		if !b.queryState.inProgress {
 			b.sendPlain("Nothing in progress at the moment...")
 			return b.handleMessage
 		}
 
 		mb := mdwn.MakeBuilder(1024).
-			KV("operation", b.state.entry.Command).
-			KV("discription", b.state.entry.Description).
-			KV("selection", b.state.params.Name).
-			KV("limit", strconv.Itoa(b.state.params.Limit)).
-			KV("years", fmt.Sprintf("(if relevant) %s", b.state.params.Years))
+			KV("operation", b.queryState.entry.Command).
+			KV("discription", b.queryState.entry.Description).
+			KV("selection", b.queryState.params.Name).
+			KV("limit", strconv.Itoa(b.queryState.params.Limit)).
+			KV("years", fmt.Sprintf("(if relevant) %s", b.queryState.params.Years))
 		defer mb.Release()
 
 		b.sendMarkdown(mb.String())
 
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "limit reset"):
-		if !b.state.inProgress {
+		if !b.queryState.inProgress {
 			b.sendPlain("no operation in progress, can't set a limit right now, but select an option from the menu...")
 			return b.handleMessage
 		}
-		b.state.params.Limit = 20
+		b.queryState.params.Limit = 20
 		b.sendPlain(fmt.Sprintln("(re)setting the limit to 20..."))
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "limit"):
-		if !b.state.inProgress {
+		if !b.queryState.inProgress {
 			b.sendPlain("no operation in progress, can't set a limit right now, but select an option from the menu...")
 			return b.handleMessage
 		} else if n, ok := extractNumber(msg.Text); ok && n > 40 {
 			b.sendPlain("going to cap things at 40 right now...")
-			b.state.params.Limit = 40
+			b.queryState.params.Limit = 40
 		} else if !ok {
-			b.sendPlain(fmt.Sprintln("couldn't find a number in the message, going to leave the limit at, and continue here...", b.state.params.Limit))
+			b.sendPlain(fmt.Sprintln("couldn't find a number in the message, going to leave the limit at, and continue here...", b.queryState.params.Limit))
 		} else {
-			b.state.params.Limit = n
-			b.sendPlain(fmt.Sprintln("set the limt to", b.state.params.Limit))
+			b.queryState.params.Limit = n
+			b.sendPlain(fmt.Sprintln("set the limt to", b.queryState.params.Limit))
 		}
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "reset year"):
-		if !b.state.inProgress {
+		if !b.queryState.inProgress {
 			b.sendPlain("no operation in progress, so can't reset a limit right now, but select an option from the menu...")
 		}
-		b.state.params.Years = []int{0}
+		b.queryState.params.Years = []int{0}
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "help"):
 		b.sendPlain("Hi! I'm the minutes app, in chat form... Select an option from the menu!")
-		return b.selectOperationKeyboard()
+		return b.keyboardMinutesAppQueries()
 	case isOrContainsCmd(msg, "keyboard", "menu"):
-		return b.selectOperationKeyboard()
-	case !b.state.inProgress:
+		return b.keyboardMinutesAppQueries()
+	case !b.queryState.inProgress:
 		if tryTxt := dispatch.NewMinutesAppOperation(msg.Text); tryTxt.Ok() {
 			return b.handleKeyboardResponse(msg.Text)
 		}
