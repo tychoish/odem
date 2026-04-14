@@ -17,6 +17,7 @@ type Service struct {
 	db     *db.Connection
 	ctx    context.Context
 	off    atomic.Bool
+	count  atomic.Int64
 }
 
 func NewService(ctx context.Context, conf *odem.Configuration, conn *db.Connection) *Service {
@@ -55,7 +56,8 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 		conf:   srv.conf,
 		off:    &srv.off,
 	}
-	b.setOperationSelectorButtons()
 
+	b.setOperationSelectorButtons()
+	grip.Info(grip.KV("op", "starting new bot tracking chat").KV("chatID", chatID).KV("count", srv.count.Add(1)))
 	return b
 }
