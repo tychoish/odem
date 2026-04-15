@@ -3,12 +3,15 @@ package tgbot
 import (
 	"cmp"
 	"context"
+	"iter"
 	"sync/atomic"
 	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/dt"
+	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
@@ -72,28 +75,23 @@ func (b *bot) updateMetrics(u *etron.Update) {
 	switch {
 	case u.Message != nil:
 		b.threadID = cmp.Or(b.threadID, u.Message.ThreadID)
-		grip.Debug(grip.KV("op", "got message").
+		grip.Debug(b.grip("got message").
 			KV("from", u.Message.From.Username).
 			KV("recv", b.recv.Add(1)).
-			KV("chatID", b.chatID).
 			KV("since_last", btwn.String()).
 			KV("text", u.Message.Text))
 	case u.CallbackQuery != nil:
 		b.threadID = cmp.Or(b.threadID, u.CallbackQuery.Message.ThreadID)
-		grip.Debug(grip.KV("op", "got query callback").
+		grip.Debug(b.grip("got query callback").
 			KV("from", u.CallbackQuery.From.Username).
 			KV("recv", b.recv.Add(1)).
-			KV("chatID", b.chatID).
-			KV("thread", b.threadID).
 			KV("since_last", btwn.String()).
 			KV("data", u.CallbackQuery.Data))
 	default:
 		mut := toJson(u)
 		defer mut.Release()
-		grip.Debug(grip.KV("op", "recv unknown message").
+		grip.Debug(b.grip("recv unknown message").
 			KV("recv", b.recv.Add(1)).
-			KV("chatID", b.chatID).
-			KV("thread", b.threadID).
 			KV("since_last", btwn.String()).
 			KV("body", mut.String()))
 	}
@@ -113,25 +111,49 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 }
 
 func (b *bot) sendMarkdown(msg string) {
-	grip.Debug(grip.KV("op", "sending markdown message").
-		KV("chatID", b.chatID).
-		KV("threadID", b.threadID).
-		KV("outID", b.sent.Add(1)))
+	grip.Debug(b.grip("sending markdown message").KV("outID", b.sent.Add(1)))
 
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown, MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) sendPlain(msg string) {
-	grip.Debug(grip.KV("op", "sending plain message").
-		KV("chatID", b.chatID).
-		KV("threadID", b.threadID).
-		KV("outID", b.sent.Add(1)))
+	grip.Debug(b.grip("sending plain message").KV("outID", b.sent.Add(1)))
 
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {
 	grip.Error(err)
-	grip.Debug(message.When(b.conf.Telegram.Quiet, resp))
-	grip.Info(message.When(!b.conf.Telegram.Quiet, resp))
+	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level()).WithError(err).Extend(kvsFromMessage(resp.Result)))
+}
+
+func kvsFromMessage(m *etron.Message) iter.Seq2[string, any] {
+	if m == nil {
+		return irt.Zero2[string, any]()
+	}
+	list := &dt.List[irt.KV[string, any]]{}
+	if m.From != nil {
+		list.PushBack(irt.MakeKV("from.id", any(m.From.ID)))
+		list.PushBack(irt.MakeKV("from.username", any(m.From.Username)))
+	}
+	list.PushBack(irt.MakeKV("msg.id", any(m.ID)))
+	list.PushBack(irt.MakeKV("msg.text", any(m.Text)))
+	return irt.KVsplit(list.IteratorFront())
+}
+
+func (b *bot) grip(op string) *message.KV {
+	return grip.KV("op", op).KV("chatID", b.chatID).KV("threadID", b.threadID)
+}
+
+func (b *bot) gmr(op string, resp etron.APIResponseBase) *message.KV {
+	return b.grip(op).
+		WhenKV(!resp.Ok, "code", resp.ErrorCode).
+		WhenKV(resp.Description != "", "description", resp.Description)
+}
+
+func (b *bot) level() level.Priority {
+	if b.conf.Telegram.Quiet {
+		return level.Debug
+	}
+	return level.Info
 }

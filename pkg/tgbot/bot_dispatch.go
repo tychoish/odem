@@ -14,10 +14,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	defer func() {
 		if p := recover(); p != nil {
 			resp, err := b.Close()
-			grip.Error(err)
-			msg := grip.KV("code", p).KV("close", resp)
-			grip.Debug(grip.When(resp.Ok, msg))
-			grip.Warning(grip.When(!resp.Ok, msg))
+			grip.Log(b.level(), b.gmr("recover close", resp.Base()).WithError(err))
 
 			switch p {
 			case "exit", "abort", "quit":
@@ -29,7 +26,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		}
 	}()
 
-	grip.Info(grip.MPrintln("message", msg.Text))
+	grip.Info(b.grip("dispatch message").KV("msg.text", msg.Text))
 	switch {
 	case isOrContainsCmd(msg, "exit"):
 		b.sendPlain("ok, exiting!")
