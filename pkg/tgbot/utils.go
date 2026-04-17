@@ -18,7 +18,7 @@ func getBotCommands() iter.Seq[etron.BotCommand] {
 		irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
 		func(mao dispatch.MinutesAppOperation) etron.BotCommand {
 			reg := mao.Registry().Info()
-			return etron.BotCommand{Command: joinstr("/", reg.Key), Description: reg.Value}
+			return etron.BotCommand{Command: reg.Key, Description: reg.Value}
 		},
 	)
 }
