@@ -14,7 +14,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	defer func() {
 		if p := recover(); p != nil {
 			resp, err := b.Close()
-			grip.Log(b.level(), b.gmr("recover close", resp.Base()).WithError(err))
+			grip.Log(b.level(err), b.gmr("recover close", resp.Base()).WithError(err))
 
 			switch p {
 			case "exit", "abort", "quit":

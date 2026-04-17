@@ -71,6 +71,7 @@ func (b *bot) Update(update *etron.Update) {
 	}
 }
 
+func (b *bot) maxSelectionAttempts() int  { return cmp.Or(b.conf.Telegram.MaxSelectionAttempts, 3) }
 func (b *bot) setLastUpdated(t time.Time) { b.lastUpdated = t }
 func (b *bot) updateMetrics(u *etron.Update) {
 	btwn := time.Since(b.lastUpdated)
@@ -129,13 +130,11 @@ func (b *bot) sendPlain(msg string) {
 }
 
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {
-	grip.Error(err)
-	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level()).WithError(err).Extend(kvsFromMessage(resp.Result)))
+	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level(err)).WithError(err).Extend(kvsFromMessage(resp.Result)))
 }
 
 func (b *bot) handleAPIResponse(resp etron.APIResponseBase, err error) {
-	grip.Error(err)
-	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level()).WithError(err))
+	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level(err)).WithError(err))
 }
 
 func kvsFromMessage(m *etron.Message) iter.Seq2[string, any] {
@@ -162,9 +161,13 @@ func (b *bot) gmr(op string, resp etron.APIResponseBase) *message.KV {
 		WhenKV(resp.Description != "", "description", resp.Description)
 }
 
-func (b *bot) level() level.Priority {
-	if b.conf.Telegram.Quiet {
+func (b *bot) level(err error) level.Priority {
+	switch {
+	case err != nil:
+		return level.Error
+	case b.conf.Telegram.Quiet:
 		return level.Debug
+	default:
+		return level.Info
 	}
-	return level.Info
 }
