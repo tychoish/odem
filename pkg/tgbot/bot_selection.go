@@ -2,10 +2,7 @@ package tgbot
 
 import (
 	"fmt"
-	"slices"
 
-	etron "github.com/NicoNex/echotron/v3"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/dispatch"
 )
@@ -39,54 +36,6 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 		b.sendMarkdown(fmt.Sprintf("Sorry, got an invalid option(`%s`: %s) and need to start over 😥", requirement, requirement.Validate()))
 		return b.resetState()
 	}
-}
-
-func (b *bot) keyboardMinutesAppQueries() stateFn {
-	btn := irt.Collect(
-		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
-			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
-				reg := mao.Registry().Info()
-				return etron.InlineKeyboardButton{Text: reg.Key, CallbackData: reg.Key}
-			},
-		),
-	)
-
-	b.handleSendMessage(b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
-		MessageThreadID: int64(b.threadID),
-		ReplyMarkup: etron.InlineKeyboardMarkup{
-			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
-		},
-	}))
-
-	return b.wrapInputAsHandler(b.handleKeyboardResponse, b.keyboardMinutesAppQueries)
-}
-
-func (b *bot) keyboardHelpMenu() stateFn {
-	rsp, err := b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
-		MessageThreadID: int64(b.threadID),
-		ReplyMarkup: etron.InlineKeyboardMarkup{
-			InlineKeyboard: [][]etron.InlineKeyboardButton{
-				{},
-			},
-		},
-	})
-	grip.Info(b.grip("send keyboard menu").WithError(err).Extend(kvsFromMessage(rsp.Result)))
-	b.state.toDelete.PushBack(rsp.Result.ID)
-	return b.wrapInputAsHandler(b.handleKeyboardResponse, b.keyboardMinutesAppQueries)
-}
-
-func (b *bot) setOperationSelectorButtons() {
-	resp, err := b.SetMyCommands(&etron.CommandOptions{
-		LanguageCode: "en",
-		Scope: etron.BotCommandScope{
-			Type:   etron.BCSTDefault,
-			ChatID: b.chatID,
-			// UserID: 0,
-		},
-	}, irt.Collect(getBotCommands())...)
-
-	grip.Info(b.gmr("set bot selection menu", resp.Base()).
-		KV("result", resp.Result).WithError(err))
 }
 
 func (b *bot) selectSinger() stateFn {

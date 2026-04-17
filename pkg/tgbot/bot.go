@@ -41,7 +41,8 @@ type bot struct {
 		params     models.Params
 	}
 	state struct {
-		toDelete dt.List[int]
+		info             *etron.ChatFullInfo
+		trackingKeyboard atomic.Int64
 	}
 }
 
@@ -81,7 +82,6 @@ func (b *bot) updateMetrics(u *etron.Update) {
 			KV("since_last", btwn.String()).
 			KV("text", u.Message.Text))
 	case u.CallbackQuery != nil:
-		b.threadID = cmp.Or(b.threadID, u.CallbackQuery.Message.ThreadID)
 		grip.Debug(b.grip("got query callback").
 			KV("from", u.CallbackQuery.From.Username).
 			KV("recv", b.recv.Add(1)).
@@ -104,7 +104,11 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 		return b.dispatchMessage(u.Message)
 	case u.CallbackQuery != nil:
 		b.threadID = cmp.Or(b.threadID, u.CallbackQuery.Message.ThreadID)
-		return b.handleKeyboardResponse(u.CallbackQuery.Data)
+		if b.state.trackingKeyboard.Load() != 0 {
+			return b.handleKeyboardResponse(0)(u.CallbackQuery.Data)
+		}
+		b.sendPlain("Sorry, that didn't quite work, let's... try the shapes again")
+		fallthrough
 	default:
 		return b.handleMessage
 	}
@@ -125,6 +129,11 @@ func (b *bot) sendPlain(msg string) {
 func (b *bot) handleSendMessage(resp etron.APIResponseMessage, err error) {
 	grip.Error(err)
 	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level()).WithError(err).Extend(kvsFromMessage(resp.Result)))
+}
+
+func (b *bot) handleAPIResponse(resp etron.APIResponseBase, err error) {
+	grip.Error(err)
+	grip.Send(b.gmr("sent message response", resp.Base()).Level(b.level()).WithError(err))
 }
 
 func kvsFromMessage(m *etron.Message) iter.Seq2[string, any] {

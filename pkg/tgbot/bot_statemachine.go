@@ -6,12 +6,9 @@ import (
 	"strings"
 
 	etron "github.com/NicoNex/echotron/v3"
-	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/irt"
-	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/selector"
 )
@@ -140,19 +137,6 @@ func (b *bot) captureYears(value string) stateFn {
 		return b.wrapInputAsHandler(b.captureYears, b.discoverNext)
 	}
 	b.queryState.params.Years = years
-	return b.discoverNext()
-}
-
-func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
-	grip.Debug(grip.KV("type", "callback").KV("body", kbdValue))
-	b.queryState.op = stw.Ptr(dispatch.NewMinutesAppOperation(kbdValue))
-	if !b.queryState.op.Ok() {
-		return b.keyboardMinutesAppQueries()
-	}
-	b.queryState.entry = stw.Ptr(b.queryState.op.Registry())
-	b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
-	b.queryState.inProgress = true
-	b.sendMarkdown(joinstr("🎶 ok, lets find **", b.queryState.entry.Command, "** ... 🎶"))
 	return b.discoverNext()
 }
 

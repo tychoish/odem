@@ -98,7 +98,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		return b.keyboardMinutesAppQueries()
 	case !b.queryState.inProgress:
 		if tryTxt := dispatch.NewMinutesAppOperation(msg.Text); tryTxt.Ok() {
-			return b.handleKeyboardResponse(msg.Text)
+			return b.handleKeyboardResponse(0)(msg.Text)
 		}
 		b.sendPlain("Let's try again! Select an option from the menu...")
 		return b.handleMessage

@@ -57,6 +57,9 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 		conf:   srv.conf,
 		off:    &srv.off,
 	}
+	ar, err := b.GetChat(chatID)
+	grip.Error(err)
+	b.state.info = ar.Result
 	b.setLastUpdated(time.Now())
 	b.setOperationSelectorButtons()
 
