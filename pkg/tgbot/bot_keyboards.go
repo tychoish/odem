@@ -52,7 +52,7 @@ func (b *bot) handleKeyboardResponse(kbdID int) func(kbdValue string) stateFn {
 		if kbdID != 0 {
 			for {
 				val := b.state.trackingKeyboard.Load()
-				if val == 0 || b.state.trackingKeyboard.CompareAndSwap(val-1, val) {
+				if val == 0 || b.state.trackingKeyboard.CompareAndSwap(val, val-1) {
 					grip.Info(b.grip("deleting keyboard").KV("kbd", kbdID))
 					b.handleAPIResponse(b.DeleteMessage(b.chatID, kbdID))
 					break

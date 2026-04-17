@@ -14,17 +14,16 @@ import (
 )
 
 func (b *bot) discoverNext() stateFn {
+	if b.queryState.entry == nil {
+		grip.Info(grip.KV("state", "discoverNext").
+			KV("status", "entry nil; retry keyboard"))
+		return b.keyboardMinutesAppQueries()
+	}
 	if b.queryState.entry.Requires == nil {
 		grip.Info(grip.KV("state", "discoverNext").
 			KV("status", "requirements nil; rendering off the bat").
 			KV("op", b.queryState.entry.Command))
 		return b.renderResults()
-	}
-	if b.queryState.entry == nil {
-		grip.Info(grip.KV("state", "discoverNext").
-			KV("status", "entry nil; retry keyboard").
-			KV("op", b.queryState.entry.Command))
-		return b.keyboardMinutesAppQueries()
 	}
 	if b.queryState.inProgress && b.queryState.has == nil {
 		grip.Info(grip.KV("state", "discoverNext").
