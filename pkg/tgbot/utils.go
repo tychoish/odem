@@ -24,6 +24,16 @@ func getBotCommands() iter.Seq[etron.BotCommand] {
 }
 
 func joinstr(args ...string) string { return strings.Join(args, "") }
+
+// isEscapeInput reports whether text is a user bail-out command that should
+// exit any active selection loop and return to the top level.
+func isEscapeInput(text string) bool {
+	switch strings.ToLower(strings.TrimPrefix(strings.TrimSpace(text), "/")) {
+	case "reset", "cancel", "back", "abort", "quit", "exit", "stop":
+		return true
+	}
+	return false
+}
 func isOrContainsCmd(msg *etron.Message, strs ...string) bool {
 	for _, str := range strs {
 		switch {

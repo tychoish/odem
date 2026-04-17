@@ -34,11 +34,12 @@ type bot struct {
 	sent        atomic.Int64
 	lastUpdated time.Time
 	queryState  struct {
-		has        *dt.Set[dispatch.MinutesAppQueryType]
-		entry      *dispatch.MinutesAppRegistration
-		op         *dispatch.MinutesAppOperation
-		inProgress bool
-		params     models.Params
+		has               *dt.Set[dispatch.MinutesAppQueryType]
+		entry             *dispatch.MinutesAppRegistration
+		op                *dispatch.MinutesAppOperation
+		inProgress        bool
+		params            models.Params
+		selectionAttempts int
 	}
 	state struct {
 		info             *etron.ChatFullInfo
@@ -51,6 +52,7 @@ func (b *bot) resetState() stateFn {
 	b.queryState.op = nil
 	b.queryState.inProgress = false
 	b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params = models.Params{
 		Limit: 10,
 		Years: []int{2025, 2026},

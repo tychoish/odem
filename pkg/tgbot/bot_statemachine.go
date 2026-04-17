@@ -52,15 +52,37 @@ func (b *bot) discoverNext() stateFn {
 
 func (b *bot) wrapInputAsHandler(in func(string) stateFn, fallback func() stateFn) stateFn {
 	return func(u *etron.Update) stateFn {
+		var text string
 		switch {
 		case u.Message != nil:
-			return in(u.Message.Text)
+			text = u.Message.Text
 		case u.CallbackQuery != nil:
-			return in(u.CallbackQuery.Data)
+			text = u.CallbackQuery.Data
 		default:
 			return fallback()
 		}
+		if isEscapeInput(text) {
+			b.sendPlain("ok, starting over...")
+			b.queryState.selectionAttempts = 0
+			return b.resetState()
+		}
+		return in(text)
 	}
+}
+
+const maxSelectionAttempts = 3
+
+// captureRetry sends errMsg and returns to the selection loop, but aborts
+// back to the top level after maxSelectionAttempts consecutive failures.
+func (b *bot) captureRetry(errMsg string, retry func(string) stateFn) stateFn {
+	b.queryState.selectionAttempts++
+	if b.queryState.selectionAttempts >= maxSelectionAttempts {
+		b.queryState.selectionAttempts = 0
+		b.sendMarkdown(fmt.Sprintf("%s after %d tries — starting over", errMsg, maxSelectionAttempts))
+		return b.resetState()
+	}
+	b.sendMarkdown(fmt.Sprintf("%s (attempt %d/%d — or say `cancel` to start over)", errMsg, b.queryState.selectionAttempts, maxSelectionAttempts))
+	return b.wrapInputAsHandler(retry, b.discoverNext)
 }
 
 func (b *bot) captureInputAsName(value string) stateFn {
@@ -82,9 +104,9 @@ func (b *bot) searchParams(input string) *infra.SearchParams {
 func (b *bot) captureLeader(value string) stateFn {
 	leader, err := selector.Leader(b.ctx, b.db, b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find leader for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureLeader, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't find a leader matching `%s`", value), b.captureLeader)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Name = leader.Name
 	return b.discoverNext()
 }
@@ -92,9 +114,9 @@ func (b *bot) captureLeader(value string) stateFn {
 func (b *bot) captureSong(value string) stateFn {
 	song, err := selector.Song(b.ctx, b.db, b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find song for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureSong, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't find a song matching `%s`", value), b.captureSong)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Name = song.PageNum
 	return b.discoverNext()
 }
@@ -102,9 +124,9 @@ func (b *bot) captureSong(value string) stateFn {
 func (b *bot) captureSinging(value string) stateFn {
 	singing, err := selector.Singing(b.ctx, b.db, b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find singing for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureSinging, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't find a singing matching `%s`", value), b.captureSinging)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Name = singing.SingingName
 	return b.discoverNext()
 }
@@ -112,9 +134,9 @@ func (b *bot) captureSinging(value string) stateFn {
 func (b *bot) captureKey(value string) stateFn {
 	key, err := selector.Key(b.ctx, b.db, b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find key for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureKey, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't find a key matching `%s`", value), b.captureKey)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Name = key
 	return b.discoverNext()
 }
@@ -122,9 +144,9 @@ func (b *bot) captureKey(value string) stateFn {
 func (b *bot) captureWord(value string) stateFn {
 	word, err := selector.Concordance(b.ctx, b.db, b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find a word for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureWord, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't find a word matching `%s`", value), b.captureWord)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Name = word
 	return b.discoverNext()
 }
@@ -132,9 +154,9 @@ func (b *bot) captureWord(value string) stateFn {
 func (b *bot) captureYears(value string) stateFn {
 	years, err := selector.Years(b.searchParams(value))
 	if err != nil {
-		b.sendMarkdown(fmt.Sprintf("couldn't find years for `%s`: please try again", value))
-		return b.wrapInputAsHandler(b.captureYears, b.discoverNext)
+		return b.captureRetry(fmt.Sprintf("couldn't parse years from `%s`", value), b.captureYears)
 	}
+	b.queryState.selectionAttempts = 0
 	b.queryState.params.Years = years
 	return b.discoverNext()
 }
