@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -28,12 +29,23 @@ var (
 func testConn(t *testing.T) (*Connection, context.Context) {
 	t.Helper()
 	dbInitOnce.Do(func() {
-		// Provide a non-nil conf so Init uses its caching logic: if the DB
-		// already exists and is current it runs only views.sql; otherwise it
-		// does the full setup. This mirrors the program's startup behaviour.
-		initCtx := odem.WithConfiguration(context.Background(), &odem.Configuration{})
-		dbInitErr = Init(initCtx)
+		// Always rebuild the test DB from the embedded source. The fast path
+		// in Init (views.sql only) assumes setup.sql hasn't changed since the
+		// DB was last created; that assumption breaks whenever setup.sql gains
+		// new tables (e.g. leader_song_attendance). Resetting ensures the test
+		// DB is always schema-current. sync.Once bounds the cost to once per
+		// `go test` invocation, not once per test function.
+		if os.Getenv("ODEM_TEST_RESTART") != "" {
+			if err := Reset(); err != nil {
+				dbInitErr = err
+				return
+			}
+			dbInitErr = Init(context.Background())
+		} else {
+			t.Log("skipping test database refresh.")
+		}
 	})
+
 	if dbInitErr != nil {
 		t.Fatalf("Init: %v", dbInitErr)
 	}
