@@ -10,6 +10,7 @@ import (
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/message"
@@ -21,9 +22,14 @@ import (
 
 type stateFn func(*etron.Update) stateFn
 
+// bot is a pure state machine for a single chat thread. All routing is handled
+// by metabot; bot instances are created and dispatched to exclusively by their
+// parent metabot and never route updates themselves.
 type bot struct {
 	chatID       int64
 	threadID     int
+	botID        int64   // Telegram user ID of the bot itself (0 if unknown)
+	botName      string  // @username without leading @ (empty if unknown)
 	stateMachine stateFn // current state; replaced after every update
 	etron.API
 	ctx         context.Context
@@ -53,16 +59,13 @@ func (b *bot) resetState() stateFn {
 	b.queryState.inProgress = false
 	b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
 	b.queryState.selectionAttempts = 0
-	b.queryState.params = models.Params{
-		Limit: 10,
-		Years: []int{2025, 2026},
-	}
+	b.queryState.params = models.Params{Limit: 10}
 	return b.handleMessage
 }
 
-func (b *bot) Update(update *etron.Update) {
-	// Execute the current state and store whatever it returns as the next one.
-	// A single assignment is all the state-machine machinery needed.
+// advance executes one state-machine step. It is called by metabot on every
+// routed update; bot instances do not implement etron.Bot directly.
+func (b *bot) advance(update *etron.Update) {
 	b.updateMetrics(update)
 	if b.stateMachine != nil {
 		b.stateMachine = b.stateMachine(update)
@@ -119,13 +122,11 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 
 func (b *bot) sendMarkdown(msg string) {
 	grip.Debug(b.grip("sending markdown message").KV("outID", b.sent.Add(1)))
-
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown, MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) sendPlain(msg string) {
 	grip.Debug(b.grip("sending plain message").KV("outID", b.sent.Add(1)))
-
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{MessageThreadID: int64(b.threadID)}))
 }
 
@@ -147,7 +148,11 @@ func kvsFromMessage(m *etron.Message) iter.Seq2[string, any] {
 		list.PushBack(irt.MakeKV("from.username", any(m.From.Username)))
 	}
 	list.PushBack(irt.MakeKV("msg.id", any(m.ID)))
-	list.PushBack(irt.MakeKV("msg.text", any(m.Text)))
+	body := strut.MutableFrom(m.Text)
+	body.Truncate(32)
+	body.ReplaceAllString("\n", "; ")
+	body.PushString("...")
+	list.PushBack(irt.MakeKV("msg.text", any(body.Resolve())))
 	return irt.KVsplit(list.IteratorFront())
 }
 

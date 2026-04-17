@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 type Params struct {
 	// Provide input for the name of the singer, the song or the
 	// singing, as relevant to the query.
@@ -15,4 +17,8 @@ type Params struct {
 	// typically the handlers will restrict this to somewhere
 	// between 16 and 64 depending, but it can be overridden.
 	Limit int `json:"limit,omitempty" jsonschema:"optional;limit the number of results returned in some cases"`
+}
+
+func (p Params) String() string {
+	return fmt.Sprintf("name<%q> years%s limit<%d>", p.Name, p.Years, p.Limit)
 }

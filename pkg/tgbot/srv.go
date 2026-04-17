@@ -3,7 +3,6 @@ package tgbot
 import (
 	"context"
 	"sync/atomic"
-	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/grip"
@@ -49,21 +48,33 @@ func (srv *Service) checkServiceExit(ctx context.Context) (bool, error) {
 }
 
 func (srv *Service) MakeBot(chatID int64) etron.Bot {
-	b := &bot{
+	api := etron.NewAPI(srv.conf.Telegram.BotToken)
+	m := &metabot{
 		chatID: chatID,
-		API:    etron.NewAPI(srv.conf.Telegram.BotToken),
+		api:    api,
 		db:     srv.db,
 		ctx:    srv.ctx,
 		conf:   srv.conf,
 		off:    &srv.off,
 	}
-	ar, err := b.GetChat(chatID)
+
+	me, err := api.GetMe()
 	grip.Error(err)
-	b.state.info = ar.Result
-	b.setLastUpdated(time.Now())
-	b.setOperationSelectorButtons()
+	if me.Result != nil {
+		m.botID = me.Result.ID
+		m.botName = me.Result.Username
+	}
+
+	defaultBot := m.newBot(0)
+
+	ar, err := api.GetChat(chatID)
+	grip.Error(err)
+	defaultBot.state.info = ar.Result
+
+	m.bots.Store(0, defaultBot)
+	defaultBot.setOperationSelectorButtons()
 
 	grip.Info(grip.KV("op", "starting new bot tracking chat").KV("chatID", chatID).KV("count", srv.count.Add(1)))
 
-	return b
+	return m
 }

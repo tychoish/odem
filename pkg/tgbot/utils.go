@@ -25,6 +25,19 @@ func getBotCommands() iter.Seq[etron.BotCommand] {
 
 func joinstr(args ...string) string { return strings.Join(args, "") }
 
+// extractThreadID returns the forum thread ID from an update, or 0 if the
+// update is not part of a thread.
+func extractThreadID(u *etron.Update) int {
+	switch {
+	case u.Message != nil:
+		return u.Message.ThreadID
+	case u.CallbackQuery != nil && u.CallbackQuery.Message != nil:
+		return u.CallbackQuery.Message.ThreadID
+	default:
+		return 0
+	}
+}
+
 // isEscapeInput reports whether text is a user bail-out command that should
 // exit any active selection loop and return to the top level.
 func isEscapeInput(text string) bool {
