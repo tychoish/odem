@@ -51,6 +51,10 @@ func Telegram() *cmdr.Commander {
 				SetName("webhook.listen").
 				SetUsage("local address to listen on for webhook updates, e.g. :8080 (default: port from webhook URL)").
 				Flag(),
+			cmdr.FlagBuilder(0).
+				SetName("telegram.max-selection-attempts").
+				SetUsage("number of failed lookup attempts before aborting a selection (default: 3)").
+				Flag(),
 		).
 		With(infra.AttachConfiguration).
 		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {

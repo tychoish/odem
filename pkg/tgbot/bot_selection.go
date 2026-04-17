@@ -38,51 +38,37 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 	}
 }
 
+func (b *bot) promptFor(queryType dispatch.MinutesAppQueryType, prompt string, handler func(string) stateFn) stateFn {
+	defer b.queryState.has.Add(queryType)
+	grip.Debug(b.grip("selecting").KV("type", queryType))
+	b.sendMarkdown(prompt)
+	return b.wrapInputAsHandler(handler, b.discoverNext)
+}
+
 func (b *bot) selectSinger() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeLeader)
-	grip.Debug(b.grip("selecting singer"))
-	b.sendMarkdown("which singer are you looking for?")
-	return b.wrapInputAsHandler(b.captureLeader, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeLeader, "which singer are you looking for?", b.captureLeader)
 }
 
 func (b *bot) selectSong() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeSong)
-	grip.Debug(b.grip("selecting song"))
-	b.sendMarkdown("which song (title or page number) are you looking for?")
-	return b.wrapInputAsHandler(b.captureSong, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeSong, "which song (title or page number) are you looking for?", b.captureSong)
 }
 
 func (b *bot) selectSinging() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeSinging)
-	grip.Debug(b.grip("selecting singing"))
-	b.sendMarkdown("which singing are you looking for?")
-	return b.wrapInputAsHandler(b.captureSinging, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeSinging, "which singing are you looking for?", b.captureSinging)
 }
 
 func (b *bot) selectYear() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeYear)
-	grip.Debug(b.grip("selecting year"))
-	b.sendMarkdown("which year would you like to filter by?")
-	return b.wrapInputAsHandler(b.captureYears, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeYear, "which year would you like to filter by?", b.captureYears)
 }
 
 func (b *bot) selectLocality() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeLocality)
-	grip.Debug(b.grip("selecting locality"))
-	b.sendMarkdown("what locality would you like to filter by (state codes)?")
-	return b.wrapInputAsHandler(b.captureInputAsName, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeLocality, "what locality would you like to filter by (state codes)?", b.captureInputAsName)
 }
 
 func (b *bot) selectKey() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeKey)
-	grip.Debug(b.grip("selecting key"))
-	b.sendMarkdown("what key would you like to filter by?")
-	return b.wrapInputAsHandler(b.captureKey, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeKey, "what key would you like to filter by?", b.captureKey)
 }
 
 func (b *bot) selectWord() stateFn {
-	defer b.queryState.has.Add(dispatch.MinutesAppQueryTypeWord)
-	grip.Debug("selecting word")
-	b.sendMarkdown("what word would you like to find?")
-	return b.wrapInputAsHandler(b.captureWord, b.discoverNext)
+	return b.promptFor(dispatch.MinutesAppQueryTypeWord, "what word would you like to find?", b.captureWord)
 }

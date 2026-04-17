@@ -20,9 +20,10 @@ type Configuration struct {
 		ManualReloadDB bool           `bson:"manual_reload_db" json:"manual_reload_db" yaml:"manual_reload_db"`
 	} `bson:"settings" json:"settings" yaml:"settings"`
 	Telegram struct {
-		BotToken string `bson:"bot_token" json:"bot_token" yaml:"bot_token"`
-		Quiet    bool   `bson:"quiet" json:"quiet" yaml:"quiet"`
-		Webhook  struct {
+		BotToken             string `bson:"bot_token" json:"bot_token" yaml:"bot_token"`
+		Quiet                bool   `bson:"quiet" json:"quiet" yaml:"quiet"`
+		MaxSelectionAttempts int    `bson:"max_selection_attempts" json:"max_selection_attempts" yaml:"max_selection_attempts"`
+		Webhook              struct {
 			Enabled bool   `bson:"enabled" json:"enabled" yaml:"enabled"`
 			URL     string `bson:"url" json:"url" yaml:"url"`
 			Listen  string `bson:"listen" json:"listen" yaml:"listen"`

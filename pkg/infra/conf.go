@@ -74,6 +74,7 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 		conf.Telegram.Webhook.Enabled = cmp.Or(cmdr.GetFlag[bool](cc, "webhook.enabled"), conf.Telegram.Webhook.Enabled)
 		conf.Telegram.Webhook.URL = cmp.Or(cmdr.GetFlag[string](cc, "webhook.url"), conf.Telegram.Webhook.URL)
 		conf.Telegram.Webhook.Listen = cmp.Or(cmdr.GetFlag[string](cc, "webhook.listen"), conf.Telegram.Webhook.Listen)
+		conf.Telegram.MaxSelectionAttempts = cmp.Or(cmdr.GetFlag[int](cc, "telegram.max-selection-attempts"), conf.Telegram.MaxSelectionAttempts)
 
 		return conf, nil
 	}).SetMiddleware(odem.WithConfiguration)
