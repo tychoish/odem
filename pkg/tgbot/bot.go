@@ -59,9 +59,9 @@ func (b *bot) resetState() stateFn {
 	return b.handleMessage
 }
 
-// advance executes one state-machine step. It is called by metabot on every
-// routed update; bot instances do not implement etron.Bot directly.
-func (b *bot) advance(update *etron.Update) {
+// Update executes one state-machine step. It is called by metabot on every
+// routed update.
+func (b *bot) Update(update *etron.Update) {
 	b.updateMetrics(update)
 	if b.stateMachine != nil {
 		b.stateMachine = b.stateMachine(update)

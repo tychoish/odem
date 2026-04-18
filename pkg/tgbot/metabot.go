@@ -40,13 +40,13 @@ func (m *metabot) Update(update *etron.Update) {
 		return
 	}
 	if b, ok := m.bots.Load(threadID); ok {
-		b.advance(update)
+		b.Update(update)
 		return
 	}
 	b := m.newBot(threadID)
 	m.bots.Store(threadID, b)
 	grip.Info(grip.KV("op", "new thread bot").KV("chatID", m.chatID).KV("threadID", threadID))
-	b.advance(update)
+	b.Update(update)
 }
 
 // newBot constructs a fresh bot instance for the given thread and initialises
