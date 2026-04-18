@@ -20,6 +20,8 @@ func extractThreadID(u *etron.Update) int {
 		return u.Message.ThreadID
 	case u.CallbackQuery != nil && u.CallbackQuery.Message != nil:
 		return u.CallbackQuery.Message.ThreadID
+	case u.EditedMessage != nil:
+		return u.EditedMessage.ThreadID
 	default:
 		return 0
 	}

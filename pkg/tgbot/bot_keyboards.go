@@ -39,7 +39,13 @@ func (b *bot) keyboardMinutesAppQueries() stateFn {
 			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
 		},
 	})
-	b.handleAPIResponse(arm.Base(), err)
+
+	if arm.Result == nil {
+		grip.Error("no result from setting the keyboard")
+		return b.handleMessage
+	} else if err != nil {
+		b.handleAPIResponse(arm.Base(), err)
+	}
 
 	if prev := b.state.trackingKeyboard.Swap(int64(arm.Result.ID)); prev != 0 {
 		b.handleAPIResponse(b.DeleteMessage(b.chatID, int(prev)))

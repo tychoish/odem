@@ -77,7 +77,6 @@ func (b *bot) updateMetrics(u *etron.Update) {
 	defer b.setLastUpdated(b.lastUpdated.Add(btwn))
 	switch {
 	case u.Message != nil:
-		b.threadID = cmp.Or(b.threadID, u.Message.ThreadID)
 		grip.Debug(b.grip("got message").
 			KV("from", u.Message.From.Username).
 			KV("recv", b.recv.Add(1)).
@@ -100,7 +99,6 @@ func (b *bot) updateMetrics(u *etron.Update) {
 }
 
 func (b *bot) handleMessage(u *etron.Update) stateFn {
-	b.ensureThreadID(u)
 	switch {
 	case u.Message != nil:
 		return b.dispatchMessage(u.Message)
@@ -120,19 +118,6 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 		fallthrough
 	default:
 		return b.handleMessage
-	}
-}
-
-func (b *bot) ensureThreadID(u *etron.Update) {
-	switch {
-	case b.threadID != 0:
-		return
-	case u.Message != nil:
-		b.threadID = u.Message.ThreadID
-	case u.CallbackQuery.Message != nil:
-		b.threadID = u.CallbackQuery.Message.ThreadID
-	case u.EditedMessage != nil:
-		b.threadID = u.EditedMessage.ThreadID
 	}
 }
 
