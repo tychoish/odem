@@ -12,19 +12,19 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 	case dispatch.MinutesAppQueryTypeOperation:
 		return b.keyboardMinutesAppQueries()
 	case dispatch.MinutesAppQueryTypeLeader:
-		return b.selectSinger()
+		return b.promptFor(dispatch.MinutesAppQueryTypeLeader, "which singer are you looking for?", b.captureLeader)
 	case dispatch.MinutesAppQueryTypeSong:
-		return b.selectSong()
+		return b.promptFor(dispatch.MinutesAppQueryTypeSong, "which song (title or page number) are you looking for?", b.captureSong)
 	case dispatch.MinutesAppQueryTypeSinging:
-		return b.selectSinging()
+		return b.promptFor(dispatch.MinutesAppQueryTypeSinging, "which singing are you looking for?", b.captureSinging)
 	case dispatch.MinutesAppQueryTypeYear:
-		return b.selectYear()
+		return b.promptFor(dispatch.MinutesAppQueryTypeYear, "which year would you like to filter by?", b.captureYears)
 	case dispatch.MinutesAppQueryTypeKey:
-		return b.selectKey()
+		return b.promptFor(dispatch.MinutesAppQueryTypeKey, "what key would you like to filter by?", b.captureKey)
 	case dispatch.MinutesAppQueryTypeLocality:
-		return b.selectLocality()
+		return b.promptFor(dispatch.MinutesAppQueryTypeLocality, "what locality would you like to filter by (state codes)?", b.captureInputAsName)
 	case dispatch.MinutesAppQueryTypeWord:
-		return b.selectWord()
+		return b.promptFor(dispatch.MinutesAppQueryTypeWord, "what word would you like to find?", b.captureWord)
 	case dispatch.MinutesAppQueryTypeInvalid:
 		b.sendMarkdown(fmt.Sprintf("❗invalid option: `%s`: %s. Let's start over! ⏪", requirement, requirement.Validate()))
 		return b.resetState()
@@ -42,32 +42,4 @@ func (b *bot) promptFor(queryType dispatch.MinutesAppQueryType, prompt string, h
 	grip.Debug(b.grip("selecting").KV("type", queryType))
 	b.sendMarkdown(prompt)
 	return b.wrapInputAsHandler(handler, b.discoverNext)
-}
-
-func (b *bot) selectSinger() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeLeader, "which singer are you looking for?", b.captureLeader)
-}
-
-func (b *bot) selectSong() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeSong, "which song (title or page number) are you looking for?", b.captureSong)
-}
-
-func (b *bot) selectSinging() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeSinging, "which singing are you looking for?", b.captureSinging)
-}
-
-func (b *bot) selectYear() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeYear, "which year would you like to filter by?", b.captureYears)
-}
-
-func (b *bot) selectLocality() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeLocality, "what locality would you like to filter by (state codes)?", b.captureInputAsName)
-}
-
-func (b *bot) selectKey() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeKey, "what key would you like to filter by?", b.captureKey)
-}
-
-func (b *bot) selectWord() stateFn {
-	return b.promptFor(dispatch.MinutesAppQueryTypeWord, "what word would you like to find?", b.captureWord)
 }
