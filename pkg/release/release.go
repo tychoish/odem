@@ -35,7 +35,9 @@ var (
 
 func init() {
 	Version.Set(func() *semver.Version { return erc.Must(semver.NewVersion(cmp.Or(version, GitDescribe()))) })
-	BuildTime.Set(func() time.Time { return erc.Must(time.Parse(time.DateTime, cmp.Or(buildTime, "1986-05-19 00:00:00"))) })
+	BuildTime.Set(func() time.Time {
+		return erc.Must(time.Parse(time.RFC3339, cmp.Or(buildTime, "1986-05-19T00:00:00+00:00")))
+	})
 }
 
 func IsPrerelease(version string) bool {
