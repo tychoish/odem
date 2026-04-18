@@ -21,7 +21,7 @@ import (
 	"github.com/tychoish/odem/pkg/logger"
 )
 
-const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem.buildTime=%s`
+const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem/pkg/release.buildTime=%s`
 
 func makeBaseCommand(ctx context.Context) *exc.Command {
 	o := send.MakeWriterSender(logger.Plain(ctx).Sender())
