@@ -28,6 +28,9 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 
 	grip.Info(b.grip("dispatch message").KV("msg.text", msg.Text))
 	switch {
+	case msg.Text == "":
+		grip.Notice(b.grip("got message with empty text"))
+		return b.handleMessage
 	case isOrContainsCmd(msg, "exit"):
 		b.sendPlain("ok, exiting!")
 		panic("exit")
