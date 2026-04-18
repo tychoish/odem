@@ -116,6 +116,19 @@ func Years(sp *infra.SearchParams) ([]int, error) {
 	return irt.Collect(years), nil
 }
 
+func Locality(sp *infra.SearchParams) (models.SingingLocality, error) {
+	match, err := infra.FuzzySearchWithFallback(
+		models.AllLocalities(),
+		func(l models.SingingLocality) string { return string(l) },
+		sp.WithPrompt("locality").UseFirstResult(),
+		noop[models.SingingLocality],
+	)
+	if err != nil {
+		return "", err
+	}
+	return erc.MustOk(irt.Initial(match)), nil
+}
+
 // Concordance provides a selector for a unique list of allwords (less some amount of stemming.)
 func Concordance(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (string, error) {
 	songTexts, err := erc.FromIteratorAll(conn.AllSongTexts(ctx))

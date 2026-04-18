@@ -2,14 +2,9 @@ package tgbot
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	etron "github.com/NicoNex/echotron/v3"
-	"github.com/tychoish/fun/erc"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/odem/pkg/infra"
 )
 
 func (b *bot) discoverNext() stateFn {
@@ -81,22 +76,6 @@ func (b *bot) captureRetry(errMsg string, retry func(string) stateFn) stateFn {
 	}
 	b.sendMarkdown(fmt.Sprintf("%s (attempt %d/%d — or say `cancel` to start over)", errMsg, b.queryState.selectionAttempts, max))
 	return b.wrapInputAsHandler(retry, b.discoverNext)
-}
-
-func (b *bot) captureInputAsName(value string) stateFn {
-	b.queryState.params.Name = value
-	return b.discoverNext()
-}
-
-func (b *bot) captureInputAsYears(value string) stateFn {
-	var err error
-	b.queryState.params.Years, err = erc.FromIteratorAll(irt.With2(irt.Modify(strings.SplitSeq(value, ","), strings.TrimSpace), strconv.Atoi))
-	grip.Error(err)
-	return b.discoverNext()
-}
-
-func (b *bot) searchParams(input string) *infra.SearchParams {
-	return (&infra.SearchParams{}).With(input).WithoutInteractive().UseFirstResult()
 }
 
 func (b *bot) renderResults() stateFn {
