@@ -72,7 +72,6 @@ func (srv *Service) MakeBot(chatID int64) etron.Bot {
 	defaultBot.state.info = ar.Result
 
 	m.bots.Store(0, defaultBot)
-	defaultBot.setOperationSelectorButtons()
 
 	grip.Info(grip.KV("op", "starting new bot tracking chat").KV("chatID", chatID).KV("count", srv.count.Add(1)))
 

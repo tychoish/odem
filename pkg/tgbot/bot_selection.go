@@ -30,7 +30,6 @@ func (b *bot) selectFor(requirement dispatch.MinutesAppQueryType) stateFn {
 		return b.resetState()
 	case dispatch.MinutesAppQueryTypeUnknown:
 		b.sendPlain("❗Sorry, something went wrong: we need to start over... 😞")
-		b.setOperationSelectorButtons()
 		return b.resetState()
 	default:
 		b.sendMarkdown(fmt.Sprintf("Sorry, got an invalid option(`%s`: %s) and need to start over 😥", requirement, requirement.Validate()))

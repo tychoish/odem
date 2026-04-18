@@ -409,7 +409,7 @@ func (lf LeaderFootstep) LineItem() *mdwn.Builder {
 	mb.PushInt(lf.SelfLeadCount)
 	mb.TextWords(" time(s). The top leader for", lf.SongPage, "was ").Italic(lf.LeaderName).Text(" (")
 	mb.PushInt(lf.TheirLeadCount)
-	mb.Text(" lead(s), last in")
+	mb.Text(" lead(s), last in ")
 	mb.PushInt(lf.TheirLastLeadYear)
 	mb.Text(")")
 	return mb

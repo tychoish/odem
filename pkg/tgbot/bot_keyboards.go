@@ -11,20 +11,6 @@ import (
 	"github.com/tychoish/odem/pkg/dispatch"
 )
 
-func (b *bot) setOperationSelectorButtons() {
-	resp, err := b.SetMyCommands(&etron.CommandOptions{
-		LanguageCode: "en",
-		Scope: etron.BotCommandScope{
-			Type:   etron.BCSTDefault,
-			ChatID: b.chatID,
-			// UserID: 0,
-		},
-	}, irt.Collect(getBotCommands())...)
-
-	grip.Info(b.gmr("set bot selection menu", resp.Base()).
-		KV("result", resp.Result).WithError(err))
-}
-
 func (b *bot) keyboardMinutesAppQueries() stateFn {
 	b.state.trackingKeyboard.Add(1)
 	btn := irt.Collect(
@@ -35,54 +21,60 @@ func (b *bot) keyboardMinutesAppQueries() stateFn {
 			},
 		),
 	)
+	var message string
+	switch {
+	case b.sent.Load() == 0:
+		message = "Hello! Select a query to get started:"
+	case b.state.trackingKeyboard.Load() >= 1:
+		message = "Let's select a new query:"
+	case b.queryState.selectionAttempts >= b.conf.Telegram.MaxSelectionAttempts:
+		message = "Let's start over and select a new query:"
+	default:
+		message = "Minutes App Queries:"
+	}
 
-	arm, err := b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
+	arm, err := b.SendMessage(message, b.chatID, &etron.MessageOptions{
 		MessageThreadID: int64(b.threadID),
 		ReplyMarkup: etron.InlineKeyboardMarkup{
 			InlineKeyboard: irt.Collect(slices.Chunk(btn, len(btn)/8)),
 		},
 	})
+	b.handleAPIResponse(arm.Base(), err)
 
-	b.handleSendMessage(arm, err)
-	return b.wrapInputAsHandler(b.handleKeyboardResponse(arm.Result.ID), b.keyboardMinutesAppQueries)
+	if prev := b.state.trackingKeyboard.Swap(int64(arm.Result.ID)); prev != 0 {
+		b.handleAPIResponse(b.DeleteMessage(b.chatID, int(prev)))
+	}
+
+	return b.wrapInputAsHandler(b.handleKeyboardResponse, b.keyboardMinutesAppQueries)
 }
 
-func (b *bot) handleKeyboardResponse(kbdID int) func(kbdValue string) stateFn {
-	return func(kbdValue string) stateFn {
-		if kbdID != 0 {
-			for {
-				val := b.state.trackingKeyboard.Load()
-				if val == 0 || b.state.trackingKeyboard.CompareAndSwap(val, val-1) {
-					grip.Info(b.grip("deleting keyboard").KV("kbd", kbdID))
-					b.handleAPIResponse(b.DeleteMessage(b.chatID, kbdID))
-					break
-				}
+func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
+	if kbdID := b.state.trackingKeyboard.Load(); kbdID != 0 {
+		for {
+			if b.state.trackingKeyboard.CompareAndSwap(kbdID, 0) {
+				grip.Info(b.grip("deleting keyboard").KV("kbd", kbdID))
+				b.handleAPIResponse(b.DeleteMessage(b.chatID, int(kbdID)))
+				break
 			}
 		}
+	}
 
-		grip.Debug(grip.KV("type", "callback").KV("body", kbdValue))
-		b.queryState.op = stw.Ptr(dispatch.NewMinutesAppOperation(kbdValue))
-		if !b.queryState.op.Ok() {
-			return b.keyboardMinutesAppQueries()
-		}
-		b.queryState.entry = stw.Ptr(b.queryState.op.Registry())
-		b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
-		b.queryState.inProgress = true
-		b.sendMarkdown(joinstr("🎶 ok, lets find **", b.queryState.entry.Command, "** ... 🎶"))
+	grip.Debug(grip.KV("type", "callback").KV("body", kbdValue))
+	if b.setupQuery(kbdValue) {
 		return b.discoverNext()
 	}
+	return b.keyboardMinutesAppQueries()
 }
 
-func (b *bot) KeyboardHelpMenu() stateFn {
-	// TODO (defer) make a shorter 3-4 button help menu
-	rsp, err := b.SendMessage("Choose an option:", b.chatID, &etron.MessageOptions{
-		MessageThreadID: int64(b.threadID),
-		ReplyMarkup: etron.InlineKeyboardMarkup{
-			InlineKeyboard: [][]etron.InlineKeyboardButton{
-				{},
-			},
-		},
-	})
-	grip.Info(b.grip("send keyboard menu").WithError(err).Extend(kvsFromMessage(rsp.Result)))
-	return b.wrapInputAsHandler(b.handleKeyboardResponse(rsp.Result.ID), b.keyboardMinutesAppQueries)
+func (b *bot) setupQuery(opName string) bool {
+	op := dispatch.NewMinutesAppOperation(opName)
+	if !op.Ok() {
+		return false
+	}
+	b.queryState.op = stw.Ptr(op)
+	b.queryState.entry = stw.Ptr(b.queryState.op.Registry())
+	b.queryState.has = &dt.Set[dispatch.MinutesAppQueryType]{}
+	b.queryState.inProgress = true
+	b.sendMarkdown(joinstr("🎶 ok, lets find **", b.queryState.entry.Command, "** ... 🎶"))
+	return true
 }

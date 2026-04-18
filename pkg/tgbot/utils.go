@@ -3,25 +3,12 @@ package tgbot
 import (
 	"encoding/json"
 	"fmt"
-	"iter"
 	"strconv"
 	"strings"
 
 	etron "github.com/NicoNex/echotron/v3"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/strut"
-	"github.com/tychoish/odem/pkg/dispatch"
 )
-
-func getBotCommands() iter.Seq[etron.BotCommand] {
-	return irt.Convert(
-		irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
-		func(mao dispatch.MinutesAppOperation) etron.BotCommand {
-			reg := mao.Registry().Info()
-			return etron.BotCommand{Command: reg.Key, Description: reg.Value}
-		},
-	)
-}
 
 func joinstr(args ...string) string { return strings.Join(args, "") }
 
@@ -47,6 +34,7 @@ func isEscapeInput(text string) bool {
 	}
 	return false
 }
+
 func isOrContainsCmd(msg *etron.Message, strs ...string) bool {
 	for _, str := range strs {
 		switch {

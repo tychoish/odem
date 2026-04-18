@@ -77,9 +77,7 @@ func (m *metabot) isRelevantThreadMessage(msg *etron.Message) bool {
 	if strings.HasPrefix(msg.Text, "/") {
 		return true
 	}
-	if m.botID != 0 && msg.ReplyToMessage != nil &&
-		msg.ReplyToMessage.From != nil &&
-		msg.ReplyToMessage.From.ID == m.botID {
+	if m.botID != 0 && msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.ID == m.botID {
 		return true
 	}
 	if m.botName != "" && strings.Contains(msg.Text, fmt.Sprintf("@%s", m.botName)) {

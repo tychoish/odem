@@ -3,11 +3,11 @@ package tgbot
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/mdwn"
 	"github.com/tychoish/grip"
-	"github.com/tychoish/odem/pkg/dispatch"
 )
 
 func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
@@ -96,14 +96,12 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		return b.keyboardMinutesAppQueries()
 	case isOrContainsCmd(msg, "keyboard", "menu"):
 		return b.keyboardMinutesAppQueries()
-	case !b.queryState.inProgress:
-		if tryTxt := dispatch.NewMinutesAppOperation(msg.Text); tryTxt.Ok() {
-			return b.handleKeyboardResponse(0)(msg.Text)
-		}
-		b.sendPlain("Let's try again! Select an option from the menu...")
-		return b.handleMessage
-	default:
-		b.sendPlain("Hrm... I didn't quite get that?")
+	case b.queryState.inProgress:
+		b.sendPlain(fmt.Sprintf("Hmm... I'm working on %s, can you try that again?", b.queryState.op.String()))
 		return b.discoverNext()
+	case b.setupQuery(strings.ToLower(msg.Text)):
+		return b.discoverNext()
+	default:
+		return b.keyboardMinutesAppQueries()
 	}
 }
