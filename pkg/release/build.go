@@ -152,15 +152,27 @@ func BuildArtifacts(ctx context.Context) error {
 func LocalBuild(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 	pwd := erc.Must(os.Getwd())
-	for basepath := range irt.Keep(irt.Args(conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odemp/"), pwd), fileExists) {
+	curVersion := GitDescribe()
+
+	for basepath := range irt.Keep(irt.Args(pwd, conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odem/")), fileExists) {
 		path := filepath.Join(basepath, "cmd", "odem.go")
 		if !fileExists(path) {
 			continue
 		}
-		grip.Info(grip.MPrintln("building:", "./cmd/odem.go"))
+
+		args := irt.Collect(irt.Args(
+			// build + version setting
+			"build", fmt.Sprintf(ldFlagTmpl, curVersion, time.Now().Round(time.Millisecond).Format(time.RFC3339)),
+			// target:
+			"-o", filepath.Join(basepath, conf.Build.Path, "odem"),
+			// source
+			filepath.Join(basepath, "cmd", "odem.go")))
+
+		grip.Info(grip.MPrintln("building:", append([]string{"go"}, args...)))
 
 		return makeBaseCommand(ctx).
-			WithName("go").WithArgs("build", "./cmd/odem.go").
+			WithName("go").
+			WithArgs(args...).
 			Run(ctx)
 	}
 	return erc.Errorf("no odem checkout discoverable: %s", pwd)

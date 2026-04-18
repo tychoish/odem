@@ -46,9 +46,9 @@ func GitDescribe() string {
 	b := new(bytes.Buffer)
 
 	err := new(exc.Command).WithName("git").WithArgs("describe").WithStdOutput(b).Run(context.TODO())
-	grip.Warning(ers.Wrap(err, "git describe for release versioning"))
+	grip.Debug(ers.Wrap(err, "git describe for release versioning"))
 
-	return cmp.Or(string(bytes.TrimSpace(b.Bytes())), "<UNKNOWN>")
+	return cmp.Or(string(bytes.TrimSpace(b.Bytes())), "v0.0.0-pre")
 }
 
 // UploadArtifacts uploads all .zip, .tar.gz, and .sha256 files found in the
