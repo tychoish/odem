@@ -273,7 +273,8 @@ FROM leader_song_attendance AS lsa
 JOIN leaders AS l ON l.id = lsa.leader_id
 JOIN songs AS s ON s.id = lsa.song_id
 JOIN book_song_joins AS bsj ON bsj.song_id = lsa.song_id AND bsj.book_id = 2
-WHERE l.name = ?
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 ORDER BY count DESC
 LIMIT ?;`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
@@ -373,7 +374,7 @@ FROM book_song_joins AS bsj
 JOIN songs AS s ON s.id = bsj.song_id
 LEFT JOIN song_stats_totals AS sst ON sst.song_id = bsj.song_id
 LEFT JOIN leader_song_attendance AS lsa ON lsa.song_id = bsj.song_id
-    AND lsa.leader_id = (SELECT id FROM leaders WHERE name = ?)
+    AND lsa.leader_id = (SELECT l.id FROM leaders AS l LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?)
 WHERE bsj.book_id = 2
 ORDER BY count ASC, sst.total DESC
 LIMIT ?`
@@ -480,7 +481,8 @@ AND bsj.song_id NOT IN (
     SELECT lss.song_id
     FROM leader_song_stats AS lss
     JOIN leaders AS l ON l.id = lss.leader_id
-    WHERE l.name = ?
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+    WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 )
 ORDER BY count DESC
 LIMIT ?`
@@ -493,7 +495,8 @@ WITH my_songs AS (
     SELECT lss.song_id, lss.lesson_count AS self_lead_count
     FROM leader_song_stats AS lss
     JOIN leaders AS l ON l.id = lss.leader_id
-    WHERE l.name = ?
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+    WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 ),
 top_other_leaders AS (
     SELECT
@@ -812,7 +815,8 @@ WHERE bsj.book_id = 2
 AND bsj.song_id NOT IN (
     SELECT lsa.song_id FROM leader_song_attendance AS lsa
     JOIN leaders AS l ON l.id = lsa.leader_id
-    WHERE l.name = ?
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+    WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
 )
 ORDER BY count DESC`
 	return dbx.Query[models.LeaderSongRank](ctx, conn.db.QueryContext, query, name, name)
