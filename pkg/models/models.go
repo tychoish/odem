@@ -61,6 +61,11 @@ type LeaderNameInvalid struct {
 	Name *string `db:"name" json:"name"`
 }
 
+type LeaderNameMap struct {
+	LeaderID int64  `db:"leader_id" json:"leader_id"`
+	Name     string `db:"name" json:"name"`
+}
+
 type LeaderProfile struct {
 	LeaderID          int64  `db:"leader_id" json:"leader_id"`
 	Name              string `db:"name" json:"name"`

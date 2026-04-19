@@ -168,6 +168,17 @@ LEFT JOIN leader_name_invalid AS inv ON inv.name = leaders.name
 WHERE inv.name IS NULL
 GROUP BY leaders.id;
 
+-- leader_name_map: canonical-name → leader_id mapping for sqlc queries.
+-- Resolves aliases and filters invalid names.
+CREATE VIEW IF NOT EXISTS leader_name_map AS
+SELECT
+    l.id AS leader_id,
+    CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name
+FROM leaders AS l
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL;
+
 -- Indexes for query performance (not in embedded db file)
 CREATE INDEX IF NOT EXISTS leaders_name ON leaders(name);
 CREATE INDEX IF NOT EXISTS slj_leader_minutes ON song_leader_joins(leader_id, minutes_id);

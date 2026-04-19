@@ -55,8 +55,20 @@ CREATE INDEX IF NOT EXISTS lsa_leader_song ON leader_song_attendance(leader_id, 
 -- The view re-runs two COUNT(DISTINCT ...) aggregations on every call, costing ~640ms.
 -- Singing stats (count, first/last year) are read from leader_singings instead of
 -- re-aggregating song_leader_joins, halving the number of temp B-trees.
--- Note: DROP VIEW is required because CREATE TABLE ... AS SELECT cannot replace a view.
-CREATE TABLE leader_profiles AS
+-- Note: DROP VIEW is required because the VIEW of the same name is defined in views.sql.
+-- Explicit column types are used (rather than CREATE TABLE ... AS SELECT) so that sqlc
+-- can infer the schema for generated queries.
+DROP VIEW IF EXISTS leader_profiles;
+CREATE TABLE leader_profiles (
+    leader_id           INTEGER NOT NULL PRIMARY KEY,
+    name                TEXT    NOT NULL DEFAULT '',
+    lesson_count        INTEGER NOT NULL DEFAULT 0,
+    unique_lesson_count INTEGER NOT NULL DEFAULT 0,
+    singing_count       INTEGER NOT NULL DEFAULT 0,
+    first_year          INTEGER NOT NULL DEFAULT 0,
+    last_year           INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO leader_profiles (leader_id, name, lesson_count, unique_lesson_count, singing_count, first_year, last_year)
 SELECT
     l.id AS leader_id,
     CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS name,
@@ -74,7 +86,8 @@ LEFT JOIN (
     GROUP BY ls.leader_id
 ) AS ls_stats ON ls_stats.leader_id = l.id
 LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
-LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name WHERE inv.name IS NULL
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
 GROUP BY l.id;
 CREATE INDEX leader_profiles_name ON leader_profiles(name);
 
