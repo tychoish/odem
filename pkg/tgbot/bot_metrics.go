@@ -50,6 +50,10 @@ func kvsFromMessage(m *etron.Message) iter.Seq2[string, any] {
 		list.PushBack(irt.MakeKV("from.id", any(m.From.ID)))
 		list.PushBack(irt.MakeKV("from.username", any(m.From.Username)))
 	}
+	list.PushBack(irt.MakeKV("chat.id", any(m.Chat.ID)))
+	list.PushBack(irt.MakeKV("chat.username", any(m.Chat.Username)))
+	list.PushBack(irt.MakeKV("chat.title", any(m.Chat.Title)))
+	list.PushBack(irt.MakeKV("chat.type", any(m.Chat.Type)))
 	list.PushBack(irt.MakeKV("msg.id", any(m.ID)))
 	body := strut.MutableFrom(m.Text)
 	body.Truncate(32)
