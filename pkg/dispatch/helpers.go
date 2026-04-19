@@ -54,7 +54,7 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 		}
 	}
 
-	grip.Debug(grip.MPrintln("selected", operation))
+	grip.Debug(grip.MPrintln("selected", operation.String()))
 	return operation
 }
 
