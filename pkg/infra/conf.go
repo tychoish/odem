@@ -14,14 +14,11 @@ import (
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/home"
+	"github.com/tychoish/odem/pkg/release"
 	"github.com/urfave/cli/v3"
 )
 
 func AttachConfiguration(c *cmdr.Commander) { confCmdrFlags(c).With(confCmdr().Add) }
-
-func Operation(op func(context.Context, *odem.Configuration) error) func(*cmdr.Commander) {
-	return func(cc *cmdr.Commander) { confCmdrFlags(cc).With(confCmdr().SetAction(op).Add) }
-}
 
 func confCmdrFlags(c *cmdr.Commander) *cmdr.Commander {
 	return c.Flags(
@@ -54,12 +51,20 @@ func confCmdr() *cmdr.OperationSpec[*odem.Configuration] {
 
 		conf.Runtime.RemoteMCP = cmdr.GetFlag[bool](cc, "http")
 		conf.Runtime.DryRun = cmdr.GetFlag[bool](cc, "dry-run")
+		conf.Runtime.Hostname, _ = os.Hostname()
 		conf.Settings.Level = cmp.Or(level.FromString(cmdr.GetFlag[string](cc, "level")), conf.Settings.Level, level.Info)
 		conf.Reports.BasePath = cmp.Or(conf.Reports.BasePath, filepath.Join(erc.Must(os.Getwd()), "build"))
 		conf.Services.Port = cmp.Or(cmdr.GetFlag[int](cc, "port"), conf.Services.Port, 1844)
 		conf.Services.Address = cmp.Or(cmdr.GetFlag[string](cc, "addr"), conf.Services.Address, "127.0.0.1")
+
 		conf.Build.Path = cmp.Or(conf.Build.Path, "build")
 		conf.Build.Tag = cmdr.GetFlag[string](cc, "tag")
+		conf.Build.BinaryLink = cmp.Or(conf.Build.BinaryLink, filepath.Join("/usr/local/bin", release.Name))
+
+		conf.Build.Deploy.Remote = cmp.Or(cmdr.GetFlag[string](cc, "deploy.instance"), conf.Build.Deploy.Remote)
+		conf.Build.Deploy.Target = cmdr.GetFlag[string](cc, "deploy.target")
+		conf.Build.Deploy.Intstance = cmdr.GetFlag[string](cc, "deploy.instance")
+		conf.Build.Deploy.GlobalService = cmp.Or(cmdr.GetFlag[bool](cc, "deploy.global"), conf.Build.Deploy.GlobalService)
 
 		if len(conf.Build.Targets) == 0 {
 			conf.Build.Targets = append(conf.Build.Targets, struct {

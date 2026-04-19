@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"os"
@@ -160,6 +161,15 @@ func basePathCandidates(conf *odem.Configuration) iter.Seq[string] {
 	return irt.Keep(irt.Args(pwd, conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odem/")), fileExists)
 }
 
+func LocalUpdate(ctx context.Context) error {
+	conf := odem.GetConfiguration(ctx)
+
+	for basepath := range basePathCandidates(conf) {
+		return makeBaseCommand(ctx).WithDirectory(basepath).WithArgs("git", "pull", "origin", "main").Run(ctx)
+	}
+	return errors.New("could not find local environment for the release build to update")
+}
+
 func LocalBuild(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 	curVersion := GitDescribe()
@@ -174,7 +184,7 @@ func LocalBuild(ctx context.Context) error {
 			// build + version setting
 			"build", fmt.Sprintf(ldFlagTmpl, curVersion, time.Now().Round(time.Millisecond).Format(time.RFC3339)),
 			// target:
-			"-o", filepath.Join(basepath, conf.Build.Path, "odem"),
+			"-o", filepath.Join(basepath, conf.Build.Path, Name),
 			// source
 			filepath.Join(basepath, "cmd", "odem.go")))
 
@@ -187,4 +197,31 @@ func LocalBuild(ctx context.Context) error {
 	}
 
 	return ers.New("no odem checkout discoverable")
+}
+
+func getBuildPath(conf *odem.Configuration) (string, error) {
+	for basepath := range basePathCandidates(conf) {
+		return filepath.Join(basepath, conf.Build.Path, Name), nil
+	}
+	return "", ers.ErrNotFound
+}
+
+func EnsureLink(ctx context.Context, conf *odem.Configuration) error {
+	path, err := getBuildPath(conf)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(conf.Build.BinaryLink); !os.IsNotExist(err) {
+		target, err := filepath.EvalSymlinks(conf.Build.BinaryLink)
+		if err != nil {
+			return ers.Wrap(err, "couldn't resolve link target for extant link")
+		}
+		if target != path {
+			return fmt.Errorf("extant target %q does not point to expected path %s", target, conf.Build.BinaryLink)
+		}
+		return nil
+	}
+	return makeBaseCommand(ctx).WithArgs("sudo", "ln", "-s", conf.Build.BinaryLink, path).Run(ctx)
+
 }

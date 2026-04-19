@@ -8,7 +8,9 @@ import (
 	"github.com/tychoish/fun/irt"
 )
 
-func ErrWorker(err error) fnx.Worker { return fnx.MakeWorker(func() error { return err }) }
+func ErrWorker(err error) fnx.Worker           { return fnx.MakeWorker(func() error { return err }) }
+func NoopWorker() fnx.Worker                   { return fnx.MakeWorker(func() error { return nil }) }
+func WorkerJoin(wfns ...fnx.Worker) fnx.Worker { return NoopWorker().Join(wfns...) }
 
 func YearSelectorRange(earliest int) iter.Seq[int] {
 	currentYear := time.Now().Year()

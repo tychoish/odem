@@ -110,6 +110,16 @@ func WorkerAction(op fnx.Worker) func(cmd *cmdr.Commander) {
 	}
 }
 
+func WorkerActionWithTiming(name string, op fnx.Worker) func(*cmdr.Commander) {
+	return func(cmd *cmdr.Commander) {
+		cmd.SetAction(func(ctx context.Context, cc *cli.Command) error { return WorkerWithTiming(name, op).Run(ctx) })
+	}
+}
+
+func ConfigurationAction(op func(context.Context, *odem.Configuration) error) func(*cmdr.Commander) {
+	return WorkerAction(func(ctx context.Context) error { return op(ctx, odem.GetConfiguration(ctx)) })
+}
+
 func WorkerWithTiming(name string, op fnx.Worker) fnx.Worker {
 	return fnx.Worker(func(ctx context.Context) error {
 		startAt := time.Now()

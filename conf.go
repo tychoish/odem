@@ -50,10 +50,18 @@ type Configuration struct {
 		Version            string `bson:"version" json:"version" yaml:"version"`
 		DisableCompression bool   `bson:"disable_compression" json:"disable_compression" yaml:"disable_compression"`
 		LocalRepoPath      string `bson:"local_repo_path" json:"local_repo_path" yaml:"local_repo_path"`
+		Deploy             struct {
+			Remote        string `bson:"remote" json:"remote" yaml:"remote"`
+			GlobalService bool   `bson:"global" json:"global" yaml:"global"`
+			Intstance     string `bson:"-" json:"-" yaml:"-"`
+			Target        string `bson:"-" json:"-" yaml:"-"`
+		} `bson:"deploy" json:"deploy" yaml:"deploy"`
+		BinaryLink string `bson:"binary_link" json:"binary_link" yaml:"binary_link"`
 	} `bson:"build" json:"build" yaml:"build"`
 	Runtime struct {
 		DryRun    bool
 		RemoteMCP bool
+		Hostname  string
 	} `bson:"-" json:"-" yaml:"-"`
 }
 

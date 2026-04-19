@@ -16,6 +16,7 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem"
+	"github.com/tychoish/odem/pkg/release"
 )
 
 //go:embed views.sql
@@ -114,14 +115,14 @@ func odemBinaryMtime() time.Time {
 		return stat.ModTime()
 	}
 
-	if len(os.Args) == 0 || os.Args[0] == "go" || !strings.HasPrefix(os.Args[0], "odem") {
+	if len(os.Args) == 0 || os.Args[0] == "go" || !strings.HasPrefix(os.Args[0], release.Name) {
 		return time.Time{}
 	}
 
 	for p := range irt.RemoveZeros(irt.Args(
-		lookInPath("odem"),
+		lookInPath(release.Name),
 		lookInPath(os.Args[0]),
-		filepath.Join(pwd(), "odem"),
+		filepath.Join(pwd(), release.Name),
 		filepath.Join(pwd(), os.Args[0]),
 	)) {
 		stat, err := os.Stat(p)
@@ -144,6 +145,6 @@ func odemTempDBMtime() time.Time {
 	return stat.ModTime()
 }
 
-func getDBpath() string { return dbpath }
+func getDBpath() string             { return dbpath }
 func pwd() string                   { v, _ := os.Getwd(); return v }
 func lookInPath(name string) string { v, _ := exec.LookPath(name); return v }
