@@ -83,6 +83,11 @@ func Build() *cmdr.Commander {
 						SetName("restart").
 						SetUsage("restart the service").
 						With(infra.ConfigurationAction(release.RestartService)),
+					cmdr.MakeCommander().
+						SetName("db").
+						Aliases("rebuild", "database").
+						SetUsage("rebuild the database if new views have been built").
+						With(infra.ConfigurationAction(release.RestartService)),
 				),
 		)
 }
