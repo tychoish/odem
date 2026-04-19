@@ -18,6 +18,10 @@ const (
 	MinutesAppQueryTypeKey
 	MinutesAppQueryTypeOperation
 	MinutesAppQueryTypeWord
+	// MinutesAppQueryTypeDocumentOutput signals that the result should be
+	// rendered as a file attachment rather than chat messages. It requires no
+	// user input and is auto-satisfied by discoverNext.
+	MinutesAppQueryTypeDocumentOutput
 	MinutesAppQueryTypeInvalid
 )
 
@@ -55,6 +59,8 @@ func (maqt MinutesAppQueryType) String() string {
 		return "operation"
 	case MinutesAppQueryTypeWord:
 		return "word"
+	case MinutesAppQueryTypeDocumentOutput:
+		return "document-output"
 	case MinutesAppQueryTypeInvalid:
 		return "invalid"
 	default:

@@ -12,6 +12,7 @@ import (
 	"github.com/tychoish/fun/stw"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/models"
+	"github.com/tychoish/odem/pkg/release"
 	"github.com/tychoish/odem/pkg/selector"
 )
 
@@ -40,7 +41,6 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	leaderInfo, err := conn.GetLeader(ctx, &singer.Name)
 	ec.Push(err)
 
-	mb.KV("Generated", time.Now().Format(time.DateOnly))
 	mb.KV("Share of all Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100))
 	mb.KV("Connectedness", fmt.Sprintf("%.2f%%", v*100))
 	mb.KV("Number of Top 20 Leads", strconv.Itoa(int(leaderInfo.Top20Count)))
@@ -90,6 +90,10 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.H2("Never Sung")
 	mb.Paragraph("Songs that have not been called at a singing ", singer.Name, " attended, by global popularity.")
 	models.WriteTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer.Name), 12), ec.Push))
+
+	mb.Line()
+	mb.KV("Generated", time.Now().Format(time.DateOnly))
+	mb.KV("Version", release.Version.Resolve().String())
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()

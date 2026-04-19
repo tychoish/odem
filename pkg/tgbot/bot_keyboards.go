@@ -14,7 +14,7 @@ import (
 func (b *bot) keyboardMinutesAppQueries() stateFn {
 	b.state.trackingKeyboard.Add(1)
 	btn := irt.Collect(
-		irt.Convert(irt.RemoveValue(dispatch.AllMinutesAppOps(), dispatch.MinutesAppOpExit),
+		irt.Convert(dispatch.AllMinutesAppMessengerOps(),
 			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
 				reg := mao.Registry().Info()
 				return etron.InlineKeyboardButton{Text: reg.Key, CallbackData: reg.Key}
@@ -23,7 +23,7 @@ func (b *bot) keyboardMinutesAppQueries() stateFn {
 	)
 	var message string
 	switch {
-	case b.sent.Load() == 0:
+	case b.metrics.sent.Load() == 0:
 		message = "Hello! Select a query to get started:"
 	case b.state.trackingKeyboard.Load() >= 1:
 		message = "Let's select a new query:"

@@ -1,13 +1,13 @@
 package dispatch
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"iter"
 	"strings"
 
 	"github.com/tychoish/cmdr"
-	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
@@ -20,10 +20,10 @@ func isOk[T interface{ Ok() bool }](in T) bool { return in.Ok() }
 func toOp(in int) MinutesAppOperation          { return MinutesAppOperation(in) }
 func toString[T fmt.Stringer](in T) string     { return in.String() }
 
-func resolver[T any, I ~func(context.Context, *db.Connection, T) error](op I, err error) I {
+func resolver[T any, I ~func(context.Context, *db.Connection, T) error](reg MinutesAppRegistration, op I) I {
 	return func(ctx context.Context, conn *db.Connection, arg T) error {
 		if op == nil {
-			return err
+			return cmp.Or(reg.err, reg.unavailable())
 		}
 		return op(ctx, conn, arg)
 	}
@@ -39,7 +39,7 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 
 	if !operation.Ok() {
 		var err error
-		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppOps()).Prompt("odem operation").FindOne()
+		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppFuzzOps()).Prompt("odem operation").FindOne()
 		if operation.Ok() {
 			return operation
 		}
@@ -79,11 +79,29 @@ func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {
 }
 
 func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
-	return irt.Convert(AllMinutesAppOps(), toFzfCmdr)
+	return func(yield func(*cmdr.Commander) bool) {
+		for op := range AllMinutesAppOps() {
+			if !op.Registry().HasFuzz() {
+				continue
+			}
+			if !yield(toFzfCmdr(op)) {
+				return
+			}
+		}
+	}
 }
 
 func AllReportMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
-	return irt.Convert(AllMinutesAppOps(), toReportCmdr)
+	return func(yield func(*cmdr.Commander) bool) {
+		for op := range AllMinutesAppOps() {
+			if !op.Registry().HasReporter() {
+				continue
+			}
+			if !yield(toReportCmdr(op)) {
+				return
+			}
+		}
+	}
 }
 
 func ReportOperationSpec(rptr Reporter) func(*cmdr.Commander) {

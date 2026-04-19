@@ -1,10 +1,14 @@
 package tgbot
 
 import (
+	"bytes"
 	"fmt"
 
 	etron "github.com/NicoNex/echotron/v3"
+	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/odem/pkg/dispatch"
 )
 
 func (b *bot) discoverNext() stateFn {
@@ -25,16 +29,16 @@ func (b *bot) discoverNext() stateFn {
 			KV("op", b.queryState.entry.Command))
 		return b.renderResults()
 	}
-	for requirement := range b.queryState.entry.Requires.Iterator() {
-		if !b.queryState.has.Check(requirement) {
-			grip.Debug(grip.
-				KV("state", "discoverNext").
-				KV("status", "discovering next value").
-				KV("requirement", requirement).
-				KV("op", b.queryState.entry.Command),
-			)
-			return b.selectFor(requirement)
-		}
+	for requirement := range irt.Remove(irt.RemoveValue(b.queryState.entry.Requires.Iterator(),
+		dispatch.MinutesAppQueryTypeDocumentOutput), b.queryState.has.Check,
+	) {
+		grip.Debug(grip.
+			KV("state", "discoverNext").
+			KV("status", "discovering next value").
+			KV("requirement", requirement).
+			KV("op", b.queryState.entry.Command),
+		)
+		return b.selectFor(requirement)
 	}
 	grip.Debug(grip.
 		KV("state", "discoverNext").
@@ -81,15 +85,44 @@ func (b *bot) captureRetry(errMsg string, retry func(string) stateFn) stateFn {
 func (b *bot) renderResults() stateFn {
 	grip.Info(grip.KV("status", "rendering now...").KV("state", b.queryState.params).KV("command", b.queryState.op.String()))
 
-	for msg, err := range b.queryState.entry.Messenger(b.ctx, b.db, b.queryState.params) {
+	working := strut.MakeMutable(64)
+	defer working.Release()
+
+	working.Concat("⏳ working on ", b.queryState.op.String())
+	working.WhenConcat(b.queryState.params.Name != "", " for ", b.queryState.params.Name)
+	if len(b.queryState.params.Years) > 0 {
+		working.PushString(" (")
+		for i, y := range b.queryState.params.Years {
+			working.WhenConcat(i > 0, ", ")
+			working.PushInt(y)
+		}
+		working.PushString(") ")
+	}
+	working.PushString("...")
+
+	if resp, err := b.SendMessage(working.String(), b.chatID, &etron.MessageOptions{MessageThreadID: int64(b.threadID)}); err == nil && resp.Result != nil {
+		defer func() { b.handleAPIResponse(b.DeleteMessage(b.chatID, resp.Result.ID)) }()
+	}
+
+	entry := b.queryState.entry
+	if entry.IsDocumentOp() {
+		var buf bytes.Buffer
+		if err := entry.CallReporterToWriter(b.ctx, b.db, b.queryState.params, &buf); err != nil {
+			grip.Alert(grip.KV("op", entry.Command).KV("outcome", "error").KV("query", b.queryState.params))
+			b.sendPlain(fmt.Sprintf("❗got error producing results: %v", err))
+		} else {
+			b.sendDocument(entry.DocumentFilename(b.queryState.params), buf.Bytes())
+		}
+		return b.resetState()
+	}
+
+	for msg, err := range entry.GetMessenger()(b.ctx, b.db, b.queryState.params) {
 		if err != nil {
-			grip.Alert(grip.KV("op", b.queryState.entry.Command).KV("outcome", "overflow").KV("query", b.queryState.params))
+			grip.Alert(grip.KV("op", entry.Command).KV("outcome", "overflow").KV("query", b.queryState.params))
 			b.sendPlain(fmt.Sprintf("❗got error producing results: %v", err))
 			break
-		} else {
-			b.sendMarkdown(msg.String())
-			msg.Release()
 		}
+		b.sendMarkdown(msg.Resolve())
 	}
 
 	return b.resetState()

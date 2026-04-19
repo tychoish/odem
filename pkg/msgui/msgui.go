@@ -20,14 +20,11 @@ type Messenger func(context.Context, *db.Connection, models.Params) iter.Seq2[*m
 
 func MostLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 20)
-		md.Concat("Most led songs for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 20)
+		header.Concat("Most led songs for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.MostLedSongs(ctx, p.Name, p.Limit), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -50,14 +47,11 @@ func SongsByWord(ctx context.Context, conn *db.Connection, p models.Params) iter
 			return
 		}
 
-		md := mdwn.MakeBuilder(len(p.Name) + 32)
-		md.Concat("Songs containing **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 32)
+		header.Concat("Songs containing **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Slice(results)) {
+		for md, err := range renderWithHeader(header, irt.Slice(results)) {
 			if !yield(md, err) {
 				return
 			}
@@ -76,32 +70,25 @@ func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) iter.
 			return
 		}
 
-		header := mdwn.MakeBuilder(256)
-		header.Bold(sl.PageNum, " — ", sl.SongTitle)
-		header.KV("Music", sl.MusicAttribution)
-		header.KV("Words", sl.WordsAttribution)
-		header.KV("Meter", sl.SongMeter)
-		header.KV("Key", sl.Keys)
-		if !yield(header, nil) {
-			return
-		}
-
-		body := mdwn.MakeBuilder(len(sl.Text) + 16)
-		body.Paragraph(sl.Text)
-		yield(body, nil)
+		msg := mdwn.MakeBuilder(256 + len(sl.Text) + 16)
+		msg.Bold(sl.PageNum, " — ", sl.SongTitle).Line()
+		msg.KV("Music", sl.MusicAttribution)
+		msg.KV("Words", sl.WordsAttribution)
+		msg.KV("Meter", sl.SongMeter)
+		msg.KV("Key", sl.Keys)
+		msg.PushString("\n\n")
+		msg.Paragraph(sl.Text)
+		yield(msg, nil)
 	}
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 20)
-		md.Concat("Top leaders for song **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 20)
+		header.Concat("Top leaders for song **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -114,14 +101,11 @@ func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[
 
 func Singings(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 20)
-		md.Concat("Lessons for singing **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 20)
+		header.Concat("Lessons for singing **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -134,14 +118,11 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 
 func Buddies(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Singing buddies for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Singing buddies for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.SingingBuddies(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -154,14 +135,11 @@ func Buddies(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq
 
 func Strangers(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Singing strangers for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Singing strangers for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.SingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -174,14 +152,11 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 
 func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Popular songs as observed by **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Popular songs as observed by **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.PopularAsObserved(ctx, p.Name, cmp.Or(p.Limit, 25)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -194,25 +169,22 @@ func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params
 
 func PopularInYears(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(256)
-		md.Concat("Globally popular songs")
+		header := mdwn.MakeBuilder(256)
+		header.Concat("Globally popular songs")
 		if len(p.Years) > 0 {
-			md.PushString(" (")
+			header.PushString(" (")
 			for y := range irt.Slice(p.Years) {
-				md.PushInt(y)
-				md.PushString(", ")
+				header.PushInt(y)
+				header.PushString(", ")
 			}
-			md.PushString(")")
+			header.PushString(")")
 		} else {
-			md.PushString(" (all time)")
+			header.PushString(" (all time)")
 		}
-		md.PushString(":")
-		if !yield(md, nil) {
-			return
-		}
+		header.PushString(":")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.GloballyPopularForYears(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -230,14 +202,11 @@ func PopularLocally(ctx context.Context, conn *db.Connection, p models.Params) i
 			localities = append(localities, models.NewSingingLocality(strings.TrimSpace(part)))
 		}
 
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Locally popular songs (**", p.Name, "**):")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Locally popular songs (**", p.Name, "**):")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LocallyPopular(ctx, cmp.Or(p.Limit, 20), localities...), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -250,14 +219,11 @@ func PopularLocally(ctx context.Context, conn *db.Connection, p models.Params) i
 
 func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 40)
-		md.Concat("Songs never sung at a singing **", p.Name, "** attended:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 40)
+		header.Concat("Songs never sung at a singing **", p.Name, "** attended:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(irt.Limit2(conn.NeverSung(ctx, p.Name), cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -270,14 +236,11 @@ func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 
 func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 25)
-		md.Concat("Songs **", p.Name, "** has never led:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 25)
+		header.Concat("Songs **", p.Name, "** has never led:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(irt.Limit2(conn.NeverLed(ctx, p.Name, cmp.Or(p.Limit, 20)), cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -290,14 +253,11 @@ func NeverLed(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 
 func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Unfamiliar hits for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Unfamiliar hits for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.TheUnfamilarHits(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -310,14 +270,11 @@ func UnfamilarHits(ctx context.Context, conn *db.Connection, p models.Params) it
 
 func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(32)
-		md.Concat("Leaders by connectedness:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(32)
+		header.Concat("Leaders by connectedness:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -330,14 +287,11 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) it
 
 func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 25)
-		md.Concat("Singing idols for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 25)
+		header.Concat("Singing idols for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LeaderFootsteps(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -350,23 +304,20 @@ func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params)
 
 func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(256)
-		md.Concat("Top leaders")
+		header := mdwn.MakeBuilder(256)
+		header.Concat("Top leaders")
 		if len(p.Years) > 0 {
-			md.PushString(" (")
+			header.PushString(" (")
 			for y := range irt.Slice(p.Years) {
-				md.PushInt(y)
-				md.PushString(", ")
+				header.PushInt(y)
+				header.PushString(", ")
 			}
-			md.PushString(")")
+			header.PushString(")")
 		}
-		md.PushString(":")
-		if !yield(md, nil) {
-			return
-		}
+		header.PushString(":")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push), models.TopLeadersWrapper(&atomic.Int64{}))) {
+		for md, err := range renderWithHeader(header, irt.Convert(erc.HandleUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 20), p.Years...), ec.Push), models.TopLeadersWrapper(&atomic.Int64{}))) {
 			if !yield(md, err) {
 				return
 			}
@@ -404,14 +355,11 @@ func LeaderShare(ctx context.Context, conn *db.Connection, p models.Params) iter
 
 func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 20)
-		md.Concat("Lead history for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 20)
+		header.Concat("Lead history for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LeaderLeadHistory(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -424,14 +372,11 @@ func LeaderLeadHistory(ctx context.Context, conn *db.Connection, p models.Params
 
 func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 25)
-		md.Concat("Singings attended by **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 25)
+		header.Concat("Singings attended by **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LeaderSingingsAttended(ctx, p.Name, cmp.Or(p.Limit, 0)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -444,14 +389,11 @@ func LeaderSingings(ctx context.Context, conn *db.Connection, p models.Params) i
 
 func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 25)
-		md.Concat("Favorite keys for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 25)
+		header.Concat("Favorite keys for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LeaderFavoriteKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -470,16 +412,13 @@ func LeaderDebutsByYear(ctx context.Context, conn *db.Connection, p models.Param
 		}
 		year := p.Years[0]
 
-		md := mdwn.MakeBuilder(256)
-		md.Concat("Debut leaders for **")
-		md.PushInt(year)
-		md.PushString("**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(256)
+		header.Concat("Debut leaders for **")
+		header.PushInt(year)
+		header.PushString("**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Leads"))) {
+		for md, err := range renderWithHeader(header, irt.Convert(erc.HandleUntil(conn.NewLeadersByYear(ctx, year, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Leads"))) {
 			if !yield(md, err) {
 				return
 			}
@@ -492,25 +431,22 @@ func LeaderDebutsByYear(ctx context.Context, conn *db.Connection, p models.Param
 
 func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(256)
-		md.Concat("Songs by key")
+		header := mdwn.MakeBuilder(256)
+		header.Concat("Songs by key")
 		if len(p.Years) > 0 {
-			md.PushString(" (")
+			header.PushString(" (")
 			for y := range irt.Slice(p.Years) {
-				md.PushInt(y)
-				md.PushString(", ")
+				header.PushInt(y)
+				header.PushString(", ")
 			}
-			md.PushString(")")
+			header.PushString(")")
 		} else {
-			md.PushString(" (all time)")
+			header.PushString(" (all time)")
 		}
-		md.PushString(":")
-		if !yield(md, nil) {
-			return
-		}
+		header.PushString(":")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push), models.WrapSongByKey)) {
+		for md, err := range renderWithHeader(header, irt.Convert(erc.HandleUntil(conn.SongsByKey(ctx, p.Years...), ec.Push), models.WrapSongByKey)) {
 			if !yield(md, err) {
 				return
 			}
@@ -523,14 +459,11 @@ func SongsByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.
 
 func Top20Leaders(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(32)
-		md.Concat("Leaders by top-20 leads:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(32)
+		header.Concat("Leaders by top-20 leads:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
+		for md, err := range renderWithHeader(header, irt.Convert(erc.HandleUntil(conn.LeadersByTop20Leads(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
 			if !yield(md, err) {
 				return
 			}
@@ -543,14 +476,11 @@ func Top20Leaders(ctx context.Context, conn *db.Connection, p models.Params) ite
 
 func Top20LeadersActiveInLastYear(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(48)
-		md.Concat("Top-20 leaders active in the last year:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(48)
+		header.Concat("Top-20 leaders active in the last year:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(erc.HandleUntil(conn.Top20LeadersActiveInLastYear(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
+		for md, err := range renderWithHeader(header, irt.Convert(erc.HandleUntil(conn.Top20LeadersActiveInLastYear(ctx, cmp.Or(p.Limit, 20)), ec.Push), models.WrapLeaderSongRank("Top-20 Leads"))) {
 			if !yield(md, err) {
 				return
 			}
@@ -563,14 +493,11 @@ func Top20LeadersActiveInLastYear(ctx context.Context, conn *db.Connection, p mo
 
 func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Singings per year for **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Singings per year for **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.LeaderSingingsPerYear(ctx, p.Name), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -583,14 +510,11 @@ func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Pa
 
 func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 25)
-		md.Concat("Leaders in key **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 25)
+		header.Concat("Leaders in key **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(irt.Convert(
+		for md, err := range renderWithHeader(header, irt.Convert(
 			erc.HandleUntil(conn.LeadersByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push),
 			models.WrapLeaderSongRank("Count"))) {
 			if !yield(md, err) {
@@ -605,14 +529,11 @@ func LeadersByKey(ctx context.Context, conn *db.Connection, p models.Params) ite
 
 func PopularSongsByKey(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		md := mdwn.MakeBuilder(len(p.Name) + 30)
-		md.Concat("Popular songs in key **", p.Name, "**:")
-		if !yield(md, nil) {
-			return
-		}
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Popular songs in key **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderLineItems(erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.PopularSongsByKey(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}

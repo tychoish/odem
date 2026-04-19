@@ -32,8 +32,12 @@ type bot struct {
 	db          *db.Connection
 	conf        *odem.Configuration
 	off         *atomic.Bool
-	recv        atomic.Int64
-	sent        atomic.Int64
+	metrics     struct {
+		recv          atomic.Int64
+		sent          atomic.Int64
+		filesSent     atomic.Int64
+		filesSentSize atomic.Int64
+	}
 	lastUpdated time.Time
 	queryState  struct {
 		has               *dt.Set[dispatch.MinutesAppQueryType]
@@ -79,20 +83,20 @@ func (b *bot) updateMetrics(u *etron.Update) {
 	case u.Message != nil:
 		grip.Debug(b.grip("got message").
 			KV("from", u.Message.From.Username).
-			KV("recv", b.recv.Add(1)).
+			KV("recv", b.metrics.recv.Add(1)).
 			KV("since_last", btwn.String()).
 			KV("text", u.Message.Text))
 	case u.CallbackQuery != nil:
 		grip.Debug(b.grip("got query callback").
 			KV("from", u.CallbackQuery.From.Username).
-			KV("recv", b.recv.Add(1)).
+			KV("recv", b.metrics.recv.Add(1)).
 			KV("since_last", btwn.String()).
 			KV("data", u.CallbackQuery.Data))
 	default:
 		mut := toJson(u)
 		defer mut.Release()
 		grip.Debug(b.grip("recv unknown message").
-			KV("recv", b.recv.Add(1)).
+			KV("recv", b.metrics.recv.Add(1)).
 			KV("since_last", btwn.String()).
 			KV("body", mut.String()))
 	}
@@ -121,12 +125,21 @@ func (b *bot) handleMessage(u *etron.Update) stateFn {
 	}
 }
 
+func (b *bot) sendDocument(filename string, content []byte) {
+	grip.Debug(b.grip("sending document").
+		KV("outID", b.metrics.sent.Add(1)).
+		KV("fileID", b.metrics.filesSent.Add(1)).
+		KV("filename", filename).
+		KV("size", b.metrics.filesSentSize.Add(int64(len(content)))))
+	b.handleSendMessage(b.SendDocument(etron.NewInputFileBytes(filename, content), b.chatID, &etron.DocumentOptions{MessageThreadID: int(b.threadID)}))
+}
+
 func (b *bot) sendMarkdown(msg string) {
-	grip.Debug(b.grip("sending markdown message").KV("outID", b.sent.Add(1)))
+	grip.Debug(b.grip("sending markdown message").KV("outID", b.metrics.sent.Add(1)))
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{ParseMode: etron.Markdown, MessageThreadID: int64(b.threadID)}))
 }
 
 func (b *bot) sendPlain(msg string) {
-	grip.Debug(b.grip("sending plain message").KV("outID", b.sent.Add(1)))
+	grip.Debug(b.grip("sending plain message").KV("outID", b.metrics.sent.Add(1)))
 	b.handleSendMessage(b.SendMessage(msg, b.chatID, &etron.MessageOptions{MessageThreadID: int64(b.threadID)}))
 }

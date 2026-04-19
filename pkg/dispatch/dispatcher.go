@@ -32,6 +32,7 @@ const (
 	MinutesAppOpLeaderSingings
 	MinutesAppOpLeaderConnectedness
 	MinutesAppOpLeaderShare
+	MinutesAppOpLeaderDossier
 	MinutesAppOpSingings
 	MinutesAppOpSongs
 	MinutesAppOpSongsByKey
@@ -93,6 +94,15 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			MCP:       mcpsrv.NewTool(mcpsrv.MostLeadSongs).Register,
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 			Messenger: msgui.MostLed,
+		}
+	case MinutesAppOpLeaderDossier:
+		return MinutesAppRegistration{
+			ID:          mao,
+			Command:     "dossier",
+			Description: "a complete report on a leader; with longer runtime",
+			Aliases:     []string{"full-report", "complete-report", "leader-full-details"},
+			Reporter:    reportui.Leader,
+			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader, MinutesAppQueryTypeDocumentOutput)),
 		}
 	case MinutesAppOpLeaderLeadHistory:
 		return MinutesAppRegistration{
