@@ -179,7 +179,7 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	mb.Line()
 
 	mb.H3("Lessons")
-	models.WriteTable(&mb, erc.HandleAll(conn.SingingLessons(ctx, p.Name), ec.Push))
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingLessons(ctx, p.Name, models.FirstValidYear(p.Years)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()

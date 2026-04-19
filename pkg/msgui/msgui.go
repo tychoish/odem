@@ -105,7 +105,7 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) iter.Se
 		header.Concat("Lessons for singing **", p.Name, "**:")
 
 		var ec erc.Collector
-		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.SingingLessons(ctx, p.Name), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.SingingLessons(ctx, p.Name, models.FirstValidYear(p.Years)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}

@@ -1,6 +1,13 @@
 package models
 
-import "fmt"
+import (
+	"cmp"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/tychoish/fun/irt"
+)
 
 type Params struct {
 	// Provide input for the name of the singer, the song or the
@@ -20,5 +27,14 @@ type Params struct {
 }
 
 func (p Params) String() string {
-	return fmt.Sprintf("name<%q> years%s limit<%d>", p.Name, p.Years, p.Limit)
+	return fmt.Sprintf("name<%q> years %s limit<%d>", p.Name, p.Years, p.Limit)
 }
+
+func FirstValidYear(yrs []int) int {
+	input, _ := irt.Initial(irt.Keep(irt.Slice(yrs), isCoveredYear))
+	return cmp.Or(input, thisYear()-1)
+}
+
+var thisYear = sync.OnceValue(func() int { return time.Now().Year() })
+
+func isCoveredYear(y int) bool { return y >= 1995 && y <= thisYear() }

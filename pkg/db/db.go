@@ -232,12 +232,12 @@ LIMIT ?`
 	return dbx.Query[models.LeaderSingingAttendance](ctx, conn.db.QueryContext, query, leader, cmp.Or(limit, 100))
 }
 
-func (conn *Connection) SingingLessons(ctx context.Context, singing string) iter.Seq2[models.SingingLessionInfo, error] {
+func (conn *Connection) SingingLessons(ctx context.Context, singing string, year int) iter.Seq2[models.SingingLessionInfo, error] {
 	const query = `
 SELECT lesson_id, sequence_number, singer_name, song_page_number, song_name, song_key
 FROM singing_lessons
-WHERE singing_name = ?;`
-	return dbx.Query[models.SingingLessionInfo](ctx, conn.db.QueryContext, query, singing)
+WHERE singing_name = ? AND singing_year = ?;`
+	return dbx.Query[models.SingingLessionInfo](ctx, conn.db.QueryContext, query, singing, cmp.Or(year, time.Now().Year()))
 }
 
 func (conn *Connection) AllSingings(ctx context.Context) iter.Seq2[models.SingingInfo, error] {

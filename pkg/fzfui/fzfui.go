@@ -127,12 +127,18 @@ func SingingAction(ctx context.Context, dbconn *db.Connection) error {
 	if err != nil {
 		return err
 	}
+
+	years, err := selector.Years(new(infra.SearchParams).With("").WithPrompt("years (0 = all)").WithMulti())
+	if err != nil {
+		return err
+	}
+
 	grip.Info("Singing:")
 	if err := infra.WriteTabbedKVs(os.Stdout, infra.IterStruct(singing)); err != nil {
 		return err
 	}
 	grip.Info("Lessons:")
-	return renderTable(models.WriteTable, dbconn.SingingLessons(ctx, singing.SingingName))
+	return renderTable(models.WriteTable, dbconn.SingingLessons(ctx, singing.SingingName, models.FirstValidYear(years)))
 }
 
 func LeaderLeadHistoryAction(ctx context.Context, dbconn *db.Connection, input string) error {

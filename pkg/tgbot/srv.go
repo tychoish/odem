@@ -27,12 +27,16 @@ func NewService(ctx context.Context, conf *odem.Configuration, conn *db.Connecti
 }
 
 func (srv *Service) Start(ctx context.Context) error {
+	grip.Info(grip.KV("op", "telegram bot starting").
+		WhenKV(srv.conf.Telegram.Webhook.Enabled, "mode", "webook").
+		WhenKV(!srv.conf.Telegram.Webhook.Enabled, "mode", "longpoll"))
+
 	dsp := etron.NewDispatcher(srv.conf.Telegram.BotToken, srv.MakeBot)
+
 	if srv.conf.Telegram.Webhook.Enabled {
-		grip.Info("telegram bot starting in webhook mode")
 		return srv.startWebhook(ctx, dsp)
 	}
-	grip.Info("telegram bot starting in polling mode")
+
 	return srv.startPolling(ctx, dsp)
 }
 

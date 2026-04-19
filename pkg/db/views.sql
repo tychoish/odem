@@ -86,6 +86,7 @@ SELECT
 	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
 	COALESCE(slj.lesson_id, 0) AS lesson_id,
 	COALESCE(m."Name", '') AS singing_name,
+	m.Year AS singing_year,
 	CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS singer_name,
 	COALESCE(bsj.page_num, '') AS song_page_number,
 	COALESCE(s.title, '') AS song_name,

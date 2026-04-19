@@ -160,7 +160,7 @@ func Singings(ctx context.Context, conn *db.Connection, p models.Params) (*Conte
 		return nil, err
 	}
 
-	lessons, err := erc.FromIteratorUntil(conn.SingingLessons(ctx, info.SingingName))
+	lessons, err := erc.FromIteratorUntil(conn.SingingLessons(ctx, info.SingingName, models.FirstValidYear(p.Years)))
 	if err != nil {
 		return nil, err
 	}

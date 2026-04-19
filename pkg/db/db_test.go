@@ -488,7 +488,7 @@ func TestGlobalRankings(t *testing.T) {
 		}},
 		{"SingingLessons", func(t *testing.T) {
 			count := 0
-			for _, err := range conn.SingingLessons(ctx, testSinging) {
+			for _, err := range conn.SingingLessons(ctx, testSinging, 2009) {
 				if err != nil {
 					t.Fatal(err)
 				}

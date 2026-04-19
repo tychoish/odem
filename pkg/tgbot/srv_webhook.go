@@ -9,6 +9,7 @@ import (
 	"time"
 
 	etron "github.com/NicoNex/echotron/v3"
+	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/grip"
 )
 
@@ -16,6 +17,8 @@ import (
 // receives updates. It blocks until ctx is cancelled, then gracefully shuts
 // down the server and deletes the webhook registration before returning.
 func (srv *Service) startWebhook(ctx context.Context, dsp *etron.Dispatcher) error {
+	startAt := time.Now()
+
 	webhookURL := srv.conf.Telegram.Webhook.URL
 	listenAddr, err := resolveListenAddr(srv.conf.Telegram.Webhook.Listen, webhookURL)
 	if err != nil {
@@ -27,14 +30,13 @@ func (srv *Service) startWebhook(ctx context.Context, dsp *etron.Dispatcher) err
 	httpSrv := &http.Server{Addr: listenAddr}
 	dsp.SetHTTPServer(httpSrv)
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error)
 	go func() {
-		err := dsp.ListenWebhookOptions(webhookURL, true, nil)
+		defer close(errCh)
+		err := dsp.ListenWebhookOptions(webhookURL, true, &etron.WebhookOptions{})
 		// http.ErrServerClosed is expected on graceful shutdown; suppress it.
 		if err != nil && err != http.ErrServerClosed {
 			errCh <- err
-		} else {
-			errCh <- nil
 		}
 	}()
 
@@ -42,7 +44,7 @@ func (srv *Service) startWebhook(ctx context.Context, dsp *etron.Dispatcher) err
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		grip.Info(grip.KV("op", "webhook").KV("status", "shutting down"))
+		grip.Info(grip.KV("op", "webhook").KV("status", "shutting down").KV("dur", time.Since(startAt).String()))
 		return srv.stopWebhook(httpSrv)
 	}
 }
@@ -52,7 +54,9 @@ func (srv *Service) startWebhook(ctx context.Context, dsp *etron.Dispatcher) err
 // restarted in polling mode; we only clean it up here as a courtesy so that
 // Telegram stops sending requests immediately.
 func (srv *Service) stopWebhook(httpSrv *http.Server) error {
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	startAt := time.Now()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	// Best-effort webhook deletion; don't fail shutdown on error.
@@ -62,10 +66,10 @@ func (srv *Service) stopWebhook(httpSrv *http.Server) error {
 	}
 
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("webhook server shutdown: %w", err)
+		return ers.Wrap(err, "webhook server shutdown")
 	}
 
-	grip.Info(grip.KV("op", "webhook").KV("status", "stopped"))
+	grip.Info(grip.KV("op", "webhook").KV("status", "stopped").KV("dur", time.Since(startAt)).KV("canceled", shutdownCtx.Err() != nil))
 	return nil
 }
 
@@ -78,7 +82,7 @@ func resolveListenAddr(listen, webhookURL string) (string, error) {
 	}
 	u, err := url.Parse(webhookURL)
 	if err != nil {
-		return "", fmt.Errorf("parsing webhook URL %q: %w", webhookURL, err)
+		return "", ers.Wrapf(err, "parsing webhook URL %q", webhookURL)
 	}
 	port := u.Port()
 	if port == "" {
