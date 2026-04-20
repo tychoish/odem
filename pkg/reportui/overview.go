@@ -35,40 +35,40 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.H1(singer.Name)
 
 	if share, err := conn.LeaderShareOfLeads(ctx, singer.Name, 16); ec.PushOk(err) {
-		mb.KV("Share of all Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100))
+		mb.KV("Share of all Leads", fmt.Sprintf("%.4f%%", stw.DerefZ(share)*100)).PushString("  ")
 	}
 	if v, err := conn.GetSingerConnectedness(ctx, &singer.Name); ec.PushOk(err) {
-		mb.KV("Connectedness", fmt.Sprintf("%.2f%%", v*100))
+		mb.KV("Connectedness", fmt.Sprintf("%.2f%%", v*100)).PushString("  ")
 	}
 	if leaderInfo, err := conn.GetLeader(ctx, &singer.Name); ec.PushOk(err) {
 		mb.KV("Number of Top 20 Leads", strconv.Itoa(int(leaderInfo.Top20Count)))
-		mb.KV("Lesson Count", strconv.Itoa(int(leaderInfo.LessonCount)))
+		mb.KV("Lesson Count", strconv.Itoa(int(leaderInfo.LessonCount))).PushString("  ")
 	}
 	if majorKey, err := conn.GetLeaderTopMajorKey(ctx, singer.Name); ec.PushOk(err) {
-		mb.KV("Top Major Key", fmt.Sprintf("%s (%d)", majorKey.TopKey, majorKey.LeadCount))
+		mb.KV("Top Major Key", fmt.Sprintf("%s (%d)", majorKey.TopKey, majorKey.LeadCount)).PushString("  ")
 	}
 	if minorKey, err := conn.GetLeaderTopMinorKey(ctx, singer.Name); ec.PushOk(err) {
-		mb.KV("Top Minor Key", fmt.Sprintf("%s (%d)", minorKey.TopKey, minorKey.LeadCount))
+		mb.KV("Top Minor Key", fmt.Sprintf("%s (%d)", minorKey.TopKey, minorKey.LeadCount)).PushString("  ")
 	}
 	if keyCounts, err := conn.GetLeaderMajorMinorCounts(ctx, singer.Name); err != nil || (keyCounts.MajorCount == 0 && keyCounts.MinorCount == 0) {
 		ec.Push(err)
 	} else if keyCounts.MinorCount == 0 {
-		mb.KV("Major/Minor Ratio", "0 (all major)")
+		mb.KV("Major/Minor Ratio", "0 (all major)").PushString("  ")
 	} else if keyCounts.MajorCount == 0 {
-		mb.KV("Major/Minor Ratio", "0 (all minor)")
+		mb.KV("Major/Minor Ratio", "0 (all minor)").PushString("  ")
 	} else {
-		mb.KV("Major/Minor Ratio", fmt.Sprintf("%.2f:1", float64(keyCounts.MajorCount)/float64(keyCounts.MinorCount)))
+		mb.KV("Major/Minor Ratio", fmt.Sprintf("%.2f:1", float64(keyCounts.MajorCount)/float64(keyCounts.MinorCount))).PushString("  ")
 	}
 
 	if topBuddy, err := conn.GetLeaderTopSingingBuddy(ctx, singer.Name); ec.PushOk(err) {
-		mb.KV("Top Singing Buddy", fmt.Sprintf("%s (%d singings)", topBuddy.BuddyName, topBuddy.SingingCount))
+		mb.KV("Top Singing Buddy", fmt.Sprintf("%s (%d singings)", topBuddy.BuddyName, topBuddy.SingingCount)).PushString("  ")
 	}
 	if activeYears, err := conn.GetLeaderActiveYears(ctx, singer.Name); ec.PushOk(err) {
-		mb.KV("Years Singing", fmt.Sprintf("%d (%d–%d)", activeYears.YearsActive, activeYears.FirstYear, activeYears.LastYear))
-		mb.KV("Active (last 5 years)", strconv.FormatBool(activeYears.IsActive != 0))
+		mb.KV("Years Singing", fmt.Sprintf("%d (%d–%d)", activeYears.YearsActive, activeYears.FirstYear, activeYears.LastYear)).PushString("  ")
+		mb.KV("Active (last 5 years)", strconv.FormatBool(activeYears.IsActive != 0)).PushString("  ")
 	}
 	if topState, err := conn.GetLeaderTopState(ctx, singer.Name); ec.PushOk(err) {
-		mb.KV("State with Most Leads", fmt.Sprintf("%s (%d)", topState.State, topState.LeadCount))
+		mb.KV("State with Most Leads", fmt.Sprintf("%s (%d)", topState.State, topState.LeadCount)).PushString("  ")
 	}
 
 	mb.Line()
@@ -110,8 +110,8 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	models.WriteTable(&mb, erc.HandleAll(irt.Limit2(conn.NeverSung(ctx, singer.Name), 12), ec.Push))
 
 	mb.Line()
-	mb.KV("Generated", time.Now().Format(time.DateOnly))
-	mb.KV("Version", release.Version.Resolve().String())
+	mb.KV("Generated", time.Now().Format(time.DateOnly)).PushString("  ")
+	mb.KV("Version", release.Version.Resolve().String()).PushString("  ")
 
 	ec.Push(flush(w, &mb))
 	return ec.Resolve()
