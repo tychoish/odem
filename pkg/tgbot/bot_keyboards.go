@@ -15,7 +15,7 @@ func (b *bot) keyboardMinutesAppQueries() stateFn {
 	b.state.trackingKeyboard.Add(1)
 	btn := irt.Collect(
 		irt.Convert(dispatch.AllMinutesAppMessengerOps(),
-			func(mao dispatch.MinutesAppOperation) etron.InlineKeyboardButton {
+			func(mao dispatch.MinutesOperation) etron.InlineKeyboardButton {
 				reg := mao.Registry().Info()
 				return etron.InlineKeyboardButton{Text: reg.Key, CallbackData: reg.Key}
 			},

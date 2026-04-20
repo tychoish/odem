@@ -16,73 +16,78 @@ import (
 	"github.com/tychoish/odem/pkg/reportui"
 )
 
-type MinutesAppOperation int
+type MinutesOperation int
 
 const (
-	MinutesAppOpUnknown MinutesAppOperation = iota
+	MinutesAppOpUnknown MinutesOperation = iota
 	MinutesAppOpLeaderMostLed
+	MinutesAppOpLeaderLeadHistory
+	MinutesAppOpLeaderDossier
+	MinutesAppOpLeaderDebutes
 	MinutesAppOpLeaderFavoriteKey
 	MinutesAppOpLeaderRoleModels
-	MinutesAppOpLeaderUnfamilarHits
+	MinutesAppOpLeaderConnectedness
 	MinutesAppOpLeaderBuddies
 	MinutesAppOpLeaderStrangers
 	MinutesAppOpLeaderNeverSung
 	MinutesAppOpLeaderNeverLed
-	MinutesAppOpLeaderLeadHistory
 	MinutesAppOpLeaderSingings
-	MinutesAppOpLeaderConnectedness
+	MinutesAppOpLeaderSingingsPerYear
 	MinutesAppOpLeaderShare
-	MinutesAppOpLeaderDossier
+	MinutesAppOpLeaderUnfamilarHits
 	MinutesAppOpSingings
 	MinutesAppOpSongs
 	MinutesAppOpSongsByKey
+	MinutesAppOpSongsByWord
+	MinutesAppOpSongLyrics
 	MinutesAppOpPopularAsObserved
 	MinutesAppOpPopularInYears
 	MinutesAppOpPopularSongsByKey
 	MinutesAppOpPopularLocally
-	MinutesAppOpTop20Leaders
 	MinutesAppOpTopLeaders
 	MinutesAppOpTopLeadersByKey
-	MinutesAppOpLeaderDebutes
-	MinutesAppOpLeaderSingingsPerYear
-	MinutesAppOpSongLyrics
-	MinutesAppOpSongsByWord
 	MinutesAppOpTop20LeadersActiveInLastYear
+	MinutesAppOpTop20Leaders
+	MinutesAppOpSelectionsSingings
+	MinutesAppOpSelectionsSongs
+	MinutesAppOpSelectionsLeaders
+	MinutesAppOpSelectionsYears
+	MinutesAppOpSelectionsLocality
 	MinutesAppOpInvalid
 	MinutesAppOpRetry
 	MinutesAppOpExit = 181
 )
 
-func AllMinutesAppOps() iter.Seq[MinutesAppOperation] {
+func AllMinutesAppOps() iter.Seq[MinutesOperation] {
 	return irt.Keep(irt.Convert(irt.Range(0, 181), toOp), isOk)
 }
 
-func AllMinutesAppAliases() iter.Seq2[MinutesAppOperation, []string] {
+func AllMinutesAppAliases() iter.Seq2[MinutesOperation, []string] {
 	return irt.With(AllMinutesAppOps(), getAliases)
 }
 
-func MinutesAppAliasMapping() iter.Seq2[string, MinutesAppOperation] {
+func MinutesAppAliasMapping() iter.Seq2[string, MinutesOperation] {
 	return irt.ReverseMapping(AllMinutesAppAliases())
 }
 
-func AllMinutesAppCommands() iter.Seq2[string, MinutesAppOperation] {
+func AllMinutesAppCommands() iter.Seq2[string, MinutesOperation] {
 	return irt.Flip(irt.With(AllMinutesAppOps(), toString))
 }
 
-func NewMinutesAppOperation(arg string) MinutesAppOperation     { return aliases.Get(arg) }
-func (mao MinutesAppOperation) GetInfo() irt.KV[string, string] { return mao.Registry().Info() }
-func (mao MinutesAppOperation) ReportDispatcher() Reporter      { return mao.Registry().GetReporter() }
-func (mao MinutesAppOperation) FuzzyDispatcher() FuzzHandler    { return mao.Registry().GetFuzzHandler() }
-func (mao MinutesAppOperation) Aliases() []string               { return mao.Registry().Aliases }
-func (mao MinutesAppOperation) String() string                  { return mao.GetInfo().Key }
-func (mao MinutesAppOperation) Validate() error                 { return mao.Registry().err }
-func (mao MinutesAppOperation) Ok() bool                        { return mao.isvalid() || mao == MinutesAppOpExit }
-func (mao MinutesAppOperation) isvalid() bool                   { return mao > 0 && mao < MinutesAppOpInvalid }
+func NewMinutesAppOperation(arg string) MinutesOperation     { return aliases.Get(arg) }
+func (mao MinutesOperation) GetInfo() irt.KV[string, string] { return mao.Registry().Info() }
+func (mao MinutesOperation) ReportDispatcher() Reporter      { return mao.Registry().GetReporter() }
+func (mao MinutesOperation) FuzzyDispatcher() FuzzHandler    { return mao.Registry().GetFuzzHandler() }
+func (mao MinutesOperation) Aliases() []string               { return mao.Registry().Aliases }
+func (mao MinutesOperation) String() string                  { return mao.GetInfo().Key }
+func (mao MinutesOperation) Validate() error                 { return mao.Registry().err }
+func (mao MinutesOperation) Ok() bool                        { return mao.isvalid() || mao == MinutesAppOpExit }
+func (mao MinutesOperation) isvalid() bool                   { return mao > 0 && mao < MinutesAppOpInvalid }
 
-func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
+func (mao MinutesOperation) Registry() MinutesOpRegistration {
 	switch mao {
 	case MinutesAppOpLeaderMostLed:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "most-led",
 			Description: "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).",
@@ -96,7 +101,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.MostLed,
 		}
 	case MinutesAppOpLeaderDossier:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "dossier",
 			Description: "a complete report on a leader; with longer runtime",
@@ -105,7 +110,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader, MinutesAppQueryTypeDocumentOutput)),
 		}
 	case MinutesAppOpLeaderLeadHistory:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "lead-history",
 			Description: "a list of all leads for a leader, with details about the song and the singing",
@@ -117,7 +122,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderSingings:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-singings",
 			Description: "a list of singings a leader attended, with their lead count, total leaders, and locality",
@@ -131,7 +136,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeaderSingings,
 		}
 	case MinutesAppOpSongs:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "songs",
 			Description: "return basic information about a song, with a list of the leaders who have led the song the most.",
@@ -145,7 +150,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.Songs,
 		}
 	case MinutesAppOpSingings:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "singings",
 			Description: "provide basic information about a specific singing, with a list of the leaders and the songs they led.",
@@ -159,7 +164,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.Singings,
 		}
 	case MinutesAppOpLeaderBuddies:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "buddies",
 			Description: "return a list of the singers most-frequent co-attenders of of singings for one singer.",
@@ -173,7 +178,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpLeaderStrangers:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "strangers",
 			Description: "return a list of singers that the specified singer has never sung with, (but most of their buddies have!)",
@@ -188,7 +193,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.Strangers,
 		}
 	case MinutesAppOpPopularAsObserved:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular-as-observed",
 			Description: "a list of songs ordered by number of leads of all songs sung at singings thatone singer has attended.",
@@ -204,7 +209,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.PopularAsObserved,
 		}
 	case MinutesAppOpPopularLocally:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular-locally",
 			Description: "a list of songs ordered by number of leads at all singings in a particular region.",
@@ -219,7 +224,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.PopularLocally,
 		}
 	case MinutesAppOpPopularInYears:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular",
 			Description: "a list of songs ordered by the number of leads at all singings in a particular year or years. Negative values remove that year's singings.",
@@ -233,7 +238,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.PopularInYears,
 		}
 	case MinutesAppOpLeaderNeverSung:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "never-sung",
 			Description: "a list of the songs that the specified singer has never **sung** at a minuted singing.",
@@ -248,7 +253,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.NeverSung,
 		}
 	case MinutesAppOpLeaderNeverLed:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "never-led",
 			Description: "a list of songs that the specified singer has never **led** at a minuted singing.",
@@ -263,7 +268,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.NeverLed,
 		}
 	case MinutesAppOpRetry:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "retry",
 			Description: "(interactive) select an operation.",
@@ -277,7 +282,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires: dt.MakeSet(irt.Args(MinutesAppQueryTypeOperation)),
 		}
 	case MinutesAppOpLeaderUnfamilarHits:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "unfamilar-hits",
 			Description: "a list of the most popular songs that a singer has sung less often",
@@ -293,7 +298,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.UnfamilarHits,
 		}
 	case MinutesAppOpLeaderConnectedness:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "connectedness",
 			Description: "a list of singers, ordered by their connectedness ratio, or the percentge of the community they've sung with.",
@@ -308,7 +313,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.Connectedness,
 		}
 	case MinutesAppOpLeaderRoleModels:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-role-models",
 			Description: "a list of a leaders most frequently led songs, with that song's most frequently leader.",
@@ -323,7 +328,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeaderRoleModels,
 		}
 	case MinutesAppOpTopLeaders:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "top-leaders",
 			Description: "a list of all leaders ordered by their total number of minuted leads.",
@@ -335,7 +340,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger:   msgui.TopLeaders,
 		}
 	case MinutesAppOpLeaderFavoriteKey:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-favorite-key",
 			Description: "a list of musical keys ordered by the number of leads a given leader has given in each key",
@@ -350,7 +355,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeaderFavoriteKey,
 		}
 	case MinutesAppOpLeaderDebutes:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "debuts",
 			Description: "leaders making their debut in a given year, by lead count",
@@ -366,7 +371,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
 		}
 	case MinutesAppOpSongsByKey:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "songs-by-key",
 			Description: "frequency of song keys in the minutes, with percentage of total",
@@ -378,7 +383,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger:   msgui.SongsByKey,
 		}
 	case MinutesAppOpLeaderShare:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-share",
 			Description: "a list of all leaders ordered by their percentage of total leads optionally filtered by year",
@@ -393,7 +398,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeaderShare,
 		}
 	case MinutesAppOpTop20Leaders:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "top20-leaders",
 			Description: "leaders ordered by number of songs for which they are the top-20 leads",
@@ -407,7 +412,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.Top20Leaders,
 		}
 	case MinutesAppOpLeaderSingingsPerYear:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "singings-per-year",
 			Description: "number of singings a leader attended per year",
@@ -420,7 +425,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeaderSingingsPerYear,
 		}
 	case MinutesAppOpTopLeadersByKey:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-by-key",
 			Description: "leaders ordered by number of leads in a given key",
@@ -434,7 +439,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.LeadersByKey,
 		}
 	case MinutesAppOpSongsByWord:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "songs-by-word",
 			Description: "search song lyrics for a word or phrase; returns page number, title, and the matching line.",
@@ -446,7 +451,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger:   msgui.SongsByWord,
 		}
 	case MinutesAppOpSongLyrics:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "lyrics",
 			Description: "render the full text/lyrics of a song with its page number, title, music author, words author, meter, and key.",
@@ -458,7 +463,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger:   msgui.SongLyrics,
 		}
 	case MinutesAppOpPopularSongsByKey:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "songs-in-key",
 			Description: "most frequently led songs in a given key",
@@ -471,7 +476,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Messenger: msgui.PopularSongsByKey,
 		}
 	case MinutesAppOpTop20LeadersActiveInLastYear:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "top20-active",
 			Description: "leaders ordered by number of top-20 songs who have led at least once in the last year",
@@ -486,7 +491,7 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 			Requires:  &dt.Set[MinutesAppQueryType]{},
 		}
 	case MinutesAppOpExit:
-		return MinutesAppRegistration{
+		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "exit",
 			Description: "exit <181>",
@@ -500,14 +505,54 @@ func (mao MinutesAppOperation) Registry() MinutesAppRegistration {
 				grip.Debug(grip.MPrintln("input-args", args))
 				grip.Info("goodbye!")
 				return nil
-			},
+		},
 			Requires: &dt.Set[MinutesAppQueryType]{},
 		}
+	case MinutesAppOpSelectionsSingings:
+		return MinutesOpRegistration{
+			ID:      mao,
+			Command: "singing-selections",
+			Description: "Renders a full list of all Singings",
+			Aliases: []string{"singings-selections", "all-singings"},
+			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+		}
+	case MinutesAppOpSelectionsSongs:
+		return MinutesOpRegistration{
+			ID:      mao,
+			Command: "song-selections",
+			Description: "Renders a full list of all Songs in the Sacred Harp",
+			Aliases: []string{"songs-selections", "all-songs", "song-selection"},
+			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+		}
+	case MinutesAppOpSelectionsLeaders:
+		return MinutesOpRegistration{
+			ID:      mao,
+			Command: "leader-selection",
+			Description: "Renders a full list of all leaders at Minuted Singings",
+			Aliases: []string{"leaders-selections", "all-leaders", "singer-selection"},
+			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+		}
+	case MinutesAppOpSelectionsYears:
+		return MinutesOpRegistration{
+			ID:      mao,
+			Command: "year-selections",
+			Description: "Readers a list of selections (including negations) of singings",
+			Aliases: []string{"year-selection", "years-selections", "all-year", "years-selections", "all-years"},
+			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+		}
+	case MinutesAppOpSelectionsLocality:
+		return MinutesOpRegistration{
+			ID:      mao,
+			Command: "locality-selections",
+			Description: "Renders a list of all localties (states, regional communities, etc.)",
+			Aliases: []string{"locality-selection", "all-places", "all-localities", "all-regions", "places-selections", "select-places", "select-localities", "select-locality"},
+			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+		}
 	case MinutesAppOpUnknown:
-		return MinutesAppRegistration{ID: mao, err: ers.Error("unknown/undefined operation")}
+		return MinutesOpRegistration{ID: mao, err: ers.Error("unknown/undefined operation")}
 	case MinutesAppOpInvalid:
-		return MinutesAppRegistration{ID: mao, Aliases: []string{""}, err: ers.Error("invalid operation")}
+		return MinutesOpRegistration{ID: mao, Aliases: []string{""}, err: ers.Error("invalid operation")}
 	default:
-		return MinutesAppRegistration{ID: mao, err: fmt.Errorf("undefined/invalid operation %s", mao)}
+		return MinutesOpRegistration{ID: mao, err: fmt.Errorf("undefined/invalid operation %s", mao)}
 	}
 }

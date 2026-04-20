@@ -8,6 +8,15 @@ import (
 	"github.com/tychoish/odem/pkg/reportui"
 )
 
+// TODO unify FuzzHandler and Reporter: both should take reportui.Params which should move to models
+// (for now, and wrap/combine with the existing models.Params). The underlying packages could also
+// be combined: fzf is just reports with interactivity and with output written to stdout. both
+// _could_ take arguments on the command line to pre-populate Params structs.
+//
+// Eventually, there should be a "super-fzf" interface that would render output using that would
+// jump _through_ successive fzf menus "leader -> [which query] -> [fzf songs rendered with
+// LineItem] -> song selection -> [top leaders, other queries we can look at] -> "<views>", however
+// implementation of that CAN ONLY begin after begin the current report/fzf interface is rationalized.
 type FuzzHandler func(context.Context, *db.Connection, string) error
 
 func SimpleFuzzyHandler(op func(context.Context, *db.Connection) error) FuzzHandler {

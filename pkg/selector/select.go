@@ -14,6 +14,11 @@ import (
 	"github.com/tychoish/odem/pkg/models"
 )
 
+// TODO: all selectors should return more than one possibility;
+// many/most consumers will want only the top one thing, but some may
+// want to filter till there are ~7 options and then let the user//
+// select "normally."
+
 func noop[T any](in T) T { return in }
 
 func Leader(ctx context.Context, dbconn *db.Connection, sp *infra.SearchParams) (*models.LeaderProfile, error) {

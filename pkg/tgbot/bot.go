@@ -28,11 +28,11 @@ type bot struct {
 	botName      string  // @username without leading @ (empty if unknown)
 	stateMachine stateFn // current state; replaced after every update
 	etron.API
-	ctx         context.Context
-	db          *db.Connection
-	conf        *odem.Configuration
-	off         *atomic.Bool
-	metrics     struct {
+	ctx     context.Context
+	db      *db.Connection
+	conf    *odem.Configuration
+	off     *atomic.Bool
+	metrics struct {
 		recv          atomic.Int64
 		sent          atomic.Int64
 		filesSent     atomic.Int64
@@ -41,8 +41,8 @@ type bot struct {
 	lastUpdated time.Time
 	queryState  struct {
 		has               *dt.Set[dispatch.MinutesAppQueryType]
-		entry             *dispatch.MinutesAppRegistration
-		op                *dispatch.MinutesAppOperation
+		entry             *dispatch.MinutesOpRegistration
+		op                *dispatch.MinutesOperation
 		inProgress        bool
 		params            models.Params
 		selectionAttempts int

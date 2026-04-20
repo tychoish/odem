@@ -18,10 +18,10 @@ import (
 )
 
 func isOk[T interface{ Ok() bool }](in T) bool { return in.Ok() }
-func toOp(in int) MinutesAppOperation          { return MinutesAppOperation(in) }
+func toOp(in int) MinutesOperation             { return MinutesOperation(in) }
 func toString[T fmt.Stringer](in T) string     { return in.String() }
 
-func resolver[T any, I ~func(context.Context, *db.Connection, T) error](reg MinutesAppRegistration, op I) I {
+func resolver[T any, I ~func(context.Context, *db.Connection, T) error](reg MinutesOpRegistration, op I) I {
 	return func(ctx context.Context, conn *db.Connection, arg T) error {
 		if op == nil {
 			return cmp.Or(reg.err, reg.unavailable())
@@ -30,7 +30,7 @@ func resolver[T any, I ~func(context.Context, *db.Connection, T) error](reg Minu
 	}
 }
 
-func fuzzySelectOperation(arg string) MinutesAppOperation {
+func fuzzySelectOperation(arg string) MinutesOperation {
 	// this needs to be in the dispatcher package to avoid a circular dependency, even though it
 	// feels like it wants to be in the fzfui package.
 	arg = strings.ReplaceAll(arg, " ", "-")
@@ -40,7 +40,7 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 
 	if !operation.Ok() {
 		var err error
-		operation, err = infra.NewFuzzySearch[MinutesAppOperation](AllMinutesAppFuzzOps()).Prompt("odem operation").FindOne()
+		operation, err = infra.NewFuzzySearch[MinutesOperation](AllMinutesAppFuzzOps()).Prompt("odem operation").FindOne()
 		if operation.Ok() {
 			return operation
 		}
@@ -59,22 +59,19 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 	return operation
 }
 
-func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
+func toFzfCmdr(mao MinutesOperation) *cmdr.Commander {
 	info := mao.GetInfo()
 	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(odemcli.DBOperationSpec(mao.FuzzyDispatcher().Op))
 }
 
-type aliasFilter func(string, MinutesAppOperation) (string, MinutesAppOperation)
+type aliasFilter func(string, MinutesOperation) (string, MinutesOperation)
 
-func joinKebabs(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
-	return strings.ReplaceAll(k, "-", ""), v
-}
+func kebabTo(k string, sep string) string                                 { return strings.ReplaceAll(k, "-", sep) }
+func joinKebabs(k string, v MinutesOperation) (string, MinutesOperation)  { return kebabTo(k, ""), v }
+func kebab2Space(k string, v MinutesOperation) (string, MinutesOperation) { return kebabTo(k, " "), v }
+func kebab2Dots(k string, v MinutesOperation) (string, MinutesOperation)  { return kebabTo(k, "."), v }
 
-func replaceKebabsWithSpace(k string, v MinutesAppOperation) (string, MinutesAppOperation) {
-	return strings.ReplaceAll(k, "-", " "), v
-}
-
-func toReportCmdr(mao MinutesAppOperation) *cmdr.Commander {
+func toReportCmdr(mao MinutesOperation) *cmdr.Commander {
 	i := mao.GetInfo()
 	return cmdr.MakeCommander().SetName(i.Key).SetUsage(i.Value).With(ReportOperationSpec(mao.ReportDispatcher()))
 }

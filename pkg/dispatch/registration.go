@@ -5,12 +5,12 @@ import (
 	"context"
 	"io"
 	"iter"
-	"strings"
 
 	"github.com/tychoish/fun/adt"
 	"github.com/tychoish/fun/dt"
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/fun/mdwn"
+	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/mcpsrv"
 	"github.com/tychoish/odem/pkg/models"
@@ -19,7 +19,7 @@ import (
 )
 
 type aliasMap struct {
-	adt.SyncMap[string, MinutesAppOperation]
+	adt.SyncMap[string, MinutesOperation]
 }
 
 var aliases aliasMap
@@ -32,50 +32,55 @@ func init() {
 	aliases.withSpacedWords()
 }
 
-func getAliases(mao MinutesAppOperation) []string { return mao.Aliases() }
-func (am *aliasMap) addFallback()                 { am.Store("", MinutesAppOpInvalid) }
-func (am *aliasMap) addAlaises()                  { am.Extend(MinutesAppAliasMapping()) }
-func (am *aliasMap) addCommands()                 { am.Extend(AllMinutesAppCommands()) }
-func (am *aliasMap) with(f aliasFilter)           { am.Extend(irt.Convert2(MinutesAppAliasMapping(), f)) }
-func (am *aliasMap) withJoinedWords()             { am.with(joinKebabs) }
-func (am *aliasMap) withSpacedWords()             { am.with(replaceKebabsWithSpace) }
+func getAliases(mao MinutesOperation) []string { return mao.Aliases() }
+func (am *aliasMap) addFallback()              { am.Store("", MinutesAppOpInvalid) }
+func (am *aliasMap) addAlaises()               { am.Extend(MinutesAppAliasMapping()) }
+func (am *aliasMap) addCommands()              { am.Extend(AllMinutesAppCommands()) }
+func (am *aliasMap) with(f aliasFilter)        { am.Extend(irt.Convert2(MinutesAppAliasMapping(), f)) }
+func (am *aliasMap) withJoinedWords()          { am.with(joinKebabs) }
+func (am *aliasMap) withSpacedWords()          { am.with(kebab2Space) }
+func (am *aliasMap) withDottedWords()          { am.with(kebab2Dots) }
 
-type MinutesAppRegistration struct {
-	ID          MinutesAppOperation
+type MinutesOpRegistration struct {
+	ID          MinutesOperation
 	Command     string
 	Description string
 	Aliases     []string
-	Reporter  Reporter
-	Fuzz      FuzzHandler
-	Messenger msgui.Messenger
-	MCP       mcpsrv.RegistrationFunc
+	Reporter    Reporter
+	Fuzz        FuzzHandler
+	Messenger   msgui.Messenger
+	MCP         mcpsrv.RegistrationFunc
 	Requires    *dt.Set[MinutesAppQueryType]
 	err         error
+	isMenu      bool
 }
 
-func (reg MinutesAppRegistration) Ok() bool                     { return reg.ID.Ok() }
-func (reg MinutesAppRegistration) Validate() error              { return reg.err }
-func (reg MinutesAppRegistration) infoKV() (string, string)     { return reg.Command, reg.Description }
-func (reg MinutesAppRegistration) Info() irt.KV[string, string] { return irt.MakeKV(reg.infoKV()) }
-func (reg MinutesAppRegistration) HasMessenger() bool { return reg.Messenger != nil }
-func (reg MinutesAppRegistration) HasReporter() bool  { return reg.Reporter != nil }
-func (reg MinutesAppRegistration) HasFuzz() bool      { return reg.Fuzz != nil }
-func (reg MinutesAppRegistration) unavailable() error { return unavailableOp(reg.Command) }
+func (reg MinutesOpRegistration) Ok() bool                     { return reg.ID.Ok() }
+func (reg MinutesOpRegistration) Validate() error              { return reg.err }
+func (reg MinutesOpRegistration) infoKV() (string, string)     { return reg.Command, reg.Description }
+func (reg MinutesOpRegistration) Info() irt.KV[string, string] { return irt.MakeKV(reg.infoKV()) }
+func (reg MinutesOpRegistration) HasMessenger() bool           { return reg.Messenger != nil }
+func (reg MinutesOpRegistration) HasReporter() bool            { return reg.Reporter != nil }
+func (reg MinutesOpRegistration) HasFuzz() bool                { return reg.Fuzz != nil }
+func (reg MinutesOpRegistration) IsMenu() bool                 { return reg.isMenu }
+func (reg MinutesOpRegistration) unavailable() error           { return unavailableOp(reg.Command) }
 
 // IsDocumentOp reports whether this operation renders its output as a file
 // attachment (signalled by MinutesAppQueryTypeDocumentOutput in Requires).
-func (reg MinutesAppRegistration) IsDocumentOp() bool {
+func (reg MinutesOpRegistration) IsDocumentOp() bool {
 	return reg.Requires != nil && reg.Requires.Check(MinutesAppQueryTypeDocumentOutput)
 }
 
 // DocumentFilename returns the suggested attachment filename for this operation.
-func (reg MinutesAppRegistration) DocumentFilename(params models.Params) string {
-	name := strings.ToLower(strings.ReplaceAll(params.Name, " ", "-"))
-	return name + "-" + reg.Command + ".md"
+func (reg MinutesOpRegistration) DocumentFilename(params models.Params) string {
+	mut := strut.MutableFrom(params.Name)
+	mut.ReplaceAllString(" ", "-")
+	mut.Concat("-", reg.Command, ".md")
+	return mut.Resolve()
 }
 
 // CallReporterToWriter invokes the Reporter writing output to w rather than a file.
-func (reg MinutesAppRegistration) CallReporterToWriter(ctx context.Context, conn *db.Connection, params models.Params, w io.Writer) error {
+func (reg MinutesOpRegistration) CallReporterToWriter(ctx context.Context, conn *db.Connection, params models.Params, w io.Writer) error {
 	return reg.GetReporter()(ctx, conn, reportui.Params{
 		Params:                params,
 		ToWriter:              w,
@@ -83,10 +88,10 @@ func (reg MinutesAppRegistration) CallReporterToWriter(ctx context.Context, conn
 	})
 }
 
-func (reg MinutesAppRegistration) GetFuzzHandler() FuzzHandler { return resolver(reg, reg.Fuzz) }
-func (reg MinutesAppRegistration) GetReporter() Reporter       { return resolver(reg, reg.Reporter) }
+func (reg MinutesOpRegistration) GetFuzzHandler() FuzzHandler { return resolver(reg, reg.Fuzz) }
+func (reg MinutesOpRegistration) GetReporter() Reporter       { return resolver(reg, reg.Reporter) }
 
-func (reg MinutesAppRegistration) GetMessenger() msgui.Messenger {
+func (reg MinutesOpRegistration) GetMessenger() msgui.Messenger {
 	if reg.Messenger != nil {
 		return reg.Messenger
 	}
@@ -96,13 +101,18 @@ func (reg MinutesAppRegistration) GetMessenger() msgui.Messenger {
 	}
 }
 
-func AllMinutesAppFuzzOps() iter.Seq[MinutesAppOperation] {
-	return func(yield func(MinutesAppOperation) bool) {
+func AllMinutesAppFuzzOps() iter.Seq[MinutesOperation] {
+	return func(yield func(MinutesOperation) bool) {
 		for op := range AllMinutesAppOps() {
-			if op.Registry().HasFuzz() {
-				if !yield(op) {
-					return
-				}
+			r := op.Registry()
+
+			switch {
+			case r.IsMenu():
+				continue
+			case !r.HasFuzz():
+				continue
+			case !yield(op):
+				return
 			}
 		}
 	}
@@ -110,10 +120,14 @@ func AllMinutesAppFuzzOps() iter.Seq[MinutesAppOperation] {
 
 // AllMinutesAppMessengerOps returns operations available to the Telegram bot:
 // streaming-message ops (HasMessenger) and file-document ops (IsDocumentOp).
-func AllMinutesAppMessengerOps() iter.Seq[MinutesAppOperation] {
-	return func(yield func(MinutesAppOperation) bool) {
+func AllMinutesAppMessengerOps() iter.Seq[MinutesOperation] {
+	return func(yield func(MinutesOperation) bool) {
 		for op := range AllMinutesAppOps() {
 			r := op.Registry()
+			if r.IsMenu() {
+				continue
+			}
+
 			if r.HasMessenger() || r.IsDocumentOp() {
 				if !yield(op) {
 					return
