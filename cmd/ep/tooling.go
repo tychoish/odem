@@ -6,6 +6,7 @@ import (
 
 	"github.com/tychoish/cmdr"
 	"github.com/tychoish/fun/exc"
+	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/release"
 	"github.com/urfave/cli/v3"
@@ -87,7 +88,7 @@ func Build() *cmdr.Commander {
 						SetName("db").
 						Aliases("rebuild", "database").
 						SetUsage("rebuild the database if new views have been built").
-						With(infra.ConfigurationAction(release.RestartService)),
+						With(infra.ConfigurationAction(db.RebuildCommand)),
 				),
 		)
 }
