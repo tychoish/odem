@@ -27,7 +27,7 @@ type Params struct {
 }
 
 func (p Params) String() string {
-	return fmt.Sprintf("name<%q> years %s limit<%d>", p.Name, p.Years, p.Limit)
+	return fmt.Sprintf("name<%q> years %v limit<%d>", p.Name, p.Years, p.Limit)
 }
 
 func FirstValidYear(yrs []int) int {
