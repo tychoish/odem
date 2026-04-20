@@ -1,4 +1,4 @@
-package infra
+package odemcli
 
 import (
 	"cmp"

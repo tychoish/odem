@@ -18,8 +18,8 @@ import (
 	"github.com/tychoish/fun/wpa"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/exe"
 	"github.com/tychoish/odem/pkg/home"
+	"github.com/tychoish/odem/pkg/infra"
 )
 
 const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.version=%s -X github.com/tychoish/odem/pkg/release.buildTime=%s`
@@ -31,7 +31,7 @@ func BuildArtifacts(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 
 	for basepath := range basePathCandidates(conf) {
-		basecmd := exe.Command(ctx).WithDirectory(basepath)
+		basecmd := infra.Command(ctx).WithDirectory(basepath)
 		versionString := Version.Resolve().String()
 		ldFlag := fmt.Sprintf(ldFlagTmpl, versionString, time.Now().Round(time.Millisecond).Format(time.RFC3339))
 
@@ -154,7 +154,7 @@ func LocalUpdate(ctx context.Context) error {
 	conf := odem.GetConfiguration(ctx)
 
 	for basepath := range basePathCandidates(conf) {
-		return exe.Command(ctx).WithDirectory(basepath).WithArgs("git", "pull", "origin", "main").Run(ctx)
+		return infra.Command(ctx).WithDirectory(basepath).WithArgs("git", "pull", "origin", "main").Run(ctx)
 	}
 	return errors.New("could not find local environment for the release build to update")
 }
@@ -179,7 +179,7 @@ func LocalBuild(ctx context.Context) error {
 
 		grip.Info(grip.MPrintln("building:", append([]string{"go"}, args...)))
 
-		return exe.Command(ctx).
+		return infra.Command(ctx).
 			WithName("go").
 			WithArgs(args...).
 			Run(ctx)
@@ -211,5 +211,5 @@ func EnsureLink(ctx context.Context, conf *odem.Configuration) error {
 		}
 		return nil
 	}
-	return exe.Command(ctx).WithArgs("sudo", "ln", "-s", conf.Build.BinaryLink, path).Run(ctx)
+	return infra.Command(ctx).WithArgs("sudo", "ln", "-s", conf.Build.BinaryLink, path).Run(ctx)
 }

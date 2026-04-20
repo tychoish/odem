@@ -9,17 +9,17 @@ import (
 	"github.com/tychoish/fun/erc"
 	"github.com/tychoish/fun/fnx"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/odemcli"
 )
 
 func Docs() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("docs").
 		SetUsage("access to 'odem' package documentation").
-		With(infra.RootHelpAction).
+		With(odemcli.RootHelpAction).
 		Subcommanders(
-			cmdr.MakeCommander().SetName("readme").Aliases("README").With(infra.WorkerAction(printDocs("README.md"))),
-			cmdr.MakeCommander().SetName("licenses").Aliases("LICENSES").With(infra.WorkerAction(printDocs("LICENSE"))),
+			cmdr.MakeCommander().SetName("readme").Aliases("README").With(odemcli.WorkerAction(printDocs("README.md"))),
+			cmdr.MakeCommander().SetName("licenses").Aliases("LICENSES").With(odemcli.WorkerAction(printDocs("LICENSE"))),
 		)
 }
 

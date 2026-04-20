@@ -1,4 +1,4 @@
-package infra
+package odemcli
 
 import (
 	"context"
@@ -81,7 +81,7 @@ func GetCanceler(ctx context.Context) context.CancelFunc {
 	return ctx.Value(cancelCtxKey{}).(context.CancelFunc)
 }
 
-func MainCLI(name string, cmdrs ...*cmdr.Commander) {
+func Main(name string, cmdrs ...*cmdr.Commander) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 

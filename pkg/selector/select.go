@@ -105,7 +105,7 @@ func Key(ctx context.Context, conn *db.Connection, sp *infra.SearchParams) (stri
 
 func Years(sp *infra.SearchParams) ([]int, error) {
 	years, err := infra.FuzzySearchWithFallback(
-		irt.Collect(infra.YearSelectorRange(1995)),
+		irt.Collect(YearSelectorRange(1995)),
 		strconv.Itoa,
 		sp.WithPrompt("years (0 = all)").WithMulti(),
 		noop[int],

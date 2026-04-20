@@ -12,6 +12,7 @@ import (
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/models"
+	"github.com/tychoish/odem/pkg/odemcli"
 	"github.com/tychoish/odem/pkg/reportui"
 	"github.com/urfave/cli/v3"
 )
@@ -60,7 +61,7 @@ func fuzzySelectOperation(arg string) MinutesAppOperation {
 
 func toFzfCmdr(mao MinutesAppOperation) *cmdr.Commander {
 	info := mao.GetInfo()
-	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(infra.DBOperationSpec(mao.FuzzyDispatcher().Op))
+	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(odemcli.DBOperationSpec(mao.FuzzyDispatcher().Op))
 }
 
 type aliasFilter func(string, MinutesAppOperation) (string, MinutesAppOperation)
@@ -106,7 +107,7 @@ func AllReportMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
 
 func ReportOperationSpec(rptr Reporter) func(*cmdr.Commander) {
 	return func(cc *cmdr.Commander) {
-		cc.With(infra.DBOperationSpecWith(
+		cc.With(odemcli.DBOperationSpecWith(
 			func(cc *cli.Command) reportui.Params {
 				return reportui.Params{
 					Params: models.Params{

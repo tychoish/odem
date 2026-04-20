@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/tychoish/odem/cmd/ep"
-	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/odemcli"
 	"github.com/tychoish/odem/pkg/release"
 )
 
 func main() {
-	infra.MainCLI(release.Name,
+	odemcli.Main(release.Name,
 		ep.Setup(),
 		ep.Fuzzy(),
 		ep.Report(),

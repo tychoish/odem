@@ -16,7 +16,7 @@ import (
 	"github.com/tychoish/fun/irt"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/exe"
+	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/release"
 )
 
@@ -42,7 +42,7 @@ func RebuildCommand(ctx context.Context, conf *odem.Configuration) error {
 
 	grip.Info(grip.KV("op", "rebuilding database").KV("host", conf.Build.Deploy.Remote))
 
-	return exe.Command(ctx).SSH(conf.Build.Deploy.Remote, "odem", "setup").Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, "odem", "setup").Run(ctx)
 }
 
 func Init(ctx context.Context) (err error) {

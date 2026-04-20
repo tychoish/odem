@@ -15,8 +15,8 @@ import (
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/dispatch"
-	"github.com/tychoish/odem/pkg/infra"
 	"github.com/tychoish/odem/pkg/mcpsrv"
+	"github.com/tychoish/odem/pkg/odemcli"
 	"github.com/tychoish/odem/pkg/reportui"
 	"github.com/tychoish/odem/pkg/tgbot"
 )
@@ -28,8 +28,8 @@ func MCP() *cmdr.Commander {
 		Flags(cmdr.FlagBuilder(false).SetName("http").SetUsage("call to start use the http service").Flag()).
 		Flags(cmdr.FlagBuilder("127.0.0.1").SetName("addr").SetUsage("address/interface to listen for requests").Flag()).
 		Flags(cmdr.FlagBuilder(1844).SetName("port").SetUsage("set the port to run the http service on").Flag()).
-		With(infra.AttachConfiguration).
-		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+		With(odemcli.AttachConfiguration).
+		With(odemcli.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return mcpsrv.New(odem.GetConfiguration(ctx), conn, dispatch.AllMinutesAppMCPHandlers()).Run(ctx)
 		}))
 }
@@ -56,8 +56,8 @@ func Telegram() *cmdr.Commander {
 				SetUsage("number of failed lookup attempts before aborting a selection (default: 3)").
 				Flag(),
 		).
-		With(infra.AttachConfiguration).
-		With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+		With(odemcli.AttachConfiguration).
+		With(odemcli.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 			return tgbot.NewService(ctx, odem.GetConfiguration(ctx), conn).Start(ctx)
 		}))
 }
@@ -67,8 +67,8 @@ func Fuzzy() *cmdr.Commander {
 		SetName("fuzzy").
 		Aliases("fzf").
 		SetUsage("fuzzy cli UI to minutes data").
-		With(infra.AttachConfiguration).
-		With(infra.DBOperationSpec(dispatch.MinutesAppOpRetry.FuzzyDispatcher().Op)).
+		With(odemcli.AttachConfiguration).
+		With(odemcli.DBOperationSpec(dispatch.MinutesAppOpRetry.FuzzyDispatcher().Op)).
 		Subcommanders(irt.Collect(dispatch.AllFuzzyMinutesAppCmdrs())...)
 }
 
@@ -81,7 +81,7 @@ func Report() *cmdr.Commander {
 			SetName("stdout", "o").
 			SetUsage("write report to stdout instead of a file").
 			Flag()).
-		With(infra.AttachConfiguration).
+		With(odemcli.AttachConfiguration).
 		With(dispatch.ReportOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher())).
 		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...).
 		Subcommanders(
@@ -92,7 +92,7 @@ func Report() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("batch").
 				SetUsage("render all configured reports").
-				With(infra.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+				With(odemcli.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
 					conf := odem.GetConfiguration(ctx)
 					path := filepath.Join(erc.Must(os.Getwd()), conf.Reports.BasePath)
 

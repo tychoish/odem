@@ -6,7 +6,7 @@ import (
 
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem"
-	"github.com/tychoish/odem/pkg/exe"
+	"github.com/tychoish/odem/pkg/infra"
 )
 
 func Deploy(ctx context.Context, conf *odem.Configuration) error {
@@ -26,7 +26,7 @@ func UpdateForDeploy(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	grip.Info(grip.KV("op", "rebuilding").KV("host", conf.Build.Deploy.Remote))
-	return exe.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
 }
 
 func RestartService(ctx context.Context, conf *odem.Configuration) error {
@@ -34,11 +34,11 @@ func RestartService(ctx context.Context, conf *odem.Configuration) error {
 
 	if conf.Build.Deploy.Remote == conf.Runtime.Hostname {
 		grip.Info(grip.KV("op", "restarting service").KV("host", "local").KV("args", srvRestartArgs))
-		return exe.Command(ctx).WithArgs(srvRestartArgs...).Run(ctx)
+		return infra.Command(ctx).WithArgs(srvRestartArgs...).Run(ctx)
 	}
 
 	grip.Info(grip.KV("op", "restarting service").KV("host", conf.Build.Deploy.Remote).KV("args", srvRestartArgs))
-	return exe.Command(ctx).SSH(conf.Build.Deploy.Remote, srvRestartArgs...).Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, srvRestartArgs...).Run(ctx)
 }
 
 func BuildForDeploy(ctx context.Context, conf *odem.Configuration) error {
@@ -48,7 +48,7 @@ func BuildForDeploy(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	grip.Info(grip.KV("op", "rebuilding").KV("host", conf.Build.Deploy.Remote))
-	return exe.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
 }
 
 func getServiceRestartArgs(conf *odem.Configuration) []string {

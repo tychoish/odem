@@ -12,6 +12,7 @@ import (
 	"github.com/tychoish/odem"
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/infra"
+	"github.com/tychoish/odem/pkg/odemcli"
 	"github.com/tychoish/odem/pkg/release"
 	"github.com/urfave/cli/v3"
 )
@@ -37,13 +38,13 @@ func Setup() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("setup").
 		SetUsage("initialize the cached/local database").
-		With(infra.AttachConfiguration).
-		With(infra.WorkerAction(db.Init)).
+		With(odemcli.AttachConfiguration).
+		With(odemcli.WorkerAction(db.Init)).
 		Subcommanders(
 			cmdr.MakeCommander().
 				SetName("reset").
 				SetUsage("remove the cached/local database").
-				With(infra.WorkerAction(fnx.MakeWorker(db.Reset))),
+				With(odemcli.WorkerAction(fnx.MakeWorker(db.Reset))),
 		)
 }
 
@@ -53,7 +54,7 @@ func Hacking() *cmdr.Commander {
 		Aliases("hack").
 		SetHidden(true).
 		SetUsage("hacking and testing").
-		With(infra.AttachConfiguration).
+		With(odemcli.AttachConfiguration).
 		SetAction(func(ctx context.Context, cc *cli.Command) error {
 			grip.Info(grip.MPrintln("🤖 🎶", release.Version.Resolve()))
 			for k, v := range infra.IterStruct(odem.GetConfiguration(ctx)) {
