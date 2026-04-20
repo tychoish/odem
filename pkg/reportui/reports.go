@@ -389,6 +389,77 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p Params) (err 
 	return ec.Resolve()
 }
 
+func AllSingings(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "singings")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2("All Singings")
+	models.WriteTable(&mb, erc.HandleAll(conn.AllSingings(ctx), ec.Push))
+	mb.Line()
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func AllSongs(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "songs")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2("All Songs")
+	models.WriteTable(&mb, erc.HandleAll(conn.AllSongDetails(ctx), ec.Push))
+	mb.Line()
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func AllLeaders(ctx context.Context, conn *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "leaders")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2("All Leaders")
+	models.WriteTable(&mb, erc.HandleAll(conn.AllLeaderProfiles(ctx), ec.Push))
+	mb.Line()
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
+func AllYears(_ context.Context, _ *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "years")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	var mb mdwn.Builder
+	mb.H2("Year Selections")
+	mb.ExtendBulletList(irt.Convert(selector.YearSelectorRange(1995), itoa))
+	_, err = mb.WriteTo(w)
+	return err
+}
+
+func AllLocalities(_ context.Context, _ *db.Connection, p Params) (err error) {
+	w, err := p.getWriter("report", "localities")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	var mb mdwn.Builder
+	mb.H2("Localities")
+	mb.ExtendBulletList(irt.Convert(irt.Slice(models.AllLocalities()), func(l models.SingingLocality) string { return string(l) }))
+	_, err = mb.WriteTo(w)
+	return err
+}
+
 func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
 	w, err := p.getWriter("report", "connectedness")
 	if err != nil {

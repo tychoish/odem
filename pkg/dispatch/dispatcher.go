@@ -510,43 +510,53 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		}
 	case MinutesAppOpSelectionsSingings:
 		return MinutesOpRegistration{
-			ID:      mao,
-			Command: "singing-selections",
+			ID:          mao,
+			Command:     "singing-selections",
 			Description: "Renders a full list of all Singings",
-			Aliases: []string{"singings-selections", "all-singings"},
-			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+			Aliases:     []string{"singings-selections", "all-singings"},
+			Reporter:    reportui.AllSingings,
+			Fuzz:        SimpleFuzzyHandler(fzfui.AllSingingsAction),
+			MCP:         mcpsrv.NewTool(mcpsrv.AllSingings).Register,
 		}
 	case MinutesAppOpSelectionsSongs:
 		return MinutesOpRegistration{
-			ID:      mao,
-			Command: "song-selections",
+			ID:          mao,
+			Command:     "song-selections",
 			Description: "Renders a full list of all Songs in the Sacred Harp",
-			Aliases: []string{"songs-selections", "all-songs", "song-selection"},
-			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+			Aliases:     []string{"songs-selections", "all-songs", "song-selection"},
+			Reporter:    reportui.AllSongs,
+			Fuzz:        SimpleFuzzyHandler(fzfui.AllSongsAction),
+			MCP:         mcpsrv.NewTool(mcpsrv.AllSongs).Register,
 		}
 	case MinutesAppOpSelectionsLeaders:
 		return MinutesOpRegistration{
-			ID:      mao,
-			Command: "leader-selection",
+			ID:          mao,
+			Command:     "leader-selection",
 			Description: "Renders a full list of all leaders at Minuted Singings",
-			Aliases: []string{"leaders-selections", "all-leaders", "singer-selection"},
-			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+			Aliases:     []string{"leaders-selections", "all-leaders", "singer-selection"},
+			Reporter:    reportui.AllLeaders,
+			Fuzz:        SimpleFuzzyHandler(fzfui.AllLeadersAction),
+			MCP:         mcpsrv.NewTool(mcpsrv.AllLeaders).Register,
 		}
 	case MinutesAppOpSelectionsYears:
 		return MinutesOpRegistration{
-			ID:      mao,
-			Command: "year-selections",
-			Description: "Readers a list of selections (including negations) of singings",
-			Aliases: []string{"year-selection", "years-selections", "all-year", "years-selections", "all-years"},
-			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+			ID:          mao,
+			Command:     "year-selections",
+			Description: "Reads a list of selections (including negations) of singings",
+			Aliases:     []string{"year-selection", "years-selections", "all-year", "all-years"},
+			Reporter:    reportui.AllYears,
+			Fuzz:        fzfui.AllYearsAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.AllYears).Register,
 		}
 	case MinutesAppOpSelectionsLocality:
 		return MinutesOpRegistration{
-			ID:      mao,
-			Command: "locality-selections",
-			Description: "Renders a list of all localties (states, regional communities, etc.)",
-			Aliases: []string{"locality-selection", "all-places", "all-localities", "all-regions", "places-selections", "select-places", "select-localities", "select-locality"},
-			// TODO: implement handlers for mcp, fzf, report: all should just output lists in minimal format.
+			ID:          mao,
+			Command:     "locality-selections",
+			Description: "Renders a list of all localities (states, regional communities, etc.)",
+			Aliases:     []string{"locality-selection", "all-places", "all-localities", "all-regions", "places-selections", "select-places", "select-localities", "select-locality"},
+			Reporter:    reportui.AllLocalities,
+			Fuzz:        fzfui.AllLocalitiesAction,
+			MCP:         mcpsrv.NewTool(mcpsrv.AllLocalities).Register,
 		}
 	case MinutesAppOpUnknown:
 		return MinutesOpRegistration{ID: mao, err: ers.Error("unknown/undefined operation")}

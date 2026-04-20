@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -377,6 +378,39 @@ func PopularSongsByKeyAction(ctx context.Context, dbconn *db.Connection, key str
 
 	grip.Info(grip.MPrintf("popular songs in key %q", key))
 	return renderTable(models.WriteTable, dbconn.PopularSongsByKey(ctx, key, 40))
+}
+
+func AllSingingsAction(ctx context.Context, dbconn *db.Connection) error {
+	grip.Info("all singings")
+	return renderTable(models.WriteTable, dbconn.AllSingings(ctx))
+}
+
+func AllSongsAction(ctx context.Context, dbconn *db.Connection) error {
+	grip.Info("all songs")
+	return renderTable(models.WriteTable, dbconn.AllSongDetails(ctx))
+}
+
+func AllLeadersAction(ctx context.Context, dbconn *db.Connection) error {
+	grip.Info("all leaders")
+	return renderTable(models.WriteTable, dbconn.AllLeaderProfiles(ctx))
+}
+
+func AllYearsAction(_ context.Context, _ *db.Connection, _ string) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2("Year Selections")
+	mb.ExtendBulletList(irt.Convert(selector.YearSelectorRange(1995), strconv.Itoa))
+	ec.Push(flush(os.Stdout, &mb))
+	return ec.Resolve()
+}
+
+func AllLocalitiesAction(_ context.Context, _ *db.Connection, _ string) error {
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2("Localities")
+	mb.ExtendBulletList(irt.Convert(irt.Slice(models.AllLocalities()), func(l models.SingingLocality) string { return string(l) }))
+	ec.Push(flush(os.Stdout, &mb))
+	return ec.Resolve()
 }
 
 func PopularInYearsAction(ctx context.Context, dbconn *db.Connection, yrs string) error {

@@ -284,6 +284,38 @@ func LeaderFavoriteKey(ctx context.Context, conn *db.Connection, p models.Params
 	}, nil
 }
 
+func AllSingings(ctx context.Context, conn *db.Connection, _ models.Params) (*ContextualSequence[struct{}, models.SingingInfo], error) {
+	results, err := erc.FromIteratorUntil(conn.AllSingings(ctx))
+	if err != nil {
+		return nil, err
+	}
+	return &ContextualSequence[struct{}, models.SingingInfo]{Results: results}, nil
+}
+
+func AllSongs(ctx context.Context, conn *db.Connection, _ models.Params) (*ContextualSequence[struct{}, models.SongDetail], error) {
+	results, err := erc.FromIteratorUntil(conn.AllSongDetails(ctx))
+	if err != nil {
+		return nil, err
+	}
+	return &ContextualSequence[struct{}, models.SongDetail]{Results: results}, nil
+}
+
+func AllLeaders(ctx context.Context, conn *db.Connection, _ models.Params) (*ContextualSequence[struct{}, string], error) {
+	results, err := erc.FromIteratorUntil(conn.AllLeaderNames(ctx))
+	if err != nil {
+		return nil, err
+	}
+	return &ContextualSequence[struct{}, string]{Results: results}, nil
+}
+
+func AllYears(_ context.Context, _ *db.Connection, _ models.Params) (*ContextualSequence[struct{}, int], error) {
+	return &ContextualSequence[struct{}, int]{Results: irt.Collect(selector.YearSelectorRange(1995))}, nil
+}
+
+func AllLocalities(_ context.Context, _ *db.Connection, _ models.Params) (*ContextualSequence[struct{}, models.SingingLocality], error) {
+	return &ContextualSequence[struct{}, models.SingingLocality]{Results: models.AllLocalities()}, nil
+}
+
 func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderConnectedness], error) {
 	results, err := erc.FromIteratorUntil(conn.AllLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)))
 	if err != nil {

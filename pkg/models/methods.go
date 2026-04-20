@@ -2,7 +2,11 @@ package models
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/tychoish/fun/mdwn"
 )
 
 func MenuFormat[T interface{ MenuFormat() string }](in T) string { return in.MenuFormat() }
@@ -23,4 +27,56 @@ func (info SingingInfo) MenuFormat() string {
 
 func (s SongDetail) MenuFormat() string {
 	return fmt.Sprintf("pg %s -- %s", s.PageNum, s.SongTitle)
+}
+
+func (SingingInfo) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Date"}, {Name: "Name"}, {Name: "Location"}, {Name: "Lessons", RightAlign: true}, {Name: "Leaders", RightAlign: true}}
+}
+
+func (r SingingInfo) RowValues() []string {
+	return []string{
+		r.SingingDate.Time().Format(time.DateOnly),
+		strings.ReplaceAll(r.SingingName, "\\n", "; "),
+		r.SingingLocation,
+		strconv.FormatInt(r.NumberOfLessons, 10),
+		strconv.FormatInt(r.NumberOfLeaders, 10),
+	}
+}
+
+func (r SingingInfo) LineItem() *mdwn.Builder {
+	var mb mdwn.Builder
+	mb.BulletListItem(r.MenuFormat())
+	return &mb
+}
+
+func (SongDetail) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Page"}, {Name: "Title"}, {Name: "Keys"}, {Name: "Meter"}}
+}
+
+func (r SongDetail) RowValues() []string { return []string{r.PageNum, r.SongTitle, r.Keys, r.SongMeter} }
+
+func (r SongDetail) LineItem() *mdwn.Builder {
+	var mb mdwn.Builder
+	mb.BulletListItem(r.MenuFormat())
+	return &mb
+}
+
+func (LeaderProfile) ColumnNames() []mdwn.Column {
+	return []mdwn.Column{{Name: "Name"}, {Name: "Lessons", RightAlign: true}, {Name: "Singings", RightAlign: true}, {Name: "First", RightAlign: true}, {Name: "Last", RightAlign: true}}
+}
+
+func (r LeaderProfile) RowValues() []string {
+	return []string{
+		r.Name,
+		strconv.FormatInt(r.LessonCount, 10),
+		strconv.FormatInt(r.SingingCount, 10),
+		strconv.FormatInt(r.FirstYear, 10),
+		strconv.FormatInt(r.LastYear, 10),
+	}
+}
+
+func (r LeaderProfile) LineItem() *mdwn.Builder {
+	var mb mdwn.Builder
+	mb.BulletListItem(r.MenuFormat())
+	return &mb
 }
