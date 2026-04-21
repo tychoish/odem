@@ -47,7 +47,6 @@ type MinutesOpRegistration struct {
 	Description string
 	Aliases     []string
 	Reporter    Reporter
-	Fuzz        FuzzHandler
 	Messenger   msgui.Messenger
 	MCP         mcpsrv.RegistrationFunc
 	Requires    *dt.Set[MinutesAppQueryType]
@@ -61,7 +60,6 @@ func (reg MinutesOpRegistration) infoKV() (string, string)     { return reg.Comm
 func (reg MinutesOpRegistration) Info() irt.KV[string, string] { return irt.MakeKV(reg.infoKV()) }
 func (reg MinutesOpRegistration) HasMessenger() bool           { return reg.Messenger != nil }
 func (reg MinutesOpRegistration) HasReporter() bool            { return reg.Reporter != nil }
-func (reg MinutesOpRegistration) HasFuzz() bool                { return reg.Fuzz != nil }
 func (reg MinutesOpRegistration) IsMenu() bool                 { return reg.isMenu }
 func (reg MinutesOpRegistration) unavailable() error           { return unavailableOp(reg.Command) }
 
@@ -88,8 +86,7 @@ func (reg MinutesOpRegistration) CallReporterToWriter(ctx context.Context, conn 
 	})
 }
 
-func (reg MinutesOpRegistration) GetFuzzHandler() FuzzHandler { return resolver(reg, reg.Fuzz) }
-func (reg MinutesOpRegistration) GetReporter() Reporter       { return resolver(reg, reg.Reporter) }
+func (reg MinutesOpRegistration) GetReporter() Reporter { return resolver(reg, reg.Reporter) }
 
 func (reg MinutesOpRegistration) GetMessenger() msgui.Messenger {
 	if reg.Messenger != nil {
@@ -101,22 +98,6 @@ func (reg MinutesOpRegistration) GetMessenger() msgui.Messenger {
 	}
 }
 
-func AllMinutesAppFuzzOps() iter.Seq[MinutesOperation] {
-	return func(yield func(MinutesOperation) bool) {
-		for op := range AllMinutesAppOps() {
-			r := op.Registry()
-
-			switch {
-			case r.IsMenu():
-				continue
-			case !r.HasFuzz():
-				continue
-			case !yield(op):
-				return
-			}
-		}
-	}
-}
 
 // AllMinutesAppMessengerOps returns operations available to the Telegram bot:
 // streaming-message ops (HasMessenger) and file-document ops (IsDocumentOp).

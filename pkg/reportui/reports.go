@@ -61,7 +61,13 @@ func MostLed(ctx context.Context, conn *db.Connection, in Params) (err error) {
 
 func SongsByWord(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	if p.Name == "" {
-		return ers.New("a search word or phrase is required")
+		if p.SuppressInteractivity {
+			return ers.New("a search word or phrase is required")
+		}
+		p.Name, err = selector.Concordance(ctx, conn, p.Search())
+		if err != nil {
+			return err
+		}
 	}
 
 	results, err := erc.FromIteratorUntil(conn.SongsByWord(ctx, p.Name, cmp.Or(p.Limit, 50)))
@@ -178,8 +184,12 @@ func Singings(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	mb.KV("Leaders", strconv.FormatInt(info.NumberOfLeaders, 10))
 	mb.Line()
 
+	years, err := p.selectYears()
+	if err != nil {
+		return err
+	}
 	mb.H3("Lessons")
-	models.WriteTable(&mb, erc.HandleAll(conn.SingingLessons(ctx, p.Name, models.FirstValidYear(p.Years)), ec.Push))
+	models.WriteTable(&mb, erc.HandleAll(conn.SingingLessons(ctx, info.SingingName, models.FirstValidYear(years)), ec.Push))
 
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()

@@ -30,7 +30,13 @@ func (s SongDetail) MenuFormat() string {
 }
 
 func (SingingInfo) ColumnNames() []mdwn.Column {
-	return []mdwn.Column{{Name: "Date"}, {Name: "Name"}, {Name: "Location"}, {Name: "Lessons", RightAlign: true}, {Name: "Leaders", RightAlign: true}}
+	return []mdwn.Column{
+		{Name: "Date"},
+		{Name: "Name", Elastic: true},
+		{Name: "Location", MaxWidth: 40},
+		{Name: "Lessons", RightAlign: true},
+		{Name: "Leaders", RightAlign: true},
+	}
 }
 
 func (r SingingInfo) RowValues() []string {
@@ -53,7 +59,9 @@ func (SongDetail) ColumnNames() []mdwn.Column {
 	return []mdwn.Column{{Name: "Page"}, {Name: "Title"}, {Name: "Keys"}, {Name: "Meter"}}
 }
 
-func (r SongDetail) RowValues() []string { return []string{r.PageNum, r.SongTitle, r.Keys, r.SongMeter} }
+func (r SongDetail) RowValues() []string {
+	return []string{r.PageNum, r.SongTitle, r.Keys, r.SongMeter}
+}
 
 func (r SongDetail) LineItem() *mdwn.Builder {
 	var mb mdwn.Builder

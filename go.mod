@@ -10,7 +10,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/tychoish/cmdr v0.6.0
 	github.com/tychoish/dbx v0.8.0
-	github.com/tychoish/fun v0.14.10-0.20260413134945-17eb457db469
+	github.com/tychoish/fun v0.14.11
 	github.com/tychoish/grip v0.5.1-0.20260413131005-0cfc2389d69f
 	github.com/urfave/cli/v3 v3.6.1
 	modernc.org/sqlite v1.47.0

@@ -68,7 +68,7 @@ func Fuzzy() *cmdr.Commander {
 		Aliases("fzf").
 		SetUsage("fuzzy cli UI to minutes data").
 		With(odemcli.AttachConfiguration).
-		With(odemcli.DBOperationSpec(dispatch.MinutesAppOpRetry.FuzzyDispatcher().Op)).
+		With(odemcli.DBOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher().Op)).
 		Subcommanders(irt.Collect(dispatch.AllFuzzyMinutesAppCmdrs())...)
 }
 

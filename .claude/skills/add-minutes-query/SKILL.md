@@ -93,24 +93,7 @@ func TestMyQuery(t *testing.T) {
 
 Add `break` after the first iteration for unbounded queries. Assert domain invariants where meaningful (e.g. ratios in (0,1]). Run `go test ./pkg/db/` and **ask the user to confirm the output looks correct before continuing.**
 
-## Step 5 — Add an action to `pkg/fzfui/actions.go`
-
-```go
-func MyQueryAction(ctx context.Context, dbconn *db.Connection, singer string) error {
-    singer, err := interactivelyResolveSingerName(ctx, dbconn, singer)
-    if err != nil { return err }
-    grip.Infof("…", singer)
-    return renderTopLedSongs(dbconn.MyQuery(ctx, singer, 32))
-}
-```
-
-- `interactivelyResolveSingerName` — prompts for a leader name if not provided
-- `renderTopLedSongs(seq)` — tabular display for `iter.Seq2[models.LeaderSongRank, error]`
-- `renderTopLeaders(ctx, conn, pageNum)` — for top-leaders-of-a-song
-- For `KV` results or custom shapes, build a `tabby.New()` table directly (see existing examples in the file)
-- For multi-select inputs (e.g. localities): `erc.FromIteratorAll(infra.NewFuzzySearch[T](options).Find("prompt"))`
-
-## Step 6a — Add a Static Report rendering  to `pkg/reportui/reports.go`
+## Step 6 — Add a Static Report rendering  to `pkg/reportui/reports.go`
 
 Add an report generation function following the pattern of the other reporting functions in this file. Use the `func(ctx context.Context, conn *db.Connection, p Params) error` signature.
 
@@ -222,7 +205,6 @@ All in `dispatch.go`:
        Description: "description to provide context and for help text",
        Aliases:     []string{"alternate", "shorthand"},
        Reporter:    reportui.MyQuery,
-       Fuzz:        fzfui.MyQueryAction,
        MCP:         mcpsrv.NewTool(mcpsrv.MyQuery).Register,
        Requires:    dt.MakeSet(irt.Args(MinuitesAppQueryType))
    }

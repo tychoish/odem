@@ -31,8 +31,6 @@ func resolver[T any, I ~func(context.Context, *db.Connection, T) error](reg Minu
 }
 
 func fuzzySelectOperation(arg string) MinutesOperation {
-	// this needs to be in the dispatcher package to avoid a circular dependency, even though it
-	// feels like it wants to be in the fzfui package.
 	arg = strings.ReplaceAll(arg, " ", "-")
 	grip.Debug(grip.MPrintln("selecting operation to dispatch", arg))
 
@@ -40,7 +38,7 @@ func fuzzySelectOperation(arg string) MinutesOperation {
 
 	if !operation.Ok() {
 		var err error
-		operation, err = infra.NewFuzzySearch[MinutesOperation](AllMinutesAppFuzzOps()).Prompt("odem operation").FindOne()
+		operation, err = infra.NewFuzzySearch[MinutesOperation](AllMinutesAppOps()).Prompt("odem operation").FindOne()
 		if operation.Ok() {
 			return operation
 		}
@@ -61,7 +59,7 @@ func fuzzySelectOperation(arg string) MinutesOperation {
 
 func toFzfCmdr(mao MinutesOperation) *cmdr.Commander {
 	info := mao.GetInfo()
-	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(odemcli.DBOperationSpec(mao.FuzzyDispatcher().Op))
+	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(odemcli.DBOperationSpec(mao.ReportDispatcher().Op))
 }
 
 type aliasFilter func(string, MinutesOperation) (string, MinutesOperation)
@@ -79,7 +77,7 @@ func toReportCmdr(mao MinutesOperation) *cmdr.Commander {
 func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
 	return func(yield func(*cmdr.Commander) bool) {
 		for op := range AllMinutesAppOps() {
-			if !op.Registry().HasFuzz() {
+			if !op.Registry().HasReporter() {
 				continue
 			}
 			if !yield(toFzfCmdr(op)) {
