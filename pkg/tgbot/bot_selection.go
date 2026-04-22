@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/grip"
@@ -104,6 +105,11 @@ func (b *bot) captureKey(value string) stateFn {
 }
 
 func (b *bot) captureWord(value string) stateFn {
-	word, err := selector.Concordance(b.ctx, b.db, b.searchParams(value))
-	return b.captureNameResult(value, "word", err, b.captureWord, func() string { return word })
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return b.captureRetry("please enter a word or phrase to search for", b.captureWord)
+	}
+	b.queryState.selectionAttempts = 0
+	b.queryState.params.Name = value
+	return b.discoverNext()
 }
