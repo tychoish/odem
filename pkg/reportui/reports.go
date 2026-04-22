@@ -241,6 +241,29 @@ func Strangers(ctx context.Context, conn *db.Connection, p Params) error {
 	return ec.Resolve()
 }
 
+func ActiveStrangers(ctx context.Context, conn *db.Connection, p Params) error {
+	singer, err := selector.Leader(ctx, conn, p.Search())
+	if err != nil {
+		return err
+	}
+
+	w, err := p.getWriter(singer.Name, "active-strangers")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2(fmt.Sprintf("Active Singing Strangers: %s", singer.Name))
+	models.WriteTable(&mb, erc.HandleAll(conn.ActiveSingingStrangers(ctx, singer.Name, cmp.Or(p.Limit, 24)), ec.Push))
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
 func PopularityAsExperienced(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	singer, err := selector.Leader(ctx, conn, p.Search())
 	if err != nil {

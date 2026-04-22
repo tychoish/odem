@@ -205,6 +205,23 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) (*Cont
 	}, nil
 }
 
+func ActiveStrangers(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.SingingStranger], error) {
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := erc.FromIteratorUntil(conn.ActiveSingingStrangers(ctx, leader.Name, cmp.Or(p.Limit, 24)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.SingingStranger]{
+		Results: results,
+		Context: leader.Name,
+	}, nil
+}
+
 func PopularInOnesExperience(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {

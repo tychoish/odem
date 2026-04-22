@@ -150,6 +150,23 @@ func Strangers(ctx context.Context, conn *db.Connection, p models.Params) iter.S
 	}
 }
 
+func ActiveStrangers(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		header := mdwn.MakeBuilder(len(p.Name) + 35)
+		header.Concat("Active singing strangers for **", p.Name, "**:")
+
+		var ec erc.Collector
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.ActiveSingingStrangers(ctx, p.Name, cmp.Or(p.Limit, 24)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
+		if !ec.Ok() {
+			yield(nil, ec.Resolve())
+		}
+	}
+}
+
 func PopularAsObserved(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
 		header := mdwn.MakeBuilder(len(p.Name) + 30)

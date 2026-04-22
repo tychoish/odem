@@ -28,6 +28,7 @@ const (
 	MinutesAppOpLeaderConnectedness
 	MinutesAppOpLeaderBuddies
 	MinutesAppOpLeaderStrangers
+	MinutesAppOpLeaderActiveStrangers
 	MinutesAppOpLeaderNeverSung
 	MinutesAppOpLeaderNeverLed
 	MinutesAppOpLeaderSingings
@@ -182,6 +183,19 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 			MCP:       mcpsrv.NewTool(mcpsrv.Strangers).Register,
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 			Messenger: msgui.Strangers,
+		}
+	case MinutesAppOpLeaderActiveStrangers:
+		return MinutesOpRegistration{
+			ID:          mao,
+			Command:     "active-strangers",
+			Description: "return a list of active singers (led within the last 4 years) that the specified singer has never sung with, but most of their buddies have.",
+			Aliases: []string{
+				"active-strangers", "active-stranger", "recent-strangers", "current-strangers",
+			},
+			Reporter:  reportui.ActiveStrangers,
+			MCP:       mcpsrv.NewTool(mcpsrv.ActiveStrangers).Register,
+			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger: msgui.ActiveStrangers,
 		}
 	case MinutesAppOpPopularAsObserved:
 		return MinutesOpRegistration{

@@ -311,6 +311,39 @@ LIMIT ?;`
 	return dbx.Query[models.SingingStranger](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
 }
 
+func (conn *Connection) ActiveSingingStrangers(ctx context.Context, name string, limit int) iter.Seq2[models.SingingStranger, error] {
+	const query = `
+WITH target AS (SELECT id FROM leaders WHERE name = ?),
+my_network AS (
+	SELECT leader_b_id AS peer_id
+	FROM leader_coattendance
+	WHERE leader_a_id = (SELECT id FROM target)
+),
+stranger_scores AS (
+	SELECT
+                lca.leader_b_id AS stranger_id,
+                COUNT(*) AS mutual
+	FROM leader_coattendance AS lca
+	WHERE lca.leader_a_id IN (SELECT peer_id FROM my_network)
+	AND lca.leader_b_id NOT IN (SELECT peer_id FROM my_network)
+	AND lca.leader_b_id != (SELECT id FROM target)
+	GROUP BY lca.leader_b_id
+)
+SELECT
+        COALESCE(lna.name, l.name) AS key,
+        mutual AS value
+FROM stranger_scores
+JOIN leaders AS l ON l.id = stranger_scores.stranger_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+JOIN leader_profiles AS lp ON lp.leader_id = stranger_scores.stranger_id
+WHERE inv.name IS NULL
+AND lp.last_year >= (SELECT MAX(Year) FROM minutes) - 4
+ORDER BY value DESC
+LIMIT ?;`
+	return dbx.Query[models.SingingStranger](ctx, conn.db.QueryContext, query, name, cmp.Or(limit, 32))
+}
+
 func (conn *Connection) LeaderFavoriteKey(ctx context.Context, leader string, limit int) iter.Seq2[models.LeaderKeyCount, error] {
 	const query = `
 SELECT bsj.keys AS key, COUNT(*) AS value

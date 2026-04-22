@@ -700,6 +700,21 @@ func TestSingingStrangersVariesByInput(t *testing.T) {
 	}
 }
 
+func TestActiveSingingStrangers(t *testing.T) {
+	t.Parallel()
+	conn, ctx := testConn(t)
+	count := 0
+	for _, err := range conn.ActiveSingingStrangers(ctx, testSocialLeader, 5) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		count++
+	}
+	if count == 0 {
+		t.Errorf("ActiveSingingStrangers(%q): expected at least one result", testSocialLeader)
+	}
+}
+
 // TestUnfamiliarHitsExcludesFamiliarSongs is a regression test verifying that
 // familiar (high-attendance) songs do not appear in the unfamiliar-hits list.
 func TestUnfamiliarHitsExcludesFamiliarSongs(t *testing.T) {
