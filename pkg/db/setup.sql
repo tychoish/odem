@@ -1,10 +1,24 @@
 -- setup.sql: one-time setup operations that cannot be made idempotent.
 -- Run this after views.sql. Re-running will fail; drop the tables first if rebuilding.
 
+-- lesson_exclusions: specific leads to suppress from all queries.
+-- Each row references a song_leader_joins.id — the only globally unique identifier
+-- for a single (song × leader × singing) attribution row. Use this to remove known
+-- erroneous attributions without modifying the source data.
+-- lesson_id alone is not sufficient: it is a per-singing ordinal (1–N), not globally unique.
+-- Defined first so materialized tables below can filter against it at build time.
+CREATE TABLE IF NOT EXISTS lesson_exclusions (
+    id     INTEGER NOT NULL PRIMARY KEY,  -- song_leader_joins.id of the lead to exclude
+    reason TEXT    DEFAULT NULL           -- human-readable explanation (optional)
+);
+
 -- Deduplicated (leader_id, minutes_id) pairs used for co-attendance computation.
 -- song_leader_joins has ~2 rows per (leader, singing); this table deduplicates them.
 -- Note: CREATE TABLE ... AS SELECT does not support IF NOT EXISTS in SQLite.
-CREATE TABLE leader_singings AS SELECT DISTINCT leader_id, minutes_id FROM song_leader_joins;
+CREATE TABLE leader_singings AS
+SELECT DISTINCT leader_id, minutes_id
+FROM song_leader_joins
+WHERE id NOT IN (SELECT id FROM lesson_exclusions);
 CREATE INDEX IF NOT EXISTS ls_minutes_leader ON leader_singings(minutes_id, leader_id);
 CREATE INDEX IF NOT EXISTS ls_leader_minutes ON leader_singings(leader_id, minutes_id);
 
@@ -48,6 +62,7 @@ SELECT
     COUNT(*) AS attendance_count
 FROM leader_singings AS ls
 JOIN song_leader_joins AS slj ON slj.minutes_id = ls.minutes_id
+    AND slj.id NOT IN (SELECT id FROM lesson_exclusions)
 GROUP BY ls.leader_id, slj.song_id;
 CREATE INDEX IF NOT EXISTS lsa_leader_song ON leader_song_attendance(leader_id, song_id, attendance_count);
 
@@ -79,6 +94,7 @@ SELECT
     CAST(COALESCE(ls_stats.last_year, 0) AS INTEGER) AS last_year
 FROM leaders AS l
 JOIN song_leader_joins AS slj ON l.id = slj.leader_id
+    AND slj.id NOT IN (SELECT id FROM lesson_exclusions)
 LEFT JOIN (
     SELECT ls.leader_id, COUNT(*) AS singing_count, MIN(m.Year) AS first_year, MAX(m.Year) AS last_year
     FROM leader_singings AS ls
@@ -205,3 +221,26 @@ INSERT INTO leader_name_invalid (name) VALUES
 	('[Parsing error—no such leader. Attributed song was led by Alice Ann Vaughan Borge and David Ivey only]'),
 	('[Various—can these be corrected and parsed individually?]'),
 	('[Venue name incorrectly parsed as leader; song WAS sung by other attributed leader]');
+
+-- Seed data: name corrections for leaders whose names are misspelled or mis-attributed
+-- in the source minutes. Each row maps an incorrect name (alias) to the canonical leader.
+-- Format: (leader_id, canonical_name, name_as_written, 'Correction')
+--   leader_id  — looked up by canonical name via subquery
+--   name       — the correct canonical name (must match leaders.name for the target leader)
+--   alias      — the incorrect spelling as it appears in leaders.name
+--   type       — 'Correction' (distinct from 'Typo' and 'Alternate Spelling')
+-- Note: leader_name_aliases has no UNIQUE constraint, so this INSERT is not idempotent.
+-- Add corrections by appending rows to the VALUES list below.
+-- Example row (do not uncomment — edit with real data):
+--   ((SELECT id FROM leaders WHERE name = 'Jane Smith'), 'Jane Smith', 'Jan Smith', 'Correction'),
+INSERT INTO leader_name_aliases (leader_id, name, alias, type)
+    SELECT NULL, NULL, NULL, NULL WHERE 0;
+-- Replace the SELECT above with one or more UNION ALL rows when adding real corrections:
+-- INSERT INTO leader_name_aliases (leader_id, name, alias, type)
+--     SELECT (SELECT id FROM leaders WHERE name = 'Jane Smith'), 'Jane Smith', 'Jan Smith', 'Correction'
+--     UNION ALL SELECT ...
+
+-- Seed data: known-erroneous lesson attributions to suppress from all queries.
+-- Each row identifies a specific song_leader_joins.id to exclude.
+INSERT INTO lesson_exclusions (id, reason) VALUES
+    (541884, 'Charlene Wallace, 224 (Save, Lord, or We Perish), Seed and Feed Sacred Harp Singing, 2024-10-26');

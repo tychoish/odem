@@ -1,3 +1,20 @@
+-- lesson_exclusions: idempotent creation for the fast-path (views-only rebuild).
+-- On a full rebuild setup.sql creates this first; here we ensure it exists for
+-- existing databases being upgraded so active_song_leader_joins can reference it.
+CREATE TABLE IF NOT EXISTS lesson_exclusions (
+    id     INTEGER NOT NULL PRIMARY KEY,
+    reason TEXT    DEFAULT NULL
+);
+
+-- active_song_leader_joins: filtered view of song_leader_joins that excludes any
+-- lead whose id appears in lesson_exclusions. Use this everywhere instead of the
+-- raw table so that exclusions are automatically honoured by all queries and views.
+CREATE VIEW IF NOT EXISTS active_song_leader_joins AS
+SELECT slj.*
+FROM song_leader_joins AS slj
+LEFT JOIN lesson_exclusions AS le ON le.id = slj.id
+WHERE le.id IS NULL;
+
 CREATE VIEW IF NOT EXISTS song_details AS
 SELECT
 	COALESCE(song_id, 0) AS song_id,
