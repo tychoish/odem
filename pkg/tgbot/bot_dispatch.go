@@ -8,6 +8,7 @@ import (
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/mdwn"
 	"github.com/tychoish/grip"
+	"github.com/tychoish/odem/pkg/dispatch"
 )
 
 func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
@@ -94,9 +95,13 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		}
 		b.queryState.params.Years = []int{0}
 		return b.discoverNext()
+	case isOrContainsCmd(msg, "commands", "cmds", "ops"):
+		b.sendMarkdown(renderCommands().Resolve())
+		return b.handleMessage
 	case isOrContainsCmd(msg, "help"):
-		b.sendPlain("Hi! I'm the minutes app, in chat form... Select an option from the menu!")
-		return b.keyboardMinutesAppQueries()
+		b.sendPlain("Hi! I'm the minutes app, in chat form... Just send me a message with any of these operations to start! (Or say `menu` to select from a button.)")
+		b.sendMarkdown(renderCommands().Resolve())
+		return b.handleMessage
 	case isOrContainsCmd(msg, "keyboard", "menu"):
 		return b.keyboardMinutesAppQueries()
 	case b.queryState.inProgress:
@@ -107,4 +112,18 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	default:
 		return b.keyboardMinutesAppQueries()
 	}
+}
+
+func renderCommands() *mdwn.Builder {
+	mb := mdwn.MakeBuilder(4096)
+	for op := range dispatch.AllMinutesAppOps() {
+		reg := op.Registry()
+		if reg.Messenger == nil {
+			continue
+		}
+		mb.PushString("🎵 ").
+			Bold(reg.Command).PushString(": ").
+			Italic(reg.Description).Line()
+	}
+	return mb
 }
