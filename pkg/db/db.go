@@ -386,6 +386,48 @@ WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)`
 	return &v, nil
 }
 
+func (conn *Connection) ActiveLeaderConnectedness(ctx context.Context, limit int) iter.Seq2[models.LeaderConnectedness, error] {
+	const query = `
+WITH active AS (
+	SELECT leader_id FROM leader_profiles
+	WHERE last_year >= (SELECT MAX(Year) FROM minutes) - 4
+),
+active_count AS (SELECT COUNT(*) AS n FROM active)
+SELECT
+        COALESCE(lna.name, l.name) AS key,
+        CAST(COUNT(lca.leader_b_id) AS REAL) / (SELECT n FROM active_count) AS value
+FROM leaders l
+JOIN active ON active.leader_id = l.id
+LEFT JOIN leader_coattendance lca ON lca.leader_a_id = l.id
+        AND lca.leader_b_id IN (SELECT leader_id FROM active)
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+WHERE inv.name IS NULL
+GROUP BY l.id
+ORDER BY value DESC
+LIMIT ?;`
+	return dbx.Query[models.LeaderConnectedness](ctx, conn.db.QueryContext, query, cmp.Or(limit, 32))
+}
+
+func (conn *Connection) SingersActiveConnectedness(ctx context.Context, name string) (*float64, error) {
+	const query = `
+SELECT CAST(COUNT(*) AS REAL) / (
+	SELECT COUNT(*) FROM leader_profiles
+	WHERE last_year >= (SELECT MAX(Year) FROM minutes) - 4
+) AS connectedness
+FROM leader_coattendance
+WHERE leader_a_id = (SELECT id FROM leaders WHERE leaders.name = ?)
+AND leader_b_id IN (
+	SELECT leader_id FROM leader_profiles
+	WHERE last_year >= (SELECT MAX(Year) FROM minutes) - 4
+)`
+	v, err := dbx.QueryRow[float64](ctx, conn.db.QueryContext, query, name)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
 func (conn *Connection) TheUnfamilarHits(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderSongRank, error] {
 	// Exposure is measured by attendance: how many times the song was called at
 	// a singing the leader attended. Using leader_song_stats (lead count) instead

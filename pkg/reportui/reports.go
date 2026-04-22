@@ -511,6 +511,25 @@ func Connectedness(ctx context.Context, conn *db.Connection, p Params) error {
 	return ec.Resolve()
 }
 
+func ActiveConnectedness(ctx context.Context, conn *db.Connection, p Params) error {
+	w, err := p.getWriter("report", "connectedness", "active")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(w.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+
+	mb.H2("Active Leaders by Connectedness")
+	mb.Paragraph("Only leaders active in the last 4 years; connectedness measured against that same active pool.")
+	models.WriteTable(&mb, erc.HandleAll(conn.ActiveLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)), ec.Push))
+	mb.Line()
+
+	ec.Push(flush(w, &mb))
+	return ec.Resolve()
+}
+
 func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
 	years, err := p.selectYears()
 	if err != nil {

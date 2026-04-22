@@ -344,6 +344,17 @@ func Connectedness(ctx context.Context, conn *db.Connection, p models.Params) (*
 	}, nil
 }
 
+func ActiveConnectedness(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderConnectedness], error) {
+	results, err := erc.FromIteratorUntil(conn.ActiveLeaderConnectedness(ctx, cmp.Or(p.Limit, 40)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderConnectedness]{
+		Results: results,
+	}, nil
+}
+
 func LeaderSingingsPerYear(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSingingsInYear], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {

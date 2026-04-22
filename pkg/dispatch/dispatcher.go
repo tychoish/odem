@@ -26,6 +26,7 @@ const (
 	MinutesAppOpLeaderFavoriteKey
 	MinutesAppOpLeaderRoleModels
 	MinutesAppOpLeaderConnectedness
+	MinutesAppOpLeaderActiveConnectedness
 	MinutesAppOpLeaderBuddies
 	MinutesAppOpLeaderStrangers
 	MinutesAppOpLeaderActiveStrangers
@@ -306,6 +307,20 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 			MCP:       mcpsrv.NewTool(mcpsrv.Connectedness).Register,
 			Requires:  &dt.Set[MinutesAppQueryType]{},
 			Messenger: msgui.Connectedness,
+		}
+	case MinutesAppOpLeaderActiveConnectedness:
+		return MinutesOpRegistration{
+			ID:          mao,
+			Command:     "connectedness-active",
+			Description: "a list of active singers (led in last 4 years), ordered by their connectedness ratio among other active singers.",
+			Aliases: []string{
+				"active-connectedness", "active-connected", "active-network",
+				"connectedness-recent", "recent-connectedness",
+			},
+			Reporter:  reportui.ActiveConnectedness,
+			MCP:       mcpsrv.NewTool(mcpsrv.ActiveConnectedness).Register,
+			Requires:  &dt.Set[MinutesAppQueryType]{},
+			Messenger: msgui.ActiveConnectedness,
 		}
 	case MinutesAppOpLeaderRoleModels:
 		return MinutesOpRegistration{

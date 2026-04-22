@@ -40,6 +40,9 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	if v, err := conn.GetSingerConnectedness(ctx, &singer.Name); ec.PushOk(err) {
 		mb.KV("Connectedness", fmt.Sprintf("%.2f%%", v*100)).PushString("  ")
 	}
+	if v, err := conn.SingersActiveConnectedness(ctx, singer.Name); ec.PushOk(err) {
+		mb.KV("Active Connectedness", fmt.Sprintf("%.2f%%", stw.DerefZ(v)*100)).PushString("  ")
+	}
 	if leaderInfo, err := conn.GetLeader(ctx, &singer.Name); ec.PushOk(err) {
 		mb.KV("Number of Top 20 Leads", strconv.Itoa(int(leaderInfo.Top20Count)))
 		mb.KV("Lesson Count", strconv.Itoa(int(leaderInfo.LessonCount))).PushString("  ")
