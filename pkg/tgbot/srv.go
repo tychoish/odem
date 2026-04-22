@@ -40,17 +40,6 @@ func (srv *Service) Start(ctx context.Context) error {
 	return srv.startPolling(ctx, dsp)
 }
 
-func (srv *Service) checkServiceExit(ctx context.Context) (bool, error) {
-	switch {
-	case srv.off.Load():
-		return true, nil
-	case ctx.Err() != nil:
-		return true, ctx.Err()
-	default:
-		return false, nil
-	}
-}
-
 func (srv *Service) MakeBot(chatID int64) etron.Bot {
 	api := etron.NewAPI(srv.conf.Telegram.BotToken)
 	m := &metabot{

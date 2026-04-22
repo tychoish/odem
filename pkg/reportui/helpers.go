@@ -1,7 +1,6 @@
 package reportui
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -17,8 +16,6 @@ import (
 func itoa(in int) string                                  { return strconv.Itoa(in) }
 func sumLens(s []string) (l int)                          { irt.ForEach(irt.Slice(s), func(s string) { l += len(s) }); return }
 func flush(wr io.Writer, payload io.WriterTo) (err error) { _, err = payload.WriteTo(wr); return }
-func intValToStr(key string, value int) (string, string)  { return key, strconv.Itoa(value) }
-func fmtPercentKVs(k string, v float64) (string, string)  { return k, fmt.Sprintf("%.4f%%", v*100) }
 
 // Params is the collection of arguments for generating a
 type Params struct {
