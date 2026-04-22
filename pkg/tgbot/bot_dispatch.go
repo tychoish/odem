@@ -95,7 +95,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		}
 		b.queryState.params.Years = []int{0}
 		return b.discoverNext()
-	case isOrContainsCmd(msg, "commands", "cmds", "ops"):
+	case isOrContainsCmd(msg, "commands", "cmds", "ops", "cmd", "opts", "opt"):
 		b.sendMarkdown(renderCommands().Resolve())
 		return b.handleMessage
 	case isOrContainsCmd(msg, "help"):
@@ -121,9 +121,8 @@ func renderCommands() *mdwn.Builder {
 		if reg.Messenger == nil {
 			continue
 		}
-		mb.PushString("🎵 ").
-			Bold(reg.Command).PushString(": ").
-			Italic(reg.Description).Line()
+		mb.PushString("🎵 ").Concat("*", reg.Command, "*", " ➣ ")
+		mb.PushString(reg.Description).Line()
 	}
 	return mb
 }

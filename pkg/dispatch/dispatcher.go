@@ -91,7 +91,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "most-led",
-			Description: "return a list of all of the lessons a leader has given, and their frequence with information about the song (page, title, key).",
+			Description: "return all of the lessons a leader has given, and their frequence with information about the song (page, title, key).",
 			Aliases: []string{
 				"leader-most-led", "leader-most-frequent", "most-led", "often-led",
 			},
@@ -113,7 +113,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "lead-history",
-			Description: "a list of all leads for a leader, with details about the song and the singing",
+			Description: "all leads for a leader, with details about the song and the singing",
 			Aliases:     []string{"leaders", "leader", "lead-history", "leader-history", "all-leads", "leader history"},
 			Reporter:    reportui.LeaderLeadHistory,
 			MCP:         mcpsrv.NewTool(mcpsrv.LeaderLeadHistory).Register,
@@ -124,7 +124,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-singings",
-			Description: "a list of singings a leader attended, with their lead count, total leaders, and locality",
+			Description: "singings a leader attended, with their lead count, total leaders, and locality",
 			Aliases: []string{
 				"leader-singings", "singings-attended", "attended", "attended-singings",
 			},
@@ -137,7 +137,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "songs",
-			Description: "return basic information about a song, with a list of the leaders who have led the song the most.",
+			Description: "return basic information about a song, with the leaders who have led the song the most.",
 			Aliases: []string{
 				"song", "tune", "hymn", "songs", "page",
 			},
@@ -150,7 +150,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "singings",
-			Description: "provide basic information about a specific singing, with a list of the leaders and the songs they led.",
+			Description: "provide basic information about a specific singing, with the leaders and the songs they led.",
 			Aliases: []string{
 				"singing", "singings", "allday", "convention", "all-days", "conventions", "all-day", "alldays",
 			},
@@ -163,7 +163,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "buddies",
-			Description: "return a list of the singers most-frequent co-attenders of of singings for one singer.",
+			Description: "return the singers most-frequent co-attenders of of singings for one singer.",
 			Aliases: []string{
 				"buddies", "buddy", "connections", "neighbors", "leader-buddies", "singing-buddies",
 			},
@@ -176,7 +176,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "strangers",
-			Description: "return a list of singers that the specified singer has never sung with, (but most of their buddies have!)",
+			Description: "return singers that the specified singer has never sung with, (but most of their buddies have!)",
 			Aliases: []string{
 				"strangers", "enemies", "enemy", "stranger",
 				"anti-matter-twin", "alter-twin", "never-neighbors", "leader-strangers", "singing-strangers", "singing-stranger",
@@ -190,7 +190,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "active-strangers",
-			Description: "return a list of active singers (led within the last 4 years) that the specified singer has never sung with, but most of their buddies have.",
+			Description: "return active singers (led within the last 4 years) that the specified singer has never sung with, but most of their buddies have.",
 			Aliases: []string{
 				"active-strangers", "active-stranger", "recent-strangers", "current-strangers",
 			},
@@ -203,7 +203,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular-as-observed",
-			Description: "a list of songs ordered by number of leads of all songs sung at singings thatone singer has attended.",
+			Description: "songs ordered by number of leads of all songs sung at singings thatone singer has attended.",
 			Aliases: []string{
 				"prevalent",
 				"popular-for-me", "popular-for-them", "poplar-for-who",
@@ -218,7 +218,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular-locally",
-			Description: "a list of songs ordered by number of leads at all singings in a particular region.",
+			Description: "songs ordered by number of leads at all singings in a particular region.",
 			Aliases: []string{
 				"locally-popular", "localpop", "locally", "popular-where",
 				"popular-where", "popular-locally", "local-fave", "local-favorite",
@@ -232,7 +232,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "popular",
-			Description: "a list of songs ordered by the number of leads at all singings in a particular year or years. Negative values remove that year's singings.",
+			Description: "songs ordered by the number of leads at all singings in a particular year or years. Negative values remove that year's singings.",
 			Aliases: []string{
 				"popular-for-years", "popular-in-years", "popular-when", "popular-in-years", "popular-for-years", "when",
 			},
@@ -245,7 +245,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "never-sung",
-			Description: "a list of the songs that the specified singer has never **sung** at a minuted singing.",
+			Description: "the songs that the specified singer has never *sung* at a minuted singing.",
 			Aliases: []string{
 				"unknown", "missed", "miss", "unsung",
 				"never-sung", "never-sung",
@@ -259,7 +259,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "never-led",
-			Description: "a list of songs that the specified singer has never **led** at a minuted singing.",
+			Description: "songs that the specified singer has never *led* at a minuted singing.",
 			Aliases: []string{
 				"unled",
 				"never-led", "neverled", "not-led",
@@ -284,7 +284,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "unfamilar-hits",
-			Description: "a list of the most popular songs that a singer has sung less often",
+			Description: "the most popular songs that a singer has sung less often",
 			Aliases: []string{
 				"rare",
 				"unfamiliar-hits", "unfamiliar-hit", "unsung-hits",
@@ -299,7 +299,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "connectedness",
-			Description: "a list of singers, ordered by their connectedness ratio, or the percentge of the community they've sung with.",
+			Description: "singers, ordered by their connectedness ratio, or the percentge of the community they've sung with.",
 			Aliases: []string{
 				"connectedness", "connected", "network", "networked",
 				"leader-connectedness", "connected-leader",
@@ -313,7 +313,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "connectedness-active",
-			Description: "a list of active singers (led in last 4 years), ordered by their connectedness ratio among other active singers.",
+			Description: "active singers (led in last 4 years), ordered by their connectedness ratio among other active singers.",
 			Aliases: []string{
 				"active-connectedness", "active-connected", "active-network",
 				"connectedness-recent", "recent-connectedness",
@@ -327,7 +327,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-role-models",
-			Description: "a list of a leaders most frequently led songs, with that song's most frequently leader.",
+			Description: "a leaders most frequently led songs, with that song's most frequently leader.",
 			Aliases: []string{
 				"leader-footsteps", "footsteps", "giants", "singing-idols", "idols",
 				"role model", "role models", "role-models", "rolemodels", "idol",
@@ -355,7 +355,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "top-leaders",
-			Description: "a list of all leaders ordered by their total number of minuted leads.",
+			Description: "all leaders ordered by their total number of minuted leads.",
 			Aliases:     []string{"top-leaders", "leaderboard"},
 			Reporter:    reportui.TopLeader,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
@@ -366,7 +366,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-favorite-key",
-			Description: "a list of musical keys ordered by the number of leads a given leader has given in each key",
+			Description: "musical keys ordered by the number of leads a given leader has given in each key",
 			Aliases: []string{
 				"favorite-key", "leader-key", "keys-led", "favorite-keys",
 				"keys-for-songs-led", "keys-for-leads",
@@ -406,7 +406,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-share",
-			Description: "a list of all leaders ordered by their percentage of total leads optionally filtered by year",
+			Description: "all leaders ordered by their percentage of total leads optionally filtered by year",
 			Aliases: []string{
 				"share",
 				"leader-share", "leaders-share", "share-by-leader",
