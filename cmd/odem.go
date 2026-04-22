@@ -9,6 +9,7 @@ import (
 func main() {
 	odemcli.Main(release.Name,
 		ep.Setup(),
+		ep.Navigate(),
 		ep.Fuzzy(),
 		ep.Report(),
 		ep.MCP(),

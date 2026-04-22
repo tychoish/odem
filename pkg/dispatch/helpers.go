@@ -57,11 +57,6 @@ func fuzzySelectOperation(arg string) MinutesOperation {
 	return operation
 }
 
-func toFzfCmdr(mao MinutesOperation) *cmdr.Commander {
-	info := mao.GetInfo()
-	return cmdr.MakeCommander().SetName(info.Key).SetUsage(info.Value).With(odemcli.DBOperationSpec(mao.ReportDispatcher().Op))
-}
-
 type aliasFilter func(string, MinutesOperation) (string, MinutesOperation)
 
 func kebabTo(k string, sep string) string                                 { return strings.ReplaceAll(k, "-", sep) }
@@ -74,13 +69,20 @@ func toReportCmdr(mao MinutesOperation) *cmdr.Commander {
 	return cmdr.MakeCommander().SetName(i.Key).SetUsage(i.Value).With(ReportOperationSpec(mao.ReportDispatcher()))
 }
 
-func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
-	return func(yield func(*cmdr.Commander) bool) {
+// AllMinutesAppNavigatorOps returns operations suitable for the navigator UI:
+// all reporter ops excluding Retry and Exit, which are handled by the
+// navigator's own menu structure.
+func AllMinutesAppNavigatorOps() iter.Seq[MinutesOperation] {
+	return func(yield func(MinutesOperation) bool) {
 		for op := range AllMinutesAppOps() {
-			if !op.Registry().HasReporter() {
+			switch {
+			case op == MinutesAppOpRetry:
 				continue
-			}
-			if !yield(toFzfCmdr(op)) {
+			case op == MinutesAppOpExit:
+				continue
+			case !op.Registry().HasReporter():
+				continue
+			case !yield(op):
 				return
 			}
 		}
@@ -90,10 +92,7 @@ func AllFuzzyMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
 func AllReportMinutesAppCmdrs() iter.Seq[*cmdr.Commander] {
 	return func(yield func(*cmdr.Commander) bool) {
 		for op := range AllMinutesAppOps() {
-			if !op.Registry().HasReporter() {
-				continue
-			}
-			if !yield(toReportCmdr(op)) {
+			if op.Registry().HasReporter() && !yield(toReportCmdr(op)) {
 				return
 			}
 		}

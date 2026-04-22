@@ -30,6 +30,7 @@ func init() {
 	aliases.addFallback()
 	aliases.withJoinedWords()
 	aliases.withSpacedWords()
+	aliases.withDottedWords()
 }
 
 func getAliases(mao MinutesOperation) []string { return mao.Aliases() }
@@ -52,6 +53,7 @@ type MinutesOpRegistration struct {
 	Requires    *dt.Set[MinutesAppQueryType]
 	err         error
 	isMenu      bool
+	isBrowse    bool
 }
 
 func (reg MinutesOpRegistration) Ok() bool                     { return reg.ID.Ok() }
@@ -61,6 +63,7 @@ func (reg MinutesOpRegistration) Info() irt.KV[string, string] { return irt.Make
 func (reg MinutesOpRegistration) HasMessenger() bool           { return reg.Messenger != nil }
 func (reg MinutesOpRegistration) HasReporter() bool            { return reg.Reporter != nil }
 func (reg MinutesOpRegistration) IsMenu() bool                 { return reg.isMenu }
+func (reg MinutesOpRegistration) IsBrowse() bool               { return reg.isBrowse }
 func (reg MinutesOpRegistration) unavailable() error           { return unavailableOp(reg.Command) }
 
 // IsDocumentOp reports whether this operation renders its output as a file
@@ -97,7 +100,6 @@ func (reg MinutesOpRegistration) GetMessenger() msgui.Messenger {
 		return func(yield func(*mdwn.Builder, error) bool) { yield(nil, err) }
 	}
 }
-
 
 // AllMinutesAppMessengerOps returns operations available to the Telegram bot:
 // streaming-message ops (HasMessenger) and file-document ops (IsDocumentOp).

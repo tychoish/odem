@@ -19,6 +19,7 @@ const ErrEmptyResults = ers.Error("no results")
 type FuzzySearchItems[T any] struct {
 	prompt        string
 	caseSensitive bool
+	noLimit       bool
 	selections    []int
 	prefix        string
 	stw.Slice[T]
@@ -80,9 +81,19 @@ func (fsi *FuzzySearchItems[T]) WithToString(in func(T) string) *FuzzySearchItem
 	return fsi
 }
 
-func (FuzzySearchItems[T]) defaultString(in T) string { return fmt.Sprint(in) }
+func (FuzzySearchItems[T]) defaultString(in T) string {
+	if s, ok := any(in).(string); ok {
+		return s
+	}
+	return fmt.Sprint(in)
+}
 func (FuzzySearchItems[T]) zero() (z T)               { return z }
 func (FuzzySearchItems[T]) noError(T) error           { return nil }
+func (fsi *FuzzySearchItems[T]) WithNoLimit() *FuzzySearchItems[T] {
+	fsi.noLimit = true
+	return fsi
+}
+
 func (fsi *FuzzySearchItems[T]) WithSelectedPrefix(pre string) *FuzzySearchItems[T] {
 	fsi.prefix = pre
 	return fsi
@@ -99,6 +110,9 @@ func (fsi *FuzzySearchItems[T]) Find() iter.Seq2[T, error] {
 		fzf.WithCaseSensitive(fsi.caseSensitive),
 	}
 
+	if fsi.noLimit {
+		args = append(args, fzf.WithNoLimit(true))
+	}
 	if fsi.prefix != "" {
 		args = append(args, fzf.WithSelectedPrefix(fsi.prefix))
 	}
@@ -182,7 +196,7 @@ func FuzzySearchWithFallback[A, B any, S ~[]A](options S, toString func(A) strin
 		Prompt(sp.Prompt)
 
 	if sp.Multi {
-		narrowed, err := erc.FromIteratorAll(search.Find())
+		narrowed, err := erc.FromIteratorAll(search.WithNoLimit().Find())
 		if err != nil {
 			return irt.Zero[B](), err
 		}

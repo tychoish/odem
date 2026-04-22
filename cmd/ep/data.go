@@ -16,6 +16,7 @@ import (
 	"github.com/tychoish/odem/pkg/db"
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/mcpsrv"
+	"github.com/tychoish/odem/pkg/navigator"
 	"github.com/tychoish/odem/pkg/odemcli"
 	"github.com/tychoish/odem/pkg/reportui"
 	"github.com/tychoish/odem/pkg/tgbot"
@@ -62,14 +63,25 @@ func Telegram() *cmdr.Commander {
 		}))
 }
 
+func Navigate() *cmdr.Commander {
+	return cmdr.MakeCommander().
+		SetName("navigator").
+		Aliases("nav", "navigate", "menu", "drill").
+		SetUsage("interactive state-machine navigator: drill into leaders, songs, or singings via chained fzf menus").
+		With(odemcli.AttachConfiguration).
+		With(odemcli.SimpleDBOperationSpec(func(ctx context.Context, conn *db.Connection) error {
+			return navigator.New(conn).Run(ctx)
+		}))
+}
+
 func Fuzzy() *cmdr.Commander {
 	return cmdr.MakeCommander().
 		SetName("fuzzy").
 		Aliases("fzf").
-		SetUsage("fuzzy cli UI to minutes data").
+		SetUsage("a report-like inerface that writes the results of queries to the console.").
 		With(odemcli.AttachConfiguration).
 		With(odemcli.DBOperationSpec(dispatch.MinutesAppOpRetry.ReportDispatcher().Op)).
-		Subcommanders(irt.Collect(dispatch.AllFuzzyMinutesAppCmdrs())...)
+		Subcommanders(irt.Collect(dispatch.AllReportMinutesAppCmdrs())...)
 }
 
 func Report() *cmdr.Commander {

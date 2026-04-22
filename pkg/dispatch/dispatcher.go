@@ -396,6 +396,7 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 			Reporter:  reportui.LeaderSingingsPerYear,
 			MCP:       mcpsrv.NewTool(mcpsrv.LeaderSingingsPerYear).Register,
 			Messenger: msgui.LeaderSingingsPerYear,
+			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 		}
 	case MinutesAppOpTopLeadersByKey:
 		return MinutesOpRegistration{
@@ -475,46 +476,51 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "singing-selections",
-			Description: "Renders a full list of all Singings",
+			Description: "browse all singings; use to set singing context for subsequent operations",
 			Aliases:     []string{"singings-selections", "all-singings"},
 			Reporter:    reportui.AllSingings,
 			MCP:         mcpsrv.NewTool(mcpsrv.AllSingings).Register,
+			isBrowse:    true,
 		}
 	case MinutesAppOpSelectionsSongs:
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "song-selections",
-			Description: "Renders a full list of all Songs in the Sacred Harp",
+			Description: "browse all songs in the Sacred Harp; use to set song context for subsequent operations",
 			Aliases:     []string{"songs-selections", "all-songs", "song-selection"},
 			Reporter:    reportui.AllSongs,
 			MCP:         mcpsrv.NewTool(mcpsrv.AllSongs).Register,
+			isBrowse:    true,
 		}
 	case MinutesAppOpSelectionsLeaders:
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "leader-selection",
-			Description: "Renders a full list of all leaders at Minuted Singings",
+			Description: "browse all leaders at minuted singings; use to set leader context for subsequent operations",
 			Aliases:     []string{"leaders-selections", "all-leaders", "singer-selection"},
 			Reporter:    reportui.AllLeaders,
 			MCP:         mcpsrv.NewTool(mcpsrv.AllLeaders).Register,
+			isBrowse:    true,
 		}
 	case MinutesAppOpSelectionsYears:
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "year-selections",
-			Description: "Reads a list of selections (including negations) of singings",
+			Description: "browse all years with minuted singings",
 			Aliases:     []string{"year-selection", "years-selections", "all-year", "all-years"},
 			Reporter:    reportui.AllYears,
 			MCP:         mcpsrv.NewTool(mcpsrv.AllYears).Register,
+			isBrowse:    true,
 		}
 	case MinutesAppOpSelectionsLocality:
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "locality-selections",
-			Description: "Renders a list of all localities (states, regional communities, etc.)",
+			Description: "browse all localities (states, regional communities, etc.)",
 			Aliases:     []string{"locality-selection", "all-places", "all-localities", "all-regions", "places-selections", "select-places", "select-localities", "select-locality"},
 			Reporter:    reportui.AllLocalities,
 			MCP:         mcpsrv.NewTool(mcpsrv.AllLocalities).Register,
+			isBrowse:    true,
 		}
 	case MinutesAppOpUnknown:
 		return MinutesOpRegistration{ID: mao, err: ers.Error("unknown/undefined operation")}

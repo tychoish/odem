@@ -12,7 +12,11 @@ import (
 // Eventually, there should be a "super-fzf" interface that would render output using that would
 // jump _through_ successive fzf menus "leader -> [which query] -> [fzf songs rendered with
 // LineItem] -> song selection -> [top leaders, other queries we can look at] -> "<views>", however
-// implementation of that CAN ONLY begin after begin the current report/fzf interface is rationalized.
+// implementation of that CAN ONLY begin after begin the current report/fzf interface is
+// rationalized.
+//
+// This will need to be implemented in it's own package, as a state machine (an enum/type for each
+// state,) operations all map to functions which return functions that take care of the next state.
 
 // Reporter is the common handler type for all operations: it receives a
 // db connection and a Params struct and writes output to the writer
