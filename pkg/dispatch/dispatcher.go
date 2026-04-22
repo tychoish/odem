@@ -25,6 +25,7 @@ const (
 	MinutesAppOpLeaderDebutes
 	MinutesAppOpLeaderFavoriteKey
 	MinutesAppOpLeaderRoleModels
+	MinutesAppOpLeaderActiveRoleModels
 	MinutesAppOpLeaderConnectedness
 	MinutesAppOpLeaderActiveConnectedness
 	MinutesAppOpLeaderBuddies
@@ -335,6 +336,20 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 			MCP:       mcpsrv.NewTool(mcpsrv.LeaderFootsteps).Register,
 			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
 			Messenger: msgui.LeaderRoleModels,
+		}
+	case MinutesAppOpLeaderActiveRoleModels:
+		return MinutesOpRegistration{
+			ID:          mao,
+			Command:     "active-role-models",
+			Description: "a leader's most-led songs with the most-frequent *active* leader of each song.",
+			Aliases: []string{
+				"active-footsteps", "active-idols", "active-role-models",
+				"recent-role-models", "current-role-models",
+			},
+			Reporter:  reportui.ActiveLeaderRoleModels,
+			MCP:       mcpsrv.NewTool(mcpsrv.ActiveLeaderRoleModels).Register,
+			Requires:  dt.MakeSet(irt.Args(MinutesAppQueryTypeLeader)),
+			Messenger: msgui.ActiveLeaderRoleModels,
 		}
 	case MinutesAppOpTopLeaders:
 		return MinutesOpRegistration{

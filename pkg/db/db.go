@@ -607,6 +607,51 @@ LIMIT ?`
 	return dbx.Query[models.LeaderFootstep](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
 }
 
+func (conn *Connection) ActiveLeaderRoleModels(ctx context.Context, name string, limit int) iter.Seq2[models.LeaderFootstep, error] {
+	const query = `
+WITH my_songs AS (
+    SELECT lss.song_id, lss.lesson_count AS self_lead_count
+    FROM leader_song_stats AS lss
+    JOIN leaders AS l ON l.id = lss.leader_id
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+    WHERE CAST(COALESCE(lna.name, l.name, '') AS TEXT) = ?
+),
+top_other_leaders AS (
+    SELECT
+        lss.song_id,
+        COALESCE(lna.name, l.name) AS other_leader_name,
+        lss.lesson_count AS other_count,
+        MAX(m.Year) AS their_last_lead_year,
+        ROW_NUMBER() OVER (PARTITION BY lss.song_id ORDER BY lss.lesson_count DESC) AS rn
+    FROM leader_song_stats AS lss
+    JOIN leaders AS l ON l.id = lss.leader_id
+    JOIN leader_profiles AS lp ON lp.leader_id = lss.leader_id
+    JOIN song_leader_joins AS slj ON slj.leader_id = lss.leader_id AND slj.song_id = lss.song_id
+    JOIN minutes AS m ON m.id = slj.minutes_id
+    LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = l.name
+    LEFT JOIN leader_name_invalid AS inv ON inv.name = l.name
+    WHERE l.name != ?
+    AND inv.name IS NULL
+    AND lp.last_year >= (SELECT MAX(Year) FROM minutes) - 4
+    GROUP BY lss.song_id, lss.leader_id
+)
+SELECT
+    tol.other_leader_name AS leader_name,
+    bsj.page_num AS song_page,
+    s.title AS song_title,
+    bsj.keys AS song_keys,
+    ms.self_lead_count AS self_lead_count,
+    tol.other_count AS their_lead_count,
+    tol.their_last_lead_year
+FROM my_songs AS ms
+JOIN top_other_leaders AS tol ON tol.song_id = ms.song_id AND tol.rn = 1
+JOIN songs AS s ON s.id = ms.song_id
+JOIN book_song_joins AS bsj ON bsj.song_id = ms.song_id AND bsj.book_id = 2
+ORDER BY ms.self_lead_count DESC
+LIMIT ?`
+	return dbx.Query[models.LeaderFootstep](ctx, conn.db.QueryContext, query, name, name, cmp.Or(limit, 32))
+}
+
 func (conn *Connection) LeaderShareOfLeads(ctx context.Context, name string, limit int, years ...int) (*float64, error) {
 	currentYear := time.Now().Year()
 

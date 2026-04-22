@@ -389,6 +389,23 @@ func LeaderFootsteps(ctx context.Context, conn *db.Connection, p models.Params) 
 	}, nil
 }
 
+func ActiveLeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderFootstep], error) {
+	leader, err := selector.Leader(ctx, conn, searchParams(p))
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := erc.FromIteratorUntil(conn.ActiveLeaderRoleModels(ctx, leader.Name, cmp.Or(p.Limit, 20)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContextualSequence[string, models.LeaderFootstep]{
+		Results: results,
+		Context: leader.Name,
+	}, nil
+}
+
 func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderLeadCount], error) {
 	results, err := erc.FromIteratorUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 40), p.Years...))
 	if err != nil {

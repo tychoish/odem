@@ -840,3 +840,24 @@ func LeaderFootsteps(ctx context.Context, conn *db.Connection, p Params) error {
 	ec.Push(flush(wr, &mb))
 	return ec.Resolve()
 }
+
+func ActiveLeaderRoleModels(ctx context.Context, conn *db.Connection, p Params) error {
+	record, err := selector.Leader(ctx, conn, p.Search())
+	if err != nil {
+		return err
+	}
+
+	wr, err := p.getWriter(record.Name, "active-role-models")
+	if err != nil {
+		return err
+	}
+	defer func() { err = erc.Join(wr.Close()) }()
+	// ---------------- THE FOLD ----------------
+	var ec erc.Collector
+	var mb mdwn.Builder
+	mb.H2(fmt.Sprintf("Active Singing Role Models: %s", record.Name))
+	models.WriteTable(&mb, erc.HandleAll(conn.ActiveLeaderRoleModels(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push))
+
+	ec.Push(flush(wr, &mb))
+	return ec.Resolve()
+}

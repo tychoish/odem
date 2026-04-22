@@ -336,6 +336,23 @@ func LeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params)
 	}
 }
 
+func ActiveLeaderRoleModels(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
+	return func(yield func(*mdwn.Builder, error) bool) {
+		header := mdwn.MakeBuilder(len(p.Name) + 30)
+		header.Concat("Active singing role models for **", p.Name, "**:")
+
+		var ec erc.Collector
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.ActiveLeaderRoleModels(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+			if !yield(md, err) {
+				return
+			}
+		}
+		if !ec.Ok() {
+			yield(nil, ec.Resolve())
+		}
+	}
+}
+
 func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
 		header := mdwn.MakeBuilder(256)

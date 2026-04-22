@@ -100,6 +100,10 @@ func Leader(ctx context.Context, conn *db.Connection, in Params) (err error) {
 	mb.Paragraph("The top leaders of all of ", singer.Name, "'s top songs!")
 	models.WriteTable(&mb, erc.HandleAll(conn.LeaderFootsteps(ctx, singer.Name, 20), ec.Push))
 
+	mb.H2("Active Singing Role Models")
+	mb.Paragraph("The top *active* leaders of all of ", singer.Name, "'s top songs (led in the last 4 years).")
+	models.WriteTable(&mb, erc.HandleAll(conn.ActiveLeaderRoleModels(ctx, singer.Name, 20), ec.Push))
+
 	mb.H2("Unfamiliar Hits")
 	mb.Paragraph("Othewise popular songs that are under represented at singings ", singer.Name, " has been at.")
 	models.WriteTable(&mb, erc.HandleAll(conn.TheUnfamilarHits(ctx, singer.Name, 20), ec.Push))
