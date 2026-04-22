@@ -36,6 +36,10 @@ func (p Params) Search() *infra.SearchParams {
 	return new(infra.SearchParams).With(p.Name).Interaction(!p.SuppressInteractivity)
 }
 
+func (p Params) SongSearch() *infra.SearchParams {
+	return new(infra.SearchParams).With(p.SongInput()).Interaction(!p.SuppressInteractivity)
+}
+
 func (p Params) selectYears() ([]int, error) {
 	if p.SuppressInteractivity {
 		if len(p.Years) > 0 {

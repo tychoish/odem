@@ -473,6 +473,33 @@ func TestGlobalRankings(t *testing.T) {
 				t.Errorf("expected results for song %q", testSong)
 			}
 		}},
+		{"TopLeadersOfSongByYears/alltime", func(t *testing.T) {
+			count := 0
+			for _, err := range conn.TopLeadersOfSongByYears(ctx, testSong, 5) {
+				if err != nil {
+					t.Fatal(err)
+				}
+				count++
+			}
+			if count == 0 {
+				t.Errorf("TopLeadersOfSongByYears(alltime): expected results for song %q", testSong)
+			}
+		}},
+		{"TopLeadersOfSongByYears/withyear", func(t *testing.T) {
+			count := 0
+			for row, err := range conn.TopLeadersOfSongByYears(ctx, testSong, 5, 2023) {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if row.Count <= 0 {
+					t.Errorf("expected positive lead count for %q", row.Name)
+				}
+				count++
+			}
+			if count == 0 {
+				t.Errorf("TopLeadersOfSongByYears(2023): expected results for song %q", testSong)
+			}
+		}},
 		{"AllSingings", func(t *testing.T) {
 			count := 0
 			for _, err := range conn.AllSingings(ctx) {

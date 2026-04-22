@@ -95,7 +95,7 @@ func SongsByWord(ctx context.Context, conn *db.Connection, p Params) (err error)
 }
 
 func SongLyrics(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	sg, err := selector.Song(ctx, conn, p.Search())
+	sg, err := selector.Song(ctx, conn, p.SongSearch())
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func SongLyrics(ctx context.Context, conn *db.Connection, p Params) (err error) 
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	sg, err := selector.Song(ctx, conn, p.Search())
+	sg, err := selector.Song(ctx, conn, p.SongSearch())
 	if err != nil {
 		return err
 	}
@@ -531,17 +531,37 @@ func ActiveConnectedness(ctx context.Context, conn *db.Connection, p Params) err
 }
 
 func TopLeader(ctx context.Context, conn *db.Connection, p Params) (err error) {
-	years, err := p.selectYears()
-	if err != nil {
-		return err
+	// Use years directly — default is all-time (empty slice = no year filter).
+	years := p.Years
+	yearsStr := irt.Collect(irt.Convert(irt.Slice(years), itoa))
+
+	// When a song is specified, show top leaders for that song.
+	if p.Song != "" {
+		w, err := p.getWriter(append([]string{"report", "top", "leaders", p.Song}, yearsStr...)...)
+		if err != nil {
+			return err
+		}
+		defer func() { err = erc.Join(err, w.Close()) }()
+
+		var ec erc.Collector
+		var mb mdwn.Builder
+
+		mb.H2(fmt.Sprintf("Top Leaders for Song %s", p.Song))
+		mb.KV("Song", p.Song)
+		if len(years) > 0 {
+			mb.KV("Years", strings.Join(yearsStr, ", "))
+		}
+
+		models.WriteTable(&mb, erc.HandleAll(conn.TopLeadersOfSongByYears(ctx, p.Song, cmp.Or(p.Limit, 40), years...), ec.Push))
+		ec.Push(flush(w, &mb))
+		return ec.Resolve()
 	}
 
-	yearsStr := irt.Collect(irt.Convert(irt.Slice(years), itoa))
 	w, err := p.getWriter(append([]string{"report", "top", "leaders"}, yearsStr...)...)
 	if err != nil {
 		return err
 	}
-	defer func() { err = erc.Join(w.Close()) }()
+	defer func() { err = erc.Join(err, w.Close()) }()
 	// ---------------- THE FOLD ----------------
 	var ec erc.Collector
 	var mb mdwn.Builder

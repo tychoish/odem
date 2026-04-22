@@ -64,7 +64,7 @@ func SongsByWord(ctx context.Context, conn *db.Connection, p models.Params) iter
 
 func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		sl, err := conn.SongLyrics(ctx, p.Name)
+		sl, err := conn.SongLyrics(ctx, p.SongInput())
 		if err != nil {
 			yield(nil, err)
 			return
@@ -84,11 +84,11 @@ func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) iter.
 
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
-		header := mdwn.MakeBuilder(len(p.Name) + 20)
-		header.Concat("Top leaders for song **", p.Name, "**:")
+		header := mdwn.MakeBuilder(32)
+		header.Concat("Top leaders for song **", p.SongInput(), "**:")
 
 		var ec erc.Collector
-		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.Name, cmp.Or(p.Limit, 20)), ec.Push)) {
+		for md, err := range renderWithHeader(header, erc.HandleUntil(conn.TopLeadersOfSong(ctx, p.SongInput(), cmp.Or(p.Limit, 20)), ec.Push)) {
 			if !yield(md, err) {
 				return
 			}
@@ -356,6 +356,32 @@ func ActiveLeaderRoleModels(ctx context.Context, conn *db.Connection, p models.P
 func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) iter.Seq2[*mdwn.Builder, error] {
 	return func(yield func(*mdwn.Builder, error) bool) {
 		header := mdwn.MakeBuilder(256)
+
+		// When a song is specified, show top leaders for that song.
+		if p.Song != "" {
+			header.Concat("Top leaders for song **", p.Song, "**")
+			if len(p.Years) > 0 {
+				header.PushString(" (")
+				for y := range irt.Slice(p.Years) {
+					header.PushInt(y)
+					header.PushString(", ")
+				}
+				header.PushString(")")
+			}
+			header.PushString(":")
+
+			var ec erc.Collector
+			for md, err := range renderWithHeader(header, erc.HandleUntil(conn.TopLeadersOfSongByYears(ctx, p.Song, cmp.Or(p.Limit, 20), p.Years...), ec.Push)) {
+				if !yield(md, err) {
+					return
+				}
+			}
+			if !ec.Ok() {
+				yield(nil, ec.Resolve())
+			}
+			return
+		}
+
 		header.Concat("Top leaders")
 		if len(p.Years) > 0 {
 			header.PushString(" (")

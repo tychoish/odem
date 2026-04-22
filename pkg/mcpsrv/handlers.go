@@ -25,6 +25,10 @@ func searchParams(p models.Params) *infra.SearchParams {
 	return new(infra.SearchParams).With(p.Name).WithoutInteractive().UseFirstResult()
 }
 
+func songSearchParams(p models.Params) *infra.SearchParams {
+	return new(infra.SearchParams).With(p.SongInput()).WithoutInteractive().UseFirstResult()
+}
+
 func NeverSung(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderSongRank], error) {
 	leader, err := selector.Leader(ctx, conn, searchParams(p))
 	if err != nil {
@@ -122,7 +126,7 @@ func SongsByWord(ctx context.Context, conn *db.Connection, p models.Params) (*Co
 }
 
 func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SongLyrics, string], error) {
-	sg, err := selector.Song(ctx, conn, searchParams(p))
+	sg, err := selector.Song(ctx, conn, songSearchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +142,7 @@ func SongLyrics(ctx context.Context, conn *db.Connection, p models.Params) (*Con
 }
 
 func Songs(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[models.SongDetail, models.LeaderOfSongInfo], error) {
-	sg, err := selector.Song(ctx, conn, searchParams(p))
+	sg, err := selector.Song(ctx, conn, songSearchParams(p))
 	if err != nil {
 		return nil, err
 	}
@@ -407,6 +411,25 @@ func ActiveLeaderRoleModels(ctx context.Context, conn *db.Connection, p models.P
 }
 
 func TopLeaders(ctx context.Context, conn *db.Connection, p models.Params) (*ContextualSequence[string, models.LeaderLeadCount], error) {
+	// When a song is specified, return top leaders for that song using
+	// LeaderLeadCount-compatible results via the song-scoped query path.
+	// We piggyback on the existing type by mapping LeaderOfSongInfo → LeaderLeadCount.
+	if p.Song != "" {
+		songResults, err := erc.FromIteratorUntil(conn.TopLeadersOfSongByYears(ctx, p.Song, cmp.Or(p.Limit, 40), p.Years...))
+		if err != nil {
+			return nil, err
+		}
+		results := make([]models.LeaderLeadCount, len(songResults))
+		for i, r := range songResults {
+			results[i] = models.LeaderLeadCount{Name: r.Name, Count: r.Count}
+		}
+		label := fmt.Sprintf("song %s", p.Song)
+		return &ContextualSequence[string, models.LeaderLeadCount]{
+			Context: label,
+			Results: results,
+		}, nil
+	}
+
 	results, err := erc.FromIteratorUntil(conn.TopLeadersByLeads(ctx, cmp.Or(p.Limit, 40), p.Years...))
 	if err != nil {
 		return nil, err

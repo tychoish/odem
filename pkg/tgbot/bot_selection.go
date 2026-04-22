@@ -91,7 +91,12 @@ func (b *bot) captureLeader(value string) stateFn {
 
 func (b *bot) captureSong(value string) stateFn {
 	s, err := selector.Song(b.ctx, b.db, b.searchParams(value))
-	return b.captureNameResult(value, "song", err, b.captureSong, func() string { return s.PageNum })
+	if err != nil {
+		return b.captureRetry(fmt.Sprintf("couldn't find song matching `%s`", value), b.captureSong)
+	}
+	b.queryState.selectionAttempts = 0
+	b.queryState.params.Song = s.PageNum
+	return b.discoverNext()
 }
 
 func (b *bot) captureSinging(value string) stateFn {

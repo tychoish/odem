@@ -161,6 +161,68 @@ LIMIT ?;`
 	return dbx.Query[models.LeaderOfSongInfo](ctx, conn.db.QueryContext, query, song, cmp.Or(limit, 32))
 }
 
+// TopLeadersOfSongByYears returns the leaders of a given song, optionally
+// filtered by year. When no years are provided it uses the pre-aggregated
+// song_leader_stats view (all-time). When years are provided it queries the
+// raw tables directly with the year filter applied.
+func (conn *Connection) TopLeadersOfSongByYears(ctx context.Context, song string, limit int, years ...int) iter.Seq2[models.LeaderOfSongInfo, error] {
+	if len(years) == 0 {
+		return conn.TopLeadersOfSong(ctx, song, limit)
+	}
+
+	currentYear := time.Now().Year()
+	var includeYears, excludeYears []int
+	for _, y := range years {
+		abs := y
+		if y < 0 {
+			abs = -y
+		}
+		if abs < 1995 || abs > currentYear {
+			return irt.Two(models.LeaderOfSongInfo{}, fmt.Errorf("year %d out of valid range [1995, %d]", y, currentYear))
+		}
+		if y < 0 {
+			excludeYears = append(excludeYears, abs)
+		} else {
+			includeYears = append(includeYears, y)
+		}
+	}
+	if len(includeYears) > 0 && len(excludeYears) > 0 {
+		return irt.Two(models.LeaderOfSongInfo{}, fmt.Errorf("cannot mix included and excluded years"))
+	}
+
+	var qb dbx.Builder
+	qb.WithSQL(`
+SELECT
+    CAST(COALESCE(lna.name, leaders.name, '') AS TEXT) AS name,
+    COUNT(slj.id) AS count,
+    MAX(m.Year) - MIN(m.Year) AS num_years,
+    CASE WHEN MAX(m.Year) >= (SELECT MAX(Year) FROM minutes) - 1 THEN 1 ELSE 0 END AS led_in_last_year
+FROM leaders
+JOIN song_leader_joins AS slj ON slj.leader_id = leaders.id
+JOIN minutes AS m ON m.id = slj.minutes_id
+JOIN songs ON slj.song_id = songs.id
+JOIN book_song_joins AS bsj ON songs.id = bsj.song_id AND bsj.book_id = 2
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna ON lna.alias = leaders.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = leaders.name
+WHERE inv.name IS NULL`)
+	qb.With(" AND bsj.page_num = %?", song)
+
+	switch {
+	case len(includeYears) > 0:
+		qb.With(" AND m.Year IN (%+?)", includeYears)
+	case len(excludeYears) > 0:
+		qb.With(" AND m.Year NOT IN (%+?)", excludeYears)
+	}
+
+	qb.WithSQL(`
+GROUP BY leaders.id
+ORDER BY count DESC`)
+	qb.With(" LIMIT %?", cmp.Or(limit, 32))
+
+	query, args := qb.Build()
+	return dbx.Query[models.LeaderOfSongInfo](ctx, conn.db.QueryContext, query, args...)
+}
+
 func (conn *Connection) AllLessons(ctx context.Context, leader string) iter.Seq2[models.LessonInfo, error] {
 	const query = `
 SELECT

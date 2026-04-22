@@ -355,11 +355,11 @@ func (mao MinutesOperation) Registry() MinutesOpRegistration {
 		return MinutesOpRegistration{
 			ID:          mao,
 			Command:     "top-leaders",
-			Description: "all leaders ordered by their total number of minuted leads.",
+			Description: "leaders ordered by total minuted leads; optionally filtered by song (page number) or year (default: all time).",
 			Aliases:     []string{"top-leaders", "leaderboard"},
 			Reporter:    reportui.TopLeader,
 			MCP:         mcpsrv.NewTool(mcpsrv.TopLeaders).Register,
-			Requires:    dt.MakeSet(irt.Args(MinutesAppQueryTypeYear)),
+			Requires:    &dt.Set[MinutesAppQueryType]{},
 			Messenger:   msgui.TopLeaders,
 		}
 	case MinutesAppOpLeaderFavoriteKey:
