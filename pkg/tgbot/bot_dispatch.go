@@ -8,6 +8,7 @@ import (
 
 	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/mdwn"
+	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/odem/pkg/dispatch"
 	"github.com/tychoish/odem/pkg/release"
@@ -16,16 +17,7 @@ import (
 func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	defer func() {
 		if p := recover(); p != nil {
-			resp, err := b.Close()
-			grip.Log(b.level(err), b.gmr("recover close", resp.Base()).WithError(err))
-
-			switch p {
-			case "exit", "abort", "quit":
-				b.off.Store(true)
-				return
-			default:
-				panic(p)
-			}
+			grip.Alert(b.grip("recover").KV("panic", p))
 		}
 	}()
 
@@ -34,15 +26,6 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	case msg.Text == "":
 		grip.Notice(b.grip("got message with empty text"))
 		return b.handleMessage
-	case isOrContainsCmd(msg, "exit"):
-		b.sendPlain("ok, exiting!")
-		panic("exit")
-	case isOrContainsCmd(msg, "abort"):
-		b.sendPlain("ok, aborting!")
-		panic("abort")
-	case isOrContainsCmd(msg, "quit"):
-		b.sendPlain("ok, quitting!")
-		panic("quit")
 	case isOrContainsCmd(msg, "reset"):
 		b.sendPlain("resetting query...")
 		return b.resetState()
@@ -53,35 +36,28 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		b.sendPlain("restarting...")
 		return b.resetState()
 	case isOrContainsCmd(msg, "sysinfo", "odmeinfo", "appinfo"):
-		mb := mdwn.MakeBuilder(1024).
+		b.sendMarkdown(mdwn.MakeBuilder(1024).
 			KV("in_progress", fmt.Sprint(b.queryState.inProgress)).
 			KV("version", release.Version.Resolve().String()).
 			KV("sent", strconv.Itoa(int(b.metrics.sent.Load()))).
 			KV("recv", strconv.Itoa(int(b.metrics.recv.Load()))).
 			KV("uptime", time.Since(b.metrics.createdAt).String()).
-			KV("interval", time.Since(b.lastUpdated).String())
-
-		defer mb.Release()
-
-		b.sendMarkdown(mb.String())
-
-		return b.discoverNext()
+			KV("interval", time.Since(b.lastUpdated).String()).Resolve())
+		return b.handleMessage
 	case isOrContainsCmd(msg, "state", "status"):
 		if !b.queryState.inProgress {
 			b.sendPlain("Nothing in progress at the moment...")
 			return b.handleMessage
 		}
 
-		mb := mdwn.MakeBuilder(1024).
+		b.sendMarkdown(mdwn.MakeBuilder(1024).
 			KV("operation", b.queryState.entry.Command).
 			KV("discription", b.queryState.entry.Description).
 			KV("selection", b.queryState.params.Name).
 			KV("song", b.queryState.params.Song).
 			KV("limit", strconv.Itoa(b.queryState.params.Limit)).
-			KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years))
-		defer mb.Release()
-
-		b.sendMarkdown(mb.String())
+			KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years)).
+			Resolve())
 
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "limit reset"):
@@ -122,7 +98,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	case isOrContainsCmd(msg, "keyboard", "menu"):
 		return b.keyboardMinutesAppQueries()
 	case b.queryState.inProgress:
-		b.sendPlain(fmt.Sprintf("Hmm... I'm working on %s, can you try that again?", b.queryState.op.String()))
+		b.sendPlain(strut.Mprintf("Hmm... I'm working on %s, can you try that again?", b.queryState.op.String()).Resolve())
 		return b.discoverNext()
 	case b.setupQuery(strings.ToLower(msg.Text)):
 		return b.discoverNext()
