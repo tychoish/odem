@@ -38,7 +38,6 @@ func (b *bot) dispatchMessage(msg string) stateFn {
 		return b.resetState()
 	case isOrContainsCmd(msg, "sysinfo", "odmeinfo", "appinfo"):
 		mb := mdwn.MakeBuilder(1024).
-			KV("in_progress", fmt.Sprint(b.queryState.inProgress)).
 			KV("version", release.Version.Resolve().String()).
 			KV("sent", strconv.Itoa(int(b.metrics.sent.Load()))).
 			KV("recv", strconv.Itoa(int(b.metrics.recv.Load()))).
