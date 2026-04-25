@@ -9,6 +9,21 @@ import (
 	"context"
 )
 
+const getActiveSingerConnectedness = `-- name: GetActiveSingerConnectedness :one
+SELECT
+	CAST(CAST(COUNT(DISTINCT b.leader_id) AS REAL) / CAST((SELECT COUNT(*) FROM leaders) AS REAL) AS REAL) AS connectedness
+FROM active_song_leader_joins a
+JOIN active_song_leader_joins b ON b.minutes_id = a.minutes_id AND b.leader_id != a.leader_id
+WHERE a.leader_id = (SELECT id FROM leaders WHERE leaders.name = ?)
+`
+
+func (q *Queries) GetActiveSingerConnectedness(ctx context.Context, name *string) (float64, error) {
+	row := q.db.QueryRowContext(ctx, getActiveSingerConnectedness, name)
+	var connectedness float64
+	err := row.Scan(&connectedness)
+	return connectedness, err
+}
+
 const getLeader = `-- name: GetLeader :one
 SELECT
 	COALESCE(name, ''),
@@ -88,6 +103,33 @@ func (q *Queries) GetLeaderMajorMinorCounts(ctx context.Context, name string) (G
 	row := q.db.QueryRowContext(ctx, getLeaderMajorMinorCounts, name)
 	var i GetLeaderMajorMinorCountsRow
 	err := row.Scan(&i.MajorCount, &i.MinorCount)
+	return i, err
+}
+
+const getLeaderTopActiveSingingBuddy = `-- name: GetLeaderTopActiveSingingBuddy :one
+SELECT CAST(COALESCE(lna2.name, l2.name, '') AS TEXT) AS buddy_name, CAST(COUNT(DISTINCT slj2.minutes_id) AS INTEGER) AS singing_count
+FROM song_leader_joins AS slj
+JOIN leader_name_map AS lnm ON lnm.leader_id = slj.leader_id
+JOIN active_song_leader_joins AS slj2 ON slj2.minutes_id = slj.minutes_id AND slj2.leader_id != slj.leader_id
+JOIN leaders AS l2 ON l2.id = slj2.leader_id
+LEFT JOIN (SELECT alias, MIN(name) AS name FROM leader_name_aliases WHERE leader_id IS NOT NULL GROUP BY alias) AS lna2 ON lna2.alias = l2.name
+LEFT JOIN leader_name_invalid AS inv ON inv.name = l2.name
+WHERE lnm.name = ?
+AND inv.name IS NULL
+GROUP BY slj2.leader_id
+ORDER BY singing_count DESC
+LIMIT 1
+`
+
+type GetLeaderTopActiveSingingBuddyRow struct {
+	BuddyName    string `db:"buddy_name" json:"buddy_name"`
+	SingingCount int64  `db:"singing_count" json:"singing_count"`
+}
+
+func (q *Queries) GetLeaderTopActiveSingingBuddy(ctx context.Context, name string) (GetLeaderTopActiveSingingBuddyRow, error) {
+	row := q.db.QueryRowContext(ctx, getLeaderTopActiveSingingBuddy, name)
+	var i GetLeaderTopActiveSingingBuddyRow
+	err := row.Scan(&i.BuddyName, &i.SingingCount)
 	return i, err
 }
 

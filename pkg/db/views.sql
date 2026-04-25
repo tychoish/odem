@@ -3,14 +3,19 @@
 -- existing databases being upgraded so active_song_leader_joins can reference it.
 CREATE TABLE IF NOT EXISTS lesson_exclusions (
     id     INTEGER NOT NULL PRIMARY KEY,
-    reason TEXT    DEFAULT NULL
+    reason TEXT    NOT NULL DEFAULT NULL
 );
 
 -- active_song_leader_joins: filtered view of song_leader_joins that excludes any
 -- lead whose id appears in lesson_exclusions. Use this everywhere instead of the
 -- raw table so that exclusions are automatically honoured by all queries and views.
 CREATE VIEW IF NOT EXISTS active_song_leader_joins AS
-SELECT slj.*
+SELECT
+    COALESCE(slj.id, 0) AS id,
+    COALESCE(slj.song_id, 0) AS song_id,
+    COALESCE(slj.leader_id, 0) AS leader_id,
+    COALESCE(slj.minutes_id, 0) AS minutes_id,
+    COALESCE(slj.lesson_id, 0) AS lesson_id
 FROM song_leader_joins AS slj
 LEFT JOIN lesson_exclusions AS le ON le.id = slj.id
 WHERE le.id IS NULL;
@@ -103,7 +108,7 @@ SELECT
 	CAST(ROW_NUMBER() OVER (PARTITION BY slj.minutes_id ORDER BY slj.id) AS INTEGER) AS sequence_number,
 	COALESCE(slj.lesson_id, 0) AS lesson_id,
 	COALESCE(m."Name", '') AS singing_name,
-	m.Year AS singing_year,
+	m."Year" AS singing_year,
 	CAST(COALESCE(lna.name, l.name, '') AS TEXT) AS singer_name,
 	COALESCE(bsj.page_num, '') AS song_page_number,
 	COALESCE(s.title, '') AS song_name,

@@ -4,6 +4,14 @@
 
 package models
 
+type ActiveSongLeaderJoin struct {
+	ID        int64 `db:"id" json:"id"`
+	SongID    int64 `db:"song_id" json:"song_id"`
+	LeaderID  int64 `db:"leader_id" json:"leader_id"`
+	MinutesID int64 `db:"minutes_id" json:"minutes_id"`
+	LessonID  int64 `db:"lesson_id" json:"lesson_id"`
+}
+
 type Book struct {
 	ID    int64   `db:"id" json:"id"`
 	Title *string `db:"title" json:"title"`
@@ -110,6 +118,11 @@ type LessonDetails struct {
 	SongWordsAttribution   string `db:"song_words_attribution" json:"song_words_attribution"`
 }
 
+type LessonExclusion struct {
+	ID     int64  `db:"id" json:"id"`
+	Reason string `db:"reason" json:"reason"`
+}
+
 type Location struct {
 	ID            int64    `db:"id" json:"id"`
 	Name          *string  `db:"name" json:"name"`
@@ -214,6 +227,7 @@ type SingingLesson struct {
 	SequenceNumber int64       `db:"sequence_number" json:"sequence_number"`
 	LessonID       int64       `db:"lesson_id" json:"lesson_id"`
 	SingingName    string      `db:"singing_name" json:"singing_name"`
+	SingingYear    *int64      `db:"singing_year" json:"singing_year"`
 	SingerName     string      `db:"singer_name" json:"singer_name"`
 	SongPageNumber interface{} `db:"song_page_number" json:"song_page_number"`
 	SongName       string      `db:"song_name" json:"song_name"`

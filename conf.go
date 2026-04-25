@@ -14,6 +14,8 @@ import (
 	"github.com/tychoish/odem/pkg/home"
 )
 
+//go:generate sqlc generate
+
 type Configuration struct {
 	Settings struct {
 		Level          level.Priority `bson:"log_level" json:"log_level" yaml:"log_level"`
