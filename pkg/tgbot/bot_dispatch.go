@@ -36,13 +36,15 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		b.sendPlain("restarting...")
 		return b.resetState()
 	case isOrContainsCmd(msg, "sysinfo", "odmeinfo", "appinfo"):
-		b.sendMarkdown(mdwn.MakeBuilder(1024).
+		mb := mdwn.MakeBuilder(1024).
 			KV("in_progress", fmt.Sprint(b.queryState.inProgress)).
 			KV("version", release.Version.Resolve().String()).
 			KV("sent", strconv.Itoa(int(b.metrics.sent.Load()))).
 			KV("recv", strconv.Itoa(int(b.metrics.recv.Load()))).
 			KV("uptime", time.Since(b.metrics.createdAt).String()).
-			KV("interval", time.Since(b.lastUpdated).String()).Resolve())
+			KV("interval", time.Since(b.lastUpdated).String())
+		mb.WhenWriteMutable(b.queryState.inProgress, b.stateMessage().Deref())
+		b.sendMarkdown(mb.Resolve())
 		return b.handleMessage
 	case isOrContainsCmd(msg, "state", "status"):
 		if !b.queryState.inProgress {
@@ -50,14 +52,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 			return b.handleMessage
 		}
 
-		b.sendMarkdown(mdwn.MakeBuilder(1024).
-			KV("operation", b.queryState.entry.Command).
-			KV("discription", b.queryState.entry.Description).
-			KV("selection", b.queryState.params.Name).
-			KV("song", b.queryState.params.Song).
-			KV("limit", strconv.Itoa(b.queryState.params.Limit)).
-			KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years)).
-			Resolve())
+		b.sendMarkdown(b.stateMessage().Resolve())
 
 		return b.discoverNext()
 	case isOrContainsCmd(msg, "limit reset"):
@@ -118,4 +113,14 @@ func renderCommands() *mdwn.Builder {
 		mb.PushString(reg.Description).Line()
 	}
 	return mb
+}
+
+func (b *bot) stateMessage() *mdwn.Builder {
+	return mdwn.MakeBuilder(1024).
+		KV("operation", b.queryState.entry.Command).
+		KV("discription", b.queryState.entry.Description).
+		KV("selection", b.queryState.params.Name).
+		KV("song", b.queryState.params.Song).
+		KV("limit", strconv.Itoa(b.queryState.params.Limit)).
+		KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years))
 }
