@@ -69,7 +69,7 @@ func (b *bot) handleKeyboardResponse(kbdValue string) stateFn {
 	if b.setupQuery(kbdValue) {
 		return b.discoverNext()
 	}
-	return b.keyboardMinutesAppQueries()
+	return b.handleMessage
 }
 
 func (b *bot) setupQuery(opName string) bool {

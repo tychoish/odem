@@ -3,7 +3,6 @@ package tgbot
 import (
 	"cmp"
 	"context"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -106,18 +105,18 @@ func (b *bot) updateMetrics(u *etron.Update) {
 func (b *bot) handleMessage(u *etron.Update) stateFn {
 	switch {
 	case u.Message != nil:
-		return b.dispatchMessage(u.Message)
+		return b.dispatchMessage(u.Message.Text)
 	case u.EditedMessage != nil:
-		return b.dispatchMessage(u.EditedMessage)
+		return b.dispatchMessage(u.EditedMessage.Text)
 	case u.CallbackQuery != nil:
 		switch {
 		case b.state.trackingKeyboard.Load() != 0:
 			return b.handleKeyboardResponse(u.CallbackQuery.Data)
-		case b.setupQuery(strings.ToLower(u.CallbackQuery.Data)):
+		case b.setupQuery(u.CallbackQuery.Data):
 			return b.discoverNext()
 		case u.CallbackQuery.Message != nil:
 			b.sendPlain("Sorry, that didn't quite work, let's... try the shapes again")
-			return b.dispatchMessage(u.CallbackQuery.Message)
+			return b.dispatchMessage(u.CallbackQuery.Message.Text)
 		}
 
 		fallthrough

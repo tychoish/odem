@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	etron "github.com/NicoNex/echotron/v3"
 	"github.com/tychoish/fun/mdwn"
 	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
@@ -14,16 +13,17 @@ import (
 	"github.com/tychoish/odem/pkg/release"
 )
 
-func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
+func (b *bot) dispatchMessage(msg string) stateFn {
 	defer func() {
 		if p := recover(); p != nil {
 			grip.Alert(b.grip("recover").KV("panic", p))
 		}
 	}()
+	msg = strings.ToLower(msg)
 
-	grip.Info(b.grip("dispatch message").KV("msg.text", msg.Text))
+	grip.Info(b.grip("dispatch message").KV("msg.text", msg))
 	switch {
-	case msg.Text == "":
+	case msg == "":
 		grip.Notice(b.grip("got message with empty text"))
 		return b.handleMessage
 	case isOrContainsCmd(msg, "reset"):
@@ -67,7 +67,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 		if !b.queryState.inProgress {
 			b.sendPlain("no operation in progress, can't set a limit right now, but select an option from the menu...")
 			return b.handleMessage
-		} else if n, ok := extractNumber(msg.Text); ok && n > 40 {
+		} else if n, ok := extractNumber(msg); ok && n > 40 {
 			b.sendPlain("going to cap things at 40 right now...")
 			b.queryState.params.Limit = 40
 		} else if !ok {
@@ -95,7 +95,7 @@ func (b *bot) dispatchMessage(msg *etron.Message) stateFn {
 	case b.queryState.inProgress:
 		b.sendPlain(strut.Mprintf("Hmm... I'm working on %s, can you try that again?", b.queryState.op.String()).Resolve())
 		return b.discoverNext()
-	case b.setupQuery(strings.ToLower(msg.Text)):
+	case b.setupQuery(msg):
 		return b.discoverNext()
 	default:
 		return b.keyboardMinutesAppQueries()

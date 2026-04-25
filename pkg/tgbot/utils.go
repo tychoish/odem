@@ -37,17 +37,16 @@ func isEscapeInput(text string) bool {
 	return false
 }
 
-func isOrContainsCmd(msg *etron.Message, strs ...string) bool {
-	opt := strings.ToLower(msg.Text)
+func isOrContainsCmd(msg string, strs ...string) bool {
 	for _, str := range strs {
 		switch {
-		case opt == str:
+		case msg == str:
 			return true
-		case strings.HasPrefix(opt, fmt.Sprint("/", str)):
+		case strings.HasPrefix(msg, fmt.Sprint("/", str)):
 			return true
-		case strings.HasPrefix(opt, str):
+		case strings.HasPrefix(msg, str):
 			return true
-		case strings.Contains(opt, str):
+		case strings.Contains(msg, str):
 			return true
 		}
 	}
