@@ -117,10 +117,13 @@ func renderCommands() *mdwn.Builder {
 }
 
 func (b *bot) stateMessage() *mdwn.Builder {
-	return mdwn.MakeBuilder(1024).
-		KV("operation", b.queryState.entry.Command).
-		KV("discription", b.queryState.entry.Description).
-		KV("selection", b.queryState.params.Name).
+	mb := mdwn.MakeBuilder(1024)
+
+	if b.queryState.entry != nil {
+		mb.KV("operation", b.queryState.entry.Command).
+			KV("discription", b.queryState.entry.Description)
+	}
+	return mb.KV("selection", b.queryState.params.Name).
 		KV("song", b.queryState.params.Song).
 		KV("limit", strconv.Itoa(b.queryState.params.Limit)).
 		KV("years", fmt.Sprintf("(if relevant) %v", b.queryState.params.Years))
