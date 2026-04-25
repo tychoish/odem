@@ -150,11 +150,9 @@ func basePathCandidates(conf *odem.Configuration) iter.Seq[string] {
 	return irt.Keep(irt.Args(pwd, conf.Build.LocalRepoPath, home.TryExpandDirectory("~/src/odem/")), fileExists)
 }
 
-func LocalUpdate(ctx context.Context) error {
-	conf := odem.GetConfiguration(ctx)
-
+func LocalUpdate(ctx context.Context, conf *odem.Configuration) error {
 	for basepath := range basePathCandidates(conf) {
-		return infra.Command(ctx).WithDirectory(basepath).WithArgs("git", "pull", "origin", "main").Run(ctx)
+		return infra.Command(ctx).WithDirectory(basepath).WithName("git").WithArgs("pull", "origin", "main").Run(ctx)
 	}
 	return errors.New("could not find local environment for the release build to update")
 }

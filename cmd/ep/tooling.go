@@ -39,7 +39,7 @@ func Build() *cmdr.Commander {
 			cmdr.MakeCommander().
 				SetName("update").
 				SetUsage("update the local repo/checkout").
-				With(odemcli.WorkerAction(release.LocalUpdate)),
+				With(odemcli.ConfigurationAction(release.LocalUpdate)),
 			cmdr.MakeCommander().
 				SetName("release").
 				SetUsage("release automation").
@@ -75,6 +75,10 @@ func Build() *cmdr.Commander {
 					cmdr.MakeCommander().
 						SetName("build").
 						SetUsage("builds the release artifact; requires bootstrapping").
+						With(odemcli.ConfigurationAction(release.BuildForDeploy)),
+					cmdr.MakeCommander().
+						SetName("update").
+						SetUsage("updates the checkout; requires bootstrapping").
 						With(odemcli.ConfigurationAction(release.BuildForDeploy)),
 					cmdr.MakeCommander().
 						SetName("service").

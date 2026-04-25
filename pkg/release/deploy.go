@@ -22,11 +22,11 @@ func Deploy(ctx context.Context, conf *odem.Configuration) error {
 func UpdateForDeploy(ctx context.Context, conf *odem.Configuration) error {
 	if conf.Build.Deploy.Remote == conf.Runtime.Hostname {
 		grip.Info(grip.KV("op", "updating").KV("host", "local"))
-		return LocalBuild(ctx)
+		return LocalUpdate(ctx, conf)
 	}
 
 	grip.Info(grip.KV("op", "rebuilding").KV("host", conf.Build.Deploy.Remote))
-	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "update").Run(ctx)
 }
 
 func RestartService(ctx context.Context, conf *odem.Configuration) error {
