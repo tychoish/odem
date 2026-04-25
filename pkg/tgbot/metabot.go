@@ -65,6 +65,7 @@ func (m *metabot) newBot(threadID int) *bot {
 		off:      m.off,
 	}
 	_ = b.resetState()
+	b.metrics.createdAt = time.Now()
 	b.setLastUpdated(time.Now())
 	return b
 }

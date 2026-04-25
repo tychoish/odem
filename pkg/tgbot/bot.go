@@ -37,6 +37,7 @@ type bot struct {
 		sent          atomic.Int64
 		filesSent     atomic.Int64
 		filesSentSize atomic.Int64
+		createdAt     time.Time
 	}
 	lastUpdated time.Time
 	queryState  struct {
