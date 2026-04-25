@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ import (
 func (b *bot) dispatchMessage(msg string) stateFn {
 	defer func() {
 		if p := recover(); p != nil {
-			grip.Alert(b.grip("recover").KV("panic", p))
+			grip.Alert(b.grip("recover").KV("panic", p).KV("stack", string(debug.Stack())))
 		}
 	}()
 	msg = strings.ToLower(msg)
