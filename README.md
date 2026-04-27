@@ -1,11 +1,21 @@
 # `odem` -- a command line (& etc.) tool for Sacred Harp Singing Minutes Data
 
+- Includes an interactive text/cli interface, and a conventional CLI
+- Telegram Chat Bot.
+- Non-interactive CLI/Markdown interface.
+
 ## Background
 
-Taking the work Mark has done with the minutes data for Sacred Harp
-singing, I wanted to put together a library/app(lication) for working
-with the minutes data at a (potentially) higher level (than writing
-and running queries directly against the database.)
+As someone with an Android phone--and an utter nerd--I've wanted to
+have better access to the Sacred Harp Minutes data, in the past few
+years. More up to date. Weird questies. Taking the work Mark has done
+with the minutes data for Sacred Harp singing, I wanted to put
+together a library/app(lication) for working with the minutes data at
+a (potentially) higher level.
+
+As a software engineer, I also mostly end up spending time writing
+software that--by its very nature--I don't really use, so it's been
+nice to work on something that I'll actually use. It's also fun to be able to make this data accessible in a way that doesn't involve writing queries directly against the database.
 
 This is entirely for fun, and made possible by Mark's
 [fasolaminutes_parsing](https://github.com/marktgodfrey/fasolaminutes_parsing/)
@@ -23,8 +33,7 @@ Some of the highlights:
 - _singing buddies_: who have you been at the most singings with.
 
 - (surprising?) _singing strangers_: who have you _never_ sung with
-  (but who has sung with most (man?) of the people that you've sung
-  with!)
+  (but who have sung with most of the people that you've sung with!)
 
 - singers' "_connectedness_" or the percentage of total singers that
   you've been at singings with.
@@ -54,8 +63,8 @@ There's a command line interface with a fuzzy-search interface, as
 well as the ability to generate markdown files with "reports," for
 every query. Coming soon:
 
-- packing/delivering the application in various ways so that more
-  people can use it, (if they wanted.)
+- packing/delivering the application in more ways various ways so that
+  more people can use it.
 
 - some improvements to the fuzzy search experience to make it feel
   more like an application and less like a weird command line thing.
@@ -76,20 +85,23 @@ every query. Coming soon:
 
 ## The Fine Print
 
-The reset of this file contains a bunch of technical details about the
+The rest of this file contains a bunch of technical details about the
 program, running/developing the software. Feel free to stop here.
 
 Having said that, I don't think you have to be a programmer to use
-`odem, and I've tried to be detailed in the documentation/instructions
-below for installing and getting started, so feel free to stick
-around. 😃
+`odem`, and I've tried to be detailed in the documentation and
+instructions below for installing and getting started, so feel free to
+stick around. 😃
 
 The application is a fairly modular and largely standard Go
 application. The database (sqlite) is pulled from Mark's repository
 (as a git submodule) and attached to the binary, and then written out
 to your temporary directory (e.g. `/tmp`) when the program runs for
-the first time/as needed. The database bootstrapping takes a bit under
-90 seconds (on my not very impressive laptop,) so be ready for that.
+the first time/as needed. When initializing the database, `odem` adds
+several indexes, (non-materialized) views, and materialized
+projections to optimize and facilitate some the applications more
+unique queries. The database bootstrapping takes a bit under 90
+seconds (on my not very impressive laptop,) so be ready for that.
 
 Bootstrapping notwithstanding, the application is (relatively
 speaking,) very self contained: there's one file, it does its own
@@ -144,6 +156,7 @@ lot. Apologies...
    ./odem --help
    ./odem fzf --help
    ./odem report --help
+   ./odem navigation --help
    ```
 
    The first time you actually access the data, the application will
@@ -151,18 +164,18 @@ lot. Apologies...
    temporary space is cleared (typically on reboot), you upgrade
    (e.g. run `go build` as above.)
 
-4. **Optional**: Make `odem` accessible from any terminal. I prefer to
-   do this by creating a symbolic link in `/usr/local/bin/` to the
-   `odem` artifact in this directory. There are other ways, and this
-   is optional but:
+4. **Optional**: Make `odem` accessible from any shell/terminal. I
+   prefer to do this by creating a symbolic link in `/usr/local/bin/`
+   to the `odem` artifact in this directory. There are other ways, and
+   this is optional but:
 
    ```bash
    sudo ln -s $(pwd)/odem /usr/local/bin/odem
    ```
 
-	Now from any system prompt on your system (assuming
-    `/usr/local/bin` is in your (search) `$PATH`), you can run the
-    `odem` command and everything should work.
+   Now from any prompt on your system (assuming `/usr/local/bin` is
+   in your (search) `$PATH`), you can run the `odem` command and
+   everything should work.
 
    This only needs to be done once. If it doesn't work your link may
    not be in the search path (or the build may not exist). Run `echo
@@ -210,7 +223,8 @@ Let's start with a guide to the codebase:
 
 - `pkg/models` includes data types generated from the database using
   `sqlc` (and `sqlc` generated queries.) The `usr.go` file contains
-  hand-generated models in support of complex queries.
+  hand-generated models in support of complex queries. Methods on
+  these types control some over the rendering of data in other forms.
 
 - `odem` uses `sqlc` for only two purposes:
 
@@ -224,19 +238,23 @@ Let's start with a guide to the codebase:
 
 - for the CLI handling the `pkg/dispatch/` contains the registry and
   dispatcher for command line entry points, with the rendering of the
-  reports in the `pkg/reportui` and the fzf-inspired interface in
-  `pkg/fzfui`. `dispatch` has the switch statements
+  reports in the `pkg/reportui`. User input is mostly handled by the
+  `selector` package.
 
-Basically, `reportui` and `fzfui` have a bunch of functions that
-handle user interaction and rendering of data that comes from the `db`
-package. The `dispatch` package sits between user requests and those
-handlers, and that's it.
+- other interfaces like MCP (`pkg/mcpsrv`), a telegram bot
+  (`pkg/tgbot`) and a menu-driven terminal interface (`pkg/navigator`)
+  use much of the same infrastructure to present data in different
+  ways.
+
+- `pkg/release` handles some project automation and build tooling, and
+  is mostly an experiment to see what it's like to fully bake
+  build/release/deployment code into an application and avoid the
+  otherwise inevitable collection of makefiles/build scripts/sticky
+  tape.
 
 #### AI Coding Assistants
 
-It's 2026, and one of my (personal) goals with this project has been
-to figure out how and to what extent I could get to use AI tools to in
-the development of this project. So there's some scaffolding here.
+Because it's 2026, there's some scaffolding for using AI coding tools/agents, and I've been using this project as a playground for exploring how to build a reasonable/maintainable piece of software somewhere between "entirely hand coded" and "only vibes."
 
 Agents have written many of the queries, and are responsible for much
 of the database optimization, and test code. The architecture and code
@@ -263,7 +281,7 @@ In genreal my take, for the moment, is that agents are great for:
   rooted in bad queries, and sometimes ones introduced by manual
   refactors.
 
-- writing deterministic tool, typically somewhat collaboratively with
+- writing deterministic tools, typically somewhat collaboratively with
   an organic programmer.
 
 In persuit of this, I tend to scrutinize anything written by Agents,
@@ -275,10 +293,10 @@ and for developing a robust test suite: at the same time their ability
 to "design"/generate a reasonable architecture or interfaces is
 somewhat suspect.
 
-As always short prompts that point out prototypes or patterns that you
-want to use; pointers to where code for various components or
-connections, as well as how you want tests to be written has proven
-more effective.
+The most effective things have been: short prompts that point out
+prototypes or patterns that you want to use, including pointers to
+where code for various components or connections lives or how it
+should be structured, and how you want tests to be written.
 
 #### The `tychoish` Ecosystem
 
@@ -328,7 +346,7 @@ Additional UIs:
 
 - ~~MCP serer (why not?)~~
 
-- Telegram Bot (for remote access?) and fun.
+- ~~Telegram Bot (for remote access?) and fun.~~
 
 - Minutes data guessing games (for road trips.)
 
@@ -341,27 +359,15 @@ Other features:
 
 - Super-locality queries (e.g. multi-state regions.)
 
-- "Inactive singers" (no activity in N-years,) filters so we can have
-  "most common leader who's still singing."
+- apply "active singers" (activity in N-years,) filters to more
+  queries.
 
-- Statefull "memory" of who a given user is, to provide relative
-  statistics between two or small groups of singers.
-
-- ratio of leads of a particular song to the leaders entire set of
-  leads.
+- ratio of leads of a particular song to the leaders set of leads.
 
 Improvements:
 
-- the fuzzy interface is (today) mostly a menu system to generate
-  markdown fragments, could operate more as a loop so you could jump
-  through data in the fuzzy interface.
-
-- the `reportui` package collapses selection/resolution and rendering
-  and this should be more divided. Potentially (if this makes sense)
-  rendered in a way that lets those forms be reused.
-
-- most of the limits and other parameters for queries are not
-  (particularly) exposed to queries, could improve this.
+- some query parameters are not particularly exposed to users, could
+  improve this.
 
 - while the fuzzy search tool is pretty good, it's slightly less
   flexible in some ways than I'd like, and I might explore replacing
@@ -369,7 +375,7 @@ Improvements:
 
 ### Contribution
 
-Definitely down to have other folks contribute with this... I'm
+Definitely down to have other folks play with/add to/this... I'm
 particularly interested in this being a jumping off point for singers
 who are interested in programming/software/data things but who don't
 think of themselves as programmers. Let's talk about it!
