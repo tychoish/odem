@@ -28,6 +28,10 @@ const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.versi
 // optionally compresses them with upx, generates sha256 checksums, and
 // packages each binary into a zip (Windows) or tar.gz archive.
 func BuildArtifacts(ctx context.Context, conf *odem.Configuration) error {
+	gopath := os.Getenv("GOPATH")
+	gomodCache := os.Getenv("GOMODCACHE")
+	gocache := os.Getenv("GOCACHE")
+	home := home.GetDirectory()
 	for basepath := range basePathCandidates(conf) {
 		basecmd := infra.Command(ctx).WithDirectory(basepath)
 		versionString := Version.Resolve().String()
@@ -60,6 +64,10 @@ func BuildArtifacts(ctx context.Context, conf *odem.Configuration) error {
 				basecmd.Clone().
 					WithName("go").
 					WithArgs("build", ldFlag, "-o", binPath, "./cmd/odem.go").
+					SetEnvVar("HOME", home).
+					SetEnvVar("GOCACHE", gocache).
+					SetEnvVar("GOPATH", gopath).
+					SetEnvVar("GOMODCACHE", gomodCache).
 					SetEnvVar("GOOS", build.GOOS).
 					SetEnvVar("GOARCH", build.GOARCH),
 				basecmd.Clone().Shell("bash", fmt.Sprintf("sha256sum %s > %s.sha256", binPath, filepath.Join(versionBuildPath, artifactName))),
