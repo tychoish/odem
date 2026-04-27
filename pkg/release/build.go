@@ -27,9 +27,7 @@ const ldFlagTmpl = `-ldflags=-s -w -X github.com/tychoish/odem/pkg/release.versi
 // BuildArtifacts builds release binaries for all configured targets,
 // optionally compresses them with upx, generates sha256 checksums, and
 // packages each binary into a zip (Windows) or tar.gz archive.
-func BuildArtifacts(ctx context.Context) error {
-	conf := odem.GetConfiguration(ctx)
-
+func BuildArtifacts(ctx context.Context, conf *odem.Configuration) error {
 	for basepath := range basePathCandidates(conf) {
 		basecmd := infra.Command(ctx).WithDirectory(basepath)
 		versionString := Version.Resolve().String()
@@ -157,8 +155,7 @@ func LocalUpdate(ctx context.Context, conf *odem.Configuration) error {
 	return errors.New("could not find local environment for the release build to update")
 }
 
-func LocalBuild(ctx context.Context) error {
-	conf := odem.GetConfiguration(ctx)
+func LocalBuild(ctx context.Context, conf *odem.Configuration) error {
 	curVersion := GitDescribe()
 
 	for basepath := range basePathCandidates(conf) {
@@ -178,6 +175,7 @@ func LocalBuild(ctx context.Context) error {
 		grip.Info(grip.MPrintln("building:", append([]string{"go"}, args...)))
 
 		return infra.Command(ctx).
+			WithDirectory(basepath).
 			WithName("go").
 			WithArgs(args...).
 			Run(ctx)

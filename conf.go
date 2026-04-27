@@ -3,6 +3,7 @@ package odem
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -131,6 +132,19 @@ func newDecoderForFile(path string) func(io.Reader) interface{ Decode(any) error
 	default:
 		panic(erc.NewInvariantError("cannot resolve decoder for", path))
 	}
+}
+
+// ValidateDeploy checks that the configuration is sufficient to perform
+// service-level deploy operations (restart, deploy service). It returns an
+// error describing whichever required field is missing.
+func (c *Configuration) ValidateDeploy() error {
+	if c.Build.Deploy.Intstance == "" {
+		return errors.New("deploy.instance must be set for service operations (use --deploy.instance or configure build.deploy in config file)")
+	}
+	if c.Build.Deploy.Remote == "" {
+		return errors.New("deploy.remote must be set (set build.deploy.remote in config file, or use --deploy.instance to target a host)")
+	}
+	return nil
 }
 
 func fileExists(path string) bool {

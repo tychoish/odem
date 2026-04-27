@@ -10,6 +10,9 @@ import (
 )
 
 func Deploy(ctx context.Context, conf *odem.Configuration) error {
+	if err := conf.ValidateDeploy(); err != nil {
+		return err
+	}
 	grip.Notice(grip.When(conf.Runtime.Hostname == "", "cannot determine hostname, will proceed as if the deploy is remote"))
 
 	if err := BuildForDeploy(ctx, conf); err != nil {
@@ -30,6 +33,9 @@ func UpdateForDeploy(ctx context.Context, conf *odem.Configuration) error {
 }
 
 func RestartService(ctx context.Context, conf *odem.Configuration) error {
+	if err := conf.ValidateDeploy(); err != nil {
+		return err
+	}
 	srvRestartArgs := getServiceRestartArgs(conf)
 
 	if conf.Build.Deploy.Remote == conf.Runtime.Hostname {
@@ -44,7 +50,7 @@ func RestartService(ctx context.Context, conf *odem.Configuration) error {
 func BuildForDeploy(ctx context.Context, conf *odem.Configuration) error {
 	if conf.Build.Deploy.Remote == conf.Runtime.Hostname {
 		grip.Info(grip.KV("op", "rebuilding").KV("host", "local"))
-		return LocalBuild(ctx)
+		return LocalBuild(ctx, conf)
 	}
 
 	grip.Info(grip.KV("op", "rebuilding").KV("host", conf.Build.Deploy.Remote))

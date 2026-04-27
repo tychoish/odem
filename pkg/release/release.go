@@ -57,6 +57,13 @@ func GitDescribe() string {
 // build directory for the given tag to the matching GitHub release using
 // `gh release upload`.
 func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
+	if conf.Build.Tag == "" {
+		return fmt.Errorf("build tag is required for upload")
+	}
+	if err := ValidateVersion(conf.Build.Tag); err != nil {
+		return err
+	}
+
 	var releaseID string
 	if strings.HasPrefix(conf.Build.Tag, joindash(Name, "")) {
 		releaseID = conf.Build.Tag[len(Name)+1:]
