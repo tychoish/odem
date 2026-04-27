@@ -17,6 +17,7 @@ import (
 	"github.com/tychoish/fun/ers"
 	"github.com/tychoish/fun/exc"
 	"github.com/tychoish/fun/irt"
+	"github.com/tychoish/fun/strut"
 	"github.com/tychoish/grip"
 	"github.com/tychoish/grip/level"
 	"github.com/tychoish/grip/send"
@@ -71,12 +72,14 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		releaseID = conf.Build.Tag
 	}
 
-	buildDir := filepath.Join(conf.Build.Path, conf.Build.Tag)
+	buildDir := filepath.Join(conf.Build.Path, strut.JOIN.WithDash().Strings(Name, conf.Build.Tag))
 	if !fileExists(buildDir) {
 		return fmt.Errorf("build directory %q does not exist", buildDir)
 	}
 
-	artifacts := &dt.Set[string]{}
+	archives := &dt.Set[string]{}
+	binaries := &dt.Set[string]{}
+	checksums := &dt.Set[string]{}
 	if err := filepath.WalkDir(buildDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -87,9 +90,9 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		case strings.Contains(name, "386"):
 			break
 		case strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".tar.gz"):
-			artifacts.Add(joinstr(path, "#archive: "))
+			archives.Add(joinstr(path, "#archive: ", name))
 		case strings.HasSuffix(name, ".sha256"):
-			artifacts.Add(joinstr(path, "#checksum (sha256): ", name))
+			checksums.Add(joinstr(path, "#checksum (sha256): ", name))
 		}
 
 		return nil
@@ -97,32 +100,33 @@ func UploadArtifacts(ctx context.Context, conf *odem.Configuration) error {
 		return err
 	}
 	if zw := filepath.Join(buildDir, "windows-amd64.lzma", joindot(Name, "exe")); fileExists(zw) {
-		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
+		binaries.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
 	if zw := filepath.Join(buildDir, "linux-amd64.lzma", Name); fileExists(zw) {
-		artifacts.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
+		binaries.Add(joinstr(zw, "#binary (+upx+lzma): ", zw))
 	}
 	if zw := filepath.Join(buildDir, joinstr(Name, "32")); fileExists(zw) {
-		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) linux-32bit: ", zw))
+		binaries.Add(joinstr(zw, "#binary (+upx+lzma) linux-32bit: ", zw))
 	}
 	if zw := filepath.Join(buildDir, joindot(Name, ".app")); fileExists(zw) {
-		artifacts.Add(joinstr(zw, "#binary (+upx+lzma) macOS : ", zw))
+		binaries.Add(joinstr(zw, "#binary (+upx+lzma) macOS : ", zw))
 	}
 
-	if artifacts.Len() == 0 {
+	if archives.Len()+binaries.Len()+checksums.Len() == 0 {
 		grip.Warning(grip.MPrintf("no artifacts found in %q", buildDir))
 		return nil
 	}
 
-	args := irt.Collect(irt.Chain(irt.Args(irt.Args("gh", "release", "upload", releaseID, "--clobber"), artifacts.Iterator())))
-
 	grip.Info(grip.KV("op", "upload artifacts").
 		KV("release", releaseID).
 		KV("tag", conf.Build.Tag).
-		KV("num", artifacts.Len()).
-		KV("args", args))
+		KV("num", archives.Len()+binaries.Len()+checksums.Len()))
 
 	w := send.MakeWriterSender(logger.Plain(ctx).Sender())
 	w.Store(level.Info)
-	return new(exc.Command).WithName(args[0]).WithArgs(args[1:]...).WithStdOutput(w).WithStdError(w).Run(ctx)
+	return erc.Join(
+		new(exc.Command).WithName("gh").WithArgs(irt.Collect(irt.Chain(irt.Args(irt.Args("release", "upload", releaseID, "--clobber"), binaries.Iterator())))...).WithStdOutput(w).WithStdError(w).Run(ctx),
+		new(exc.Command).WithName("gh").WithArgs(irt.Collect(irt.Chain(irt.Args(irt.Args("release", "upload", releaseID, "--clobber"), archives.Iterator())))...).WithStdOutput(w).WithStdError(w).Run(ctx),
+		new(exc.Command).WithName("gh").WithArgs(irt.Collect(irt.Chain(irt.Args(irt.Args("release", "upload", releaseID, "--clobber"), checksums.Iterator())))...).WithStdOutput(w).WithStdError(w).Run(ctx),
+	)
 }

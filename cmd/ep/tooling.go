@@ -53,6 +53,7 @@ func Build() *cmdr.Commander {
 								SetRequired(true).
 								Flag(),
 						).
+						With(odemcli.AttachConfiguration).
 						With(odemcli.ConfigurationAction(release.UploadArtifacts)),
 				),
 			cmdr.MakeCommander().
