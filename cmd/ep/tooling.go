@@ -17,6 +17,7 @@ func Build() *cmdr.Commander {
 		SetName("build").
 		Aliases("make").
 		SetUsage("project automation and release tools").
+		With(odemcli.CommandHelpAction).
 		Flags(cmdr.FlagBuilder(false).
 			SetName("dry-run", "n").
 			SetUsage("disables all (most?) write operations for some (admin) operations").
