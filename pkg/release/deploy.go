@@ -54,7 +54,7 @@ func BuildForDeploy(ctx context.Context, conf *odem.Configuration) error {
 	}
 
 	grip.Info(grip.KV("op", "rebuilding").KV("host", conf.Build.Deploy.Remote))
-	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, Name, "build").Run(ctx)
+	return infra.Command(ctx).SSH(conf.Build.Deploy.Remote, fmt.Sprintf("cd %s; odem build odem", conf.Build.Deploy.RemotePath)).Run(ctx)
 }
 
 func getServiceRestartArgs(conf *odem.Configuration) []string {
