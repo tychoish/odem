@@ -57,9 +57,8 @@ type Configuration struct {
 			Remote        string `bson:"remote" json:"remote" yaml:"remote"`
 			GlobalService bool   `bson:"global" json:"global" yaml:"global"`
 			RemotePath    string `bson:"remote_path" json:"remote_path" yaml:"remote_path"`
-
-			Intstance string `bson:"-" json:"-" yaml:"-"`
-			Target    string `bson:"-" json:"-" yaml:"-"`
+			Intstance     string `bson:"-" json:"-" yaml:"-"`
+			Target        string `bson:"-" json:"-" yaml:"-"`
 		} `bson:"deploy" json:"deploy" yaml:"deploy"`
 		BinaryLink string `bson:"binary_link" json:"binary_link" yaml:"binary_link"`
 	} `bson:"build" json:"build" yaml:"build"`

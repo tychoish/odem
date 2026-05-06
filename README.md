@@ -1,7 +1,7 @@
 # `odem` -- a command line (& etc.) tool for Sacred Harp Singing Minutes Data
 
 - Includes an interactive text/cli interface, and a conventional CLI
-- Telegram Chat Bot.
+- Telegram Chat Bot. [@fasolaMintesBot](https://t.me/fasolaMinutesBot)
 - Non-interactive CLI/Markdown interface.
 
 ## Background
@@ -320,22 +320,17 @@ in particular:
   type around a `[]byte` slice.) This all makes building text and
   string output more ergonomic and higher-level.
 
-- [github.com/tychoish/grip](https://github.com/tychoish/grip), a
-  structured logging library with a focus on ease-of-use, flexibility,
-  and ergonomics.
-
 - [github.com/tychoish/dbx](https://github.com/tychoish/dbx), is an
   elaboration on the `go-simpler.org/queries` library, with expanded
   support for decoding database-tuples into go types and a more
   optimized query builder.
 
-- [github.com/tychoish/cmdr](https://github.com/tychoish/cmdr)
-  provides a thin layer on top of the `urfave/cli` package for
-  handling dispatching of CLI applications. The goal is the minimize
-  the amount of boilerplate/overhead for arg-parsing, and also to
-  maintain a more robust boundary between the `cli` package and any
-  application code (_without sacrificing the support of the type
-  system._)
+- I've also used
+  [github.com/tychoish/grip](https://github.com/tychoish/grip), a
+  structured loggong tool and
+  [github.com/tychoish/cmdr](https://github.com/tychoish/cmdr) a CLI
+  argument/subcommand framework/builder, but both are older projects
+  of mine that have been largely superseded by other tools/approaches.
 
 #### Roadmap
 
